@@ -1,69 +1,36 @@
-import Image from "next/image";
+import { EnlistForm } from "./enlist-form";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto w-full max-w-2xl px-4 py-12 sm:py-20 flex-1">
+      <header className="border-b border-rule pb-6">
+        <p className="text-xs tracking-[0.25em] uppercase text-ink-2">United States Government</p>
+        <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">Office of Administrative Survey</h1>
+        <p className="mt-1 text-sm text-ink-2">Personnel Division · Washington, D.C.</p>
+      </header>
+
+      <section className="mt-8 space-y-4 text-[15px] leading-relaxed">
+        <div className="grid grid-cols-[9.5rem_1fr] gap-y-1 text-sm">
+          <span className="text-ink-2">SUBJECT</span><span>Appointment and Reporting Instructions</span>
+          <span className="text-ink-2">CLASSIFICATION</span><span className="text-stamp font-semibold">INTERNAL</span>
+          <span className="text-ink-2">DATE</span><span>October 1977</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <p className="pt-4">To the prospective employee:</p>
+        <p>The Office of Administrative Survey is responsible for records management, government property inventories, and unusual interagency administrative matters.</p>
+        <p>Appointments are made in cohorts. Each cohort serves a six-week probationary term of daily correspondence. Employees receive instructions by mail each morning and submit their orders by 8:00 PM Eastern.</p>
+        <p>You may receive communications from individuals whose names do not appear on the current staff directory. This is not necessarily an administrative error.</p>
+        <p>Do not assume that an absence of documentation constitutes proof that something does not exist.</p>
+      </section>
+
+      <section className="mt-10 border-t border-rule pt-8">
+        <h2 className="text-sm tracking-[0.2em] uppercase text-ink-2">Form OAS-1 · Request for Appointment</h2>
+        <EnlistForm />
+        <p className="mt-4 text-xs text-ink-2 leading-relaxed">
+          The Department is a correspondence game. Mail you send to the game is processed by software, including AI models, to run the simulation. It is never shared with other players except as the game&apos;s rules allow. Out-of-game personal information is not used in play.
+        </p>
+      </section>
+
+      <footer className="mt-16 text-xs text-ink-2">Continuity Order 7 · Est. 1947</footer>
+    </main>
   );
 }
