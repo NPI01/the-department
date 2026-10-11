@@ -80,6 +80,11 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
 
   let lastErr: CobbleError | null = null;
   for (const model of chain) {
+    // attempt 0: as asked. attempt 1: once more after a quoted retry_after, OR with
+    // thinking off when the model spent its whole budget reasoning and emitted
+    // nothing (measured 2026-10-11: 35B-A3B reasons ~2000 tokens on a one-line
+    // prompt; on a canon-sized prompt it hit a 3000 cap with empty content).
+    let thinkThisCall = think;
     for (let attempt = 0; attempt < 2; attempt++) {
       const t0 = Date.now();
       let status: number | null = null;
@@ -87,7 +92,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
         const res = await fetch(`${cfg.base}/chat/completions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.key}` },
-          body: JSON.stringify({ ...body, model }),
+          body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall } }),
           signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 300_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 300_000),
         });
         status = res.status;
@@ -106,7 +111,12 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
         const text = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
         const usage: Usage | null = j?.usage ?? null;
         await opts.onLedger?.({ tag: opts.tag ?? "untagged", model, ok: true, status, ms: Date.now() - t0, usage, error: null, attempt });
-        if (!text) { lastErr = new CobbleError(`${model} returned empty content`, status, raw.slice(0, 500), null); break; }
+        if (!text) {
+          const finish = j?.choices?.[0]?.finish_reason;
+          lastErr = new CobbleError(`${model} returned empty content (finish=${finish}, thinking=${thinkThisCall})`, status, raw.slice(0, 500), null);
+          if (attempt === 0 && thinkThisCall) { thinkThisCall = false; continue; }
+          break;
+        }
         return { text, model, usage, raw };
       } catch (e) {
         if (opts.signal?.aborted) throw e;
