@@ -44,3 +44,8 @@ next-env.d.ts
 agents/out/
 .env
 .env.local
+
+# original PNG sources (JPGs in public/images are what ships)
+public/images-src/
+.DS_Store
+._*
