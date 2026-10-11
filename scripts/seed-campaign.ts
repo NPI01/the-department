@@ -14,13 +14,14 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.SUPABA
 if (!url || !key) { console.error("Supabase env missing"); process.exit(2); }
 const db = createClient(url, key, { auth: { persistSession: false } });
 
-async function must<T>(p: PromiseLike<{ data: T | null; error: { message: string } | null }>, what: string): Promise<T> {
-  const { data, error } = await p; if (error) throw new Error(`${what}: ${error.message}`); return data as T;
+// The client is untyped (no generated DB types yet), so callers name the shape.
+async function must<T = unknown>(p: PromiseLike<{ data: unknown; error: { message: string } | null }>, what: string): Promise<T> {
+  const { data, error } = await p; if (error) throw new Error(`${what}: ${error.message}`); if (data == null) throw new Error(`${what}: no data`); return data as T;
 }
 
 (async () => {
-  const campaign = await must(db.from("campaigns").upsert({ slug: "season-one", title: "Season One — The High Country Program", timezone: "America/New_York", lock_time: "20:00", dispatch_time: "09:00", status: "draft" }, { onConflict: "slug" }).select("id").single(), "campaign");
-  const cid = (campaign as { id: string }).id;
+  const campaign = await must<{ id: string }>(db.from("campaigns").upsert({ slug: "season-one", title: "Season One — The High Country Program", timezone: "America/New_York", lock_time: "20:00", dispatch_time: "09:00", status: "draft" }, { onConflict: "slug" }).select("id").single(), "campaign");
+  const cid = campaign.id;
   console.log("campaign", cid);
 
   const divisions = [
@@ -35,8 +36,8 @@ async function must<T>(p: PromiseLike<{ data: T | null; error: { message: string
     ["dsrd", "Department of Special Research and Development", "The Department. Coordinates sensitive projects. Not on the org chart new hires receive."],
   ];
   await must(db.from("divisions").upsert(divisions.map(([slug, name, description]) => ({ campaign_id: cid, slug, name, description })), { onConflict: "campaign_id,slug" }).select("id"), "divisions");
-  const divRows = await must(db.from("divisions").select("id, slug").eq("campaign_id", cid), "divisions read");
-  const div = Object.fromEntries(divRows.map((d: { id: string; slug: string }) => [d.slug, d.id]));
+  const divRows = await must<{ id: string; slug: string }[]>(db.from("divisions").select("id, slug").eq("campaign_id", cid), "divisions read");
+  const div = Object.fromEntries(divRows.map((d) => [d.slug, d.id]));
 
   const factions = [
     ["royce", "Royce Industries", "Own the phenomenon. Complete OMEGA. Keep the contract.", true],
@@ -67,8 +68,8 @@ async function must<T>(p: PromiseLike<{ data: T | null; error: { message: string
     ["convergence.index", 22], ["convergence.threshold.manifest", 40], ["convergence.threshold.opening", 80],
   ];
   // rules has no unique key by design (versioned); insert only those missing at round 1
-  const existing = await must(db.from("rules").select("key").eq("campaign_id", cid).eq("effective_from_round", 1), "rules read");
-  const have = new Set(existing.map((r: { key: string }) => r.key));
+  const existing = await must<{ key: string }[]>(db.from("rules").select("key").eq("campaign_id", cid).eq("effective_from_round", 1), "rules read");
+  const have = new Set(existing.map((r) => r.key));
   const missing = rules.filter(([k]) => !have.has(k)).map(([key, value]) => ({ campaign_id: cid, key, value, effective_from_round: 1, enacted_by: "charter" }));
   if (missing.length) await must(db.from("rules").insert(missing).select("id"), "rules insert");
 
