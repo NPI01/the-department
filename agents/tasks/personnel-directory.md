@@ -17,3 +17,13 @@ is obvious from a department.
 
 Deliver a matrix (name × faction × what they know about each secret) the engine can load
 as `characters.npc_state`.
+
+Constraints the first run violated (now hard rules):
+- Canon characters keep their canon roles. Martin Sayer is a private correspondent in
+  Yonkers, New York; he is NOT a Royce employee and holds no position. Vale, Sloane,
+  Hensley, Royce, Marsh, Kessler, Greeley, Mercer, Fisk keep the titles in secret canon 03.
+- Do not coin names that echo canon names (no Vane/Vail for Vale, no Halloway/Kessner
+  for Kessler, no second Thorne). Every new surname must be distinct from every canon
+  surname and from every other new surname.
+- Invent the department heads for the seven departments that do not yet have one
+  (Sloane already heads Corporate Security); give them full dossiers.
