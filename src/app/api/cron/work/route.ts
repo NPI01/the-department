@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { claimJobs, runJob } from "@/lib/engine/jobs";
+import { heartbeat } from "@/lib/engine/heartbeat";
 
 export const maxDuration = 300;
 
@@ -11,12 +12,15 @@ export async function GET(req: NextRequest) {
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) return new Response("unauthorized", { status: 401 });
   if (!supabaseConfigured()) return Response.json({ ok: false, reason: "database not configured" });
   const db = supabaseAdmin();
-  const started = Date.now();
-  let done = 0;
-  while (Date.now() - started < 240_000) {
-    const jobs = await claimJobs(db, 5);
-    if (!jobs.length) break;
-    for (const j of jobs) { await runJob(db, j); done++; }
-  }
-  return Response.json({ ok: true, done });
+  const result = await heartbeat(db, "work", async () => {
+    const started = Date.now();
+    let done = 0;
+    while (Date.now() - started < 240_000) {
+      const jobs = await claimJobs(db, 5);
+      if (!jobs.length) break;
+      for (const j of jobs) { await runJob(db, j); done++; }
+    }
+    return { ok: true, done, ms: Date.now() - started };
+  });
+  return Response.json(result);
 }

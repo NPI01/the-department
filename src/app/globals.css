@@ -8,6 +8,8 @@
   --rule: #b9b09a;
   --stamp: #8a2a1f;
   --accent: #27463f;
+  --ok: #3d6b35;
+  --warn: #8a6414;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +21,8 @@
     --rule: #3d382c;
     --stamp: #c6483a;
     --accent: #7fb0a3;
+    --ok: #8fbf7f;
+    --warn: #d7a64a;
   }
 }
 
@@ -30,6 +34,8 @@
   --color-rule: var(--rule);
   --color-stamp: var(--stamp);
   --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
   --font-mono: var(--font-geist-mono);
 }
 

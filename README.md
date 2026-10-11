@@ -27,6 +27,8 @@ src/lib/email/     resend.ts (outbound, Message-IDs) · inbound.ts (Svix verify,
 src/lib/engine/    phases.ts — fixed resolution order
 src/lib/supabase/  browser, server (RLS) and admin (service role) clients
 src/app/           landing page + api/enlist, api/email/inbound, api/cron/tick
+src/app/admin/     the showrunner console (login + (console)/ pages); data layer in src/lib/admin/
+src/proxy.ts       keeps the Supabase session fresh on /admin; redirects signed-out visits
 vercel.json        daily cron → /api/cron/tick
 ```
 
@@ -37,6 +39,20 @@ pnpm dev                     # http://localhost:3000
 pnpm agents nightjar-hidden-history
 pnpm typecheck && pnpm lint
 ```
+
+## Showrunner console
+`/admin` — Overview, Season Schedule (today, tomorrow, and a timeline of every day with
+each vote cast), Seasons & Episodes, Casting Call, Players (subscription, activity and a
+model-written brief), Engine Health (model chain with live probe, job queue, cron
+heartbeats). Sign-in is a Supabase magic link, sent only to addresses on the `admins`
+allowlist:
+```bash
+pnpm admin:add you@example.com     # allowlist an address
+pnpm seed:sandbox                  # fake season to look around in; --drop removes it
+```
+In Supabase Auth → URL Configuration, the deployed site's `/auth/confirm` must be an
+allowed redirect URL. The built-in mailer sends only a few links an hour; set custom SMTP
+before staff other than the project owner sign in.
 
 ## Principles the code enforces
 1. Original correspondence is immutable. Model interpretations are separate rows with

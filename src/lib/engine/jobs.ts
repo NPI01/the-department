@@ -5,11 +5,13 @@
      grammar     apply deterministic acts (vote/hold/order/accept/reject/transfer) from a trusted sender
      extract     ask the model for non-binding structured events; store with provenance
      tick_phase  one resolution phase of a locked round (deterministic; stubs grow into rules)
-     send        deliver an outbound correspondence row via Resend */
+     send        deliver an outbound correspondence row via Resend
+     player_brief  the console's model-written note on a player (src/lib/admin/brief.ts) */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
 import { sendMail } from "@/lib/email/resend";
 import type { GrammarAct } from "@/lib/email/inbound";
+import { writeBrief } from "@/lib/admin/brief";
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
 
@@ -144,6 +146,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     // strategic / world / narrate / diplomatic: rules land here as the Rules Lawyer task is promoted.
     await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "phase.done", payload: {}, idempotency_key: key });
+  },
+
+  async player_brief(db, p) {
+    await writeBrief(db, p.brief_id as string);
   },
 
   async send(db, p) {

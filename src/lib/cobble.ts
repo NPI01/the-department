@@ -26,6 +26,7 @@ export type ChatOpts = {
   signal?: AbortSignal;
   timeoutMs?: number;
   tag?: string;            // who is calling (role name) — for the ledger
+  patient?: boolean;       // false: on 429/5xx go straight to the next model (interactive calls)
   onLedger?: (row: LedgerRow) => void | Promise<void>;
 };
 
@@ -114,7 +115,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
           await opts.onLedger?.({ tag: opts.tag ?? "untagged", model, ok: false, status, ms: Date.now() - t0, usage: null, error: lastErr.message, attempt });
           // 400 = bad model name or bad request for this model: never retry it
           if (res.status === 400 || res.status === 401 || res.status === 404) break;
-          if (attempt === LADDER.length) break;
+          if (attempt === LADDER.length || opts.patient === false) break;
           const wait = retryAfter !== null ? Math.min(retryAfter, 120) * 1000 : LADDER[attempt];
           await sleep(wait, opts.signal); continue;
         }
