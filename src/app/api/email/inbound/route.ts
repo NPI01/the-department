@@ -3,6 +3,19 @@ import { verifySvix, parseGameAddress, parseGrammar, stripQuoted } from "@/lib/e
 import { emailDomain } from "@/lib/email/resend";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 
+async function fetchReceived(id: string): Promise<{ text: string; html: string | null; headers: Record<string, string> } | null> {
+  const key = process.env.RESEND_API_KEY;
+  if (!id || !key) return null;
+  try {
+    const r = await fetch(`https://api.resend.com/emails/receiving/${id}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const headers: Record<string, string> = {};
+    for (const h of (j.headers ?? []) as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = h.value;
+    return { text: String(j.text ?? ""), html: j.html ?? null, headers };
+  } catch { return null; }
+}
+
 /* Resend → us. Pipeline (docs/00-plan-audit.md §3):
    verify signature → store the original immutably → resolve sender and recipients →
    parse the deterministic grammar → enqueue model extraction (non-blocking).
@@ -18,6 +31,12 @@ export async function POST(req: NextRequest) {
   if (evt.type !== "email.received") return Response.json({ ignored: evt.type });
   const d = (evt.data ?? {}) as Record<string, unknown>;
   const domain = emailDomain();
+
+  // The email.received event carries metadata only (to, from, subject,
+  // email_id, message_id, attachments). The body comes from the receiving
+  // API, which needs a full-access key. Measured 2026-10-11.
+  const full = await fetchReceived(String(d.email_id ?? ""));
+  if (full) { d.text = full.text; d.html = full.html; d.headers = full.headers; }
 
   const toList = ([] as string[]).concat((d.to as string[] | string) ?? []);
   const ccList = ([] as string[]).concat((d.cc as string[] | string) ?? []);
