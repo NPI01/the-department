@@ -49,3 +49,4 @@ agents/out/
 public/images-src/
 .DS_Store
 ._*
+!.env.example
