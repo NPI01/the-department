@@ -79,7 +79,10 @@ export async function fetchReceived(id: string): Promise<{ text: string; html: s
     const j = await r.json();
     if (!j.text) console.error(`[inbound] receiving API returned no text for ${id}; keys=${Object.keys(j).join(",")}`);
     const headers: Record<string, string> = {};
-    for (const h of (j.headers ?? []) as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = h.value;
+    // Resend returns headers as an object map (measured 2026-10-11); accept the array form too.
+    const raw = j.headers ?? {};
+    if (Array.isArray(raw)) for (const h of raw as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = String(h.value);
+    else for (const [k, v] of Object.entries(raw as Record<string, unknown>)) headers[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : String(v);
     return { text: String(j.text ?? ""), html: j.html ?? null, headers, authentication: j.authentication ?? null };
   } catch (e) { console.error(`[inbound] receiving API fetch failed for ${id}: ${(e as Error).message}`); return null; }
 }
