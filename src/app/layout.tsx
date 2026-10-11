@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Oswald, Special_Elite } from "next/font/google";
 import "./globals.css";
 
-const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const oswald = Oswald({ variable: "--font-oswald", subsets: ["latin"], weight: ["300", "500", "700"] });
-const elite = Special_Elite({ variable: "--font-special-elite", subsets: ["latin"], weight: "400" });
+/* Fonts come from Google Fonts as a stylesheet rather than next/font: the
+   next/font/google loader failed under Turbopack in Vercel's build sandbox
+   ("queries have exactly one entry", 2026-10-11) while working in dev. */
+const FONTS = "https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&family=Special+Elite&family=Geist+Mono:wght@400;500&display=swap";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://weird.delivery"),
@@ -21,7 +21,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${mono.variable} ${oswald.variable} ${elite.variable} h-full antialiased`}>
+    <html lang="en" className="h-full antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href={FONTS} />
+      </head>
       <body className="min-h-full flex flex-col grain">{children}</body>
     </html>
   );
