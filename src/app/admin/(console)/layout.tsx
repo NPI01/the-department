@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getSeasons } from "@/lib/admin/queries";
@@ -55,7 +56,7 @@ async function Who() {
   const admin = await requireAdmin();
   return (
     <form action={signOut} className="text-xs text-ink-2">
-      <p className="truncate" title={admin.email}>{admin.email}</p>
+      <Link href="/admin/account" className="block truncate hover:text-ink hover:underline" title="Account and password">{admin.email}</Link>
       <button className="underline hover:text-ink">Sign out</button>
     </form>
   );

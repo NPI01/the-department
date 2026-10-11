@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { isAllowlisted } from "@/lib/admin/auth";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type LoginState = { sent?: boolean; error?: string } | undefined;
 
@@ -21,6 +22,20 @@ export async function requestLink(_: LoginState, fd: FormData): Promise<LoginSta
     if (error) return { error: `The link could not be sent: ${error.message}` };
   }
   return { sent: true };
+}
+
+/* Password sign-in for allowlisted staff. One answer for every failure, so the
+   form does not reveal who is on the list or which half was wrong. */
+export async function signInWithPassword(_: LoginState, fd: FormData): Promise<LoginState> {
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  const password = String(fd.get("password") ?? "");
+  const wrong = { error: "That address and password don't match a staff account." };
+  if (!email || !password || !(await isAllowlisted(email))) return wrong;
+  const sb = await supabaseServer();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error || !data.user) return wrong;
+  await supabaseAdmin().from("admins").update({ user_id: data.user.id, last_sign_in_at: new Date().toISOString() }).eq("email", email);
+  redirect("/admin");
 }
 
 export async function signOut() {
