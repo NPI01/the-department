@@ -55,9 +55,12 @@ async function ask(role: RoleName, user: string, opts: { secret?: boolean } = {}
     save(`${role}.md`, res.text); return res.text;
   }
   const { data, result } = await chatJson<Record<string, unknown>>(messages, common);
-  console.log(`${result.model} ${((Date.now() - t0) / 1000).toFixed(0)}s ${result.usage?.total_tokens ?? "?"} tok${data ? "" : "  (JSON parse failed — raw saved)"}`);
-  save(`${role}.json`, data ?? { parse_failed: true, raw: result.text });
-  return data;
+  console.log(`${result.model} ${((Date.now() - t0) / 1000).toFixed(0)}s ${result.usage?.total_tokens ?? "?"} tok${data ? "" : "  (not JSON — prose kept for the Archivist)"}`);
+  // A model that ignores JSON mode (measured: 35B-A3B on a long dossier brief)
+  // still produced usable prose; it travels on to the Skeptic and Archivist.
+  const out = data ?? { parse_failed: true, prose: result.text };
+  save(`${role}-${Date.now()}.json`, out);
+  return out;
 }
 
 type Brief = { role: RoleName; title: string; instructions: string; deliverable: string };
