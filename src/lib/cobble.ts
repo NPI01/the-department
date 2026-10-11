@@ -85,7 +85,8 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
     // nothing (measured 2026-10-11: 35B-A3B reasons ~2000 tokens on a one-line
     // prompt; on a canon-sized prompt it hit a 3000 cap with empty content).
     let thinkThisCall = think;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const LADDER = [5_000, 15_000, 30_000];      // 429/5xx without a quote
+    for (let attempt = 0; attempt <= LADDER.length; attempt++) {
       const t0 = Date.now();
       let status: number | null = null;
       try {
@@ -103,8 +104,9 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
           await opts.onLedger?.({ tag: opts.tag ?? "untagged", model, ok: false, status, ms: Date.now() - t0, usage: null, error: lastErr.message, attempt });
           // 400 = bad model name or bad request for this model: never retry it
           if (res.status === 400 || res.status === 401 || res.status === 404) break;
-          if (attempt === 0 && retryAfter !== null && retryAfter <= 90) { await sleep(retryAfter * 1000, opts.signal); continue; }
-          break;
+          if (attempt === LADDER.length) break;
+          const wait = retryAfter !== null ? Math.min(retryAfter, 120) * 1000 : LADDER[attempt];
+          await sleep(wait, opts.signal); continue;
         }
         const j = JSON.parse(raw);
         const content = String(j?.choices?.[0]?.message?.content ?? "");
@@ -114,7 +116,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
         if (!text) {
           const finish = j?.choices?.[0]?.finish_reason;
           lastErr = new CobbleError(`${model} returned empty content (finish=${finish}, thinking=${thinkThisCall})`, status, raw.slice(0, 500), null);
-          if (attempt === 0 && thinkThisCall) { thinkThisCall = false; continue; }
+          if (thinkThisCall) { thinkThisCall = false; continue; }
           break;
         }
         return { text, model, usage, raw };

@@ -69,13 +69,25 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
   if (!plan?.briefs?.length) { console.error("Showrunner produced no briefs; see", outDir); process.exit(1); }
   console.log(`  ${plan.briefs.length} briefs, ${plan.decisions?.length ?? 0} decisions`);
 
-  const drafts = await Promise.all(plan.briefs.map(async (b, i) => {
+  // Writers run two at a time: Cobble queues per model, and five parallel
+  // canon-sized prompts filled them (measured 2026-10-11: a 503 after the
+  // whole chain was refused). One failed brief does not sink the run.
+  const CONCURRENCY = Number(process.env.AGENTS_CONCURRENCY || 2);
+  const results: PromiseSettledResult<{ brief: Brief; role: RoleName; out: unknown }>[] = [];
+  const queue = plan.briefs.map((b, i) => async () => {
     const role = (["character_writer", "rules_lawyer", "correspondent", "archivist"].includes(b.role) ? b.role : "correspondent") as RoleName;
     const user = `TASK: ${plan.task_summary}\n\nCANON CONSTRAINTS:\n${(plan.canon_constraints ?? []).map((c) => `- ${c}`).join("\n")}\n\nDECISIONS ALREADY MADE:\n${(plan.decisions ?? []).map((d) => `- ${d.question} → ${d.recommendation}`).join("\n")}\n\nYOUR BRIEF (${b.title}):\n${b.instructions}\n\nDELIVERABLE: ${b.deliverable}`;
     const out = await ask(role === "archivist" ? "rules_lawyer" : role, user, { secret: role !== "correspondent" && role !== "character_writer" });
     save(`draft-${i + 1}-${role}.json`, out ?? {});
     return { brief: b, role, out };
+  });
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+    while (queue.length) { const job = queue.shift()!; results.push(await Promise.allSettled([job()]).then((r) => r[0])); }
   }));
+  const drafts = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  const failed = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason?.message ?? String(r));
+  if (failed.length) console.log(`  ${failed.length} brief(s) failed: ${failed.join(" | ")}`);
+  if (!drafts.length) { console.error("No drafts succeeded; see", outDir); process.exit(1); }
 
   const bundle = drafts.map((d, i) => `### Draft ${i + 1} — ${d.role} — ${d.brief.title}\n${JSON.stringify(d.out, null, 1)}`).join("\n\n");
   const review = await ask("skeptic", `TASK: ${plan.task_summary}\n\nReview these drafts.\n\n${bundle}`, { secret: true });
@@ -87,4 +99,8 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
   const tokens = ledger.reduce((n, r) => n + (r.usage?.total_tokens ?? 0), 0);
   save("provenance.json", { slug, stamp, models_used: [...new Set(ledger.filter((r) => r.ok).map((r) => r.model))], calls: ledger.length, failures: ledger.filter((r) => !r.ok).length, total_tokens: tokens, ledger, canon_files_seen: publicCanon.map((f) => f.name), secret_files_seen: secretCanon.map((f) => f.name) });
   console.log(`\n✓ canon draft → ${latest}\n  run folder   → ${outDir}\n  ${ledger.length} calls, ${ledger.filter((r) => !r.ok).length} failed, ${tokens} tokens\n  Review it, then promote to canon/ by hand.`);
-})().catch((e) => { console.error("\n✗", e.message); console.error("partial output in", outDir); process.exit(1); });
+})().catch((e) => {
+  console.error("\n✗", e.message); console.error("partial output in", outDir);
+  save("provenance.json", { slug, stamp, failed: e.message, calls: ledger.length, failures: ledger.filter((r) => !r.ok).length, ledger });
+  process.exit(1);
+});
