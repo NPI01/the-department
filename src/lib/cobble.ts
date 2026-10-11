@@ -140,8 +140,27 @@ export function extractJson<T = unknown>(text: string): T | null {
   const start = Math.min(...starts);
   const open = s[start]; const close = open === "{" ? "}" : "]";
   const end = s.lastIndexOf(close);
-  if (end <= start) return null;
-  try { return JSON.parse(s.slice(start, end + 1)) as T; } catch { return null; }
+  if (end > start) { try { return JSON.parse(s.slice(start, end + 1)) as T; } catch { /* fall through */ } }
+  return repairTruncated<T>(s.slice(start));
+}
+
+/* A reply cut off by max_tokens: drop the unfinished trailing value, then close
+   every open string, array and object. Loses at most the last item. */
+export function repairTruncated<T = unknown>(s: string): T | null {
+  // Walk back through closing braces; at each, close whatever is still open
+  // and try to parse. A cut inside a string fails to parse and we move on.
+  for (let cut = s.lastIndexOf("}"); cut > 0; cut = s.lastIndexOf("}", cut - 1)) {
+    let head = s.slice(0, cut + 1).replace(/,\s*$/, "");
+    const open: string[] = []; let q = false; let e = false;
+    for (const ch of head) {
+      if (q) { if (e) e = false; else if (ch === "\\") e = true; else if (ch === '"') q = false; continue; }
+      if (ch === '"') q = true; else if (ch === "{") open.push("}"); else if (ch === "[") open.push("]"); else if (ch === "}" || ch === "]") open.pop();
+    }
+    if (q) continue;
+    head += open.reverse().join("");
+    try { return JSON.parse(head) as T; } catch { /* try an earlier cut */ }
+  }
+  return null;
 }
 
 export async function chatJson<T = unknown>(messages: Msg[], opts: ChatOpts = {}): Promise<{ data: T | null; result: ChatResult }> {

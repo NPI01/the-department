@@ -87,7 +87,7 @@ Output JSON only:
 }`,
   },
   correspondent: {
-    name: "correspondent", title: "Correspondent", think: false, maxTokens: 3000, temperature: 0.85,
+    name: "correspondent", title: "Correspondent", think: false, maxTokens: 9000, temperature: 0.85,
     system: `${HOUSE}
 
 ROLE: Correspondent. You write the in-world documents players actually receive: memoranda, directives, personal letters, teletype dispatches, personnel notices, incident reports, redacted file fragments. Period-accurate format: header block (FROM / TO / SUBJECT / CLASSIFICATION / DATE), body, sign-off. Plain text; it will be sent as email. Tension comes from specificity and omission, never from exclamation. Each document should contain one detail that is slightly wrong in a way an attentive reader could notice.
