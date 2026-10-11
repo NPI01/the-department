@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
 import { sendMail } from "@/lib/email/resend";
-import type { GrammarAct } from "@/lib/email/inbound";
+import { fetchReceived, parseGrammar, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
 import { writeBrief } from "@/lib/admin/brief";
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
@@ -94,6 +94,20 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
       await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: `grammar.${a.kind}`, payload: a as unknown as Record<string, unknown>, idempotency_key: key, visible_to: [c.from_character] });
     }
+  },
+
+  async fetch_body(db, p) {
+    const id = p.correspondence_id as string;
+    const full = await fetchReceived(String(p.email_id ?? ""));
+    if (!full || !full.text) throw new Error("body not available yet"); // retried with backoff
+    const bodyText = stripQuoted(full.text);
+    const { data: c } = await db.from("correspondence").select("auth").eq("id", id).single();
+    await db.from("correspondence").update({ body_text: bodyText, body_html: full.html, in_reply_to: full.headers["in-reply-to"] ?? null, auth: { ...(c?.auth ?? {}), provider: full.authentication ?? null } }).eq("id", id);
+    const acts = parseGrammar(bodyText);
+    await db.from("jobs").insert([
+      { kind: "grammar", payload: { correspondence_id: id, acts, trusted: Boolean(p.trusted) } },
+      { kind: "extract", payload: { correspondence_id: id } },
+    ]);
   },
 
   async extract(db, p) {

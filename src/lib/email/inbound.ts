@@ -67,3 +67,18 @@ export function stripQuoted(text: string): string {
   }
   return out.join("\n").trim();
 }
+
+/* Resend's email.received event is metadata only; the body comes from the
+   receiving API (full-access key). It can lag the event by seconds. */
+export async function fetchReceived(id: string): Promise<{ text: string; html: string | null; headers: Record<string, string>; authentication: unknown } | null> {
+  const key = process.env.RESEND_API_KEY;
+  if (!id || !key) return null;
+  try {
+    const r = await fetch(`https://api.resend.com/emails/receiving/${id}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const headers: Record<string, string> = {};
+    for (const h of (j.headers ?? []) as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = h.value;
+    return { text: String(j.text ?? ""), html: j.html ?? null, headers, authentication: j.authentication ?? null };
+  } catch { return null; }
+}
