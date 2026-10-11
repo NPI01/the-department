@@ -50,6 +50,13 @@ allowlist:
 pnpm admin:add you@example.com     # allowlist an address
 pnpm seed:sandbox                  # fake season to look around in; --drop removes it
 ```
+**Review** lists everything marked PROPOSED in `canon/` and `docs/*-draft.md`, plus
+the questions those docs ask; approve, reject, request a revision or answer. **Episode
+Plans** shows the season arc and, where a beat sheet exists, a round-by-round timeline.
+Both read a copy of canon that `pnpm canon:sync` pushes to Supabase (production builds
+sync automatically). To apply decisions: `pnpm canon:decisions` writes
+`docs/review-decisions.md`, edit canon accordingly, commit; applied items drop off.
+
 In Supabase Auth → URL Configuration, the deployed site's `/auth/confirm` must be an
 allowed redirect URL. The built-in mailer sends only a few links an hour; set custom SMTP
 before staff other than the project owner sign in.

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 /* Console building blocks. Server components; the paper/ink palette from globals.css. */
 
-export function PageHeader({ kicker, title, children }: { kicker?: string; title: string; children?: ReactNode }) {
+export function PageHeader({ kicker, title, children }: { kicker?: ReactNode; title: string; children?: ReactNode }) {
   return (
     <header className="mb-6 border-b border-rule pb-4">
       {kicker && <p className="text-[11px] uppercase tracking-[0.25em] text-ink-2">{kicker}</p>}

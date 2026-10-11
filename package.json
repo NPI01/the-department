@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx scripts/canon-sync.ts --if-production && next build",
     "start": "next start",
     "lint": "eslint",
     "agents": "tsx agents/run.ts",
@@ -14,7 +14,9 @@
     "seed": "tsx scripts/seed-campaign.ts",
     "smoke:cobble": "tsx scripts/smoke-cobble.ts",
     "admin:add": "tsx scripts/admin-add.ts",
-    "seed:sandbox": "tsx scripts/seed-sandbox.ts"
+    "seed:sandbox": "tsx scripts/seed-sandbox.ts",
+    "canon:sync": "tsx scripts/canon-sync.ts",
+    "canon:decisions": "tsx scripts/canon-decisions.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
