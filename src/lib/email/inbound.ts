@@ -75,10 +75,11 @@ export async function fetchReceived(id: string): Promise<{ text: string; html: s
   if (!id || !key) return null;
   try {
     const r = await fetch(`https://api.resend.com/emails/receiving/${id}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) });
-    if (!r.ok) return null;
+    if (!r.ok) { console.error(`[inbound] receiving API ${r.status} for ${id}: ${(await r.text()).slice(0, 200)} (key ${key.slice(0, 6)}…, len ${key.length})`); return null; }
     const j = await r.json();
+    if (!j.text) console.error(`[inbound] receiving API returned no text for ${id}; keys=${Object.keys(j).join(",")}`);
     const headers: Record<string, string> = {};
     for (const h of (j.headers ?? []) as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = h.value;
     return { text: String(j.text ?? ""), html: j.html ?? null, headers, authentication: j.authentication ?? null };
-  } catch { return null; }
+  } catch (e) { console.error(`[inbound] receiving API fetch failed for ${id}: ${(e as Error).message}`); return null; }
 }
