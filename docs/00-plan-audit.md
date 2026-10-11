@@ -186,7 +186,7 @@ provenance JSON per output. Nathan and Claude curate what enters `canon/`.
 
 ## 5. Decisions needed from Nathan
 
-1. **Game domain** for mail (new domain vs. subdomain of `anomalous.app`).
+1. ~~Game domain~~ — done: `weird.delivery`, Resend sending + receiving verified 2026-10-11.
 2. **Pilot scope**: agree to Episodes 1–3, 12 players.
 3. **Lock time**: 8:00 PM Eastern is the proposed cutoff; Vercel cron is UTC, so the
    schedule shifts with DST unless we compute it.

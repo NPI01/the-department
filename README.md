@@ -64,7 +64,13 @@ before staff other than the project owner sign in.
    consequential waits on a model, and the game runs if Cobble is down.
 5. Every effect is an append-only event with an idempotency key.
 
+## Deployment
+- **Site**: https://weird.delivery (Vercel project `weird-delivery`, team Strange Farm Media Labs, auto-deploys from `main`).
+- **Mail**: Resend domain `weird.delivery`, sending and receiving verified; sender `The Department <thedepartment@weird.delivery>`; inbound webhook → `/api/email/inbound`.
+- **Database**: Supabase `edyhveglvnnunfbiebdr`.
+- **Crons** (vercel.json): daily tick, per-minute worker. Both need `CRON_SECRET`.
+
 ## Status
-Scaffold session, 2026-10-10. Supabase project `edyhveglvnnunfbiebdr` ("The Department",
-us-west-2) exists and has migration `0001_init` applied. No Vercel project or game mail
-domain yet; see the audit §5.
+2026-10-11: canon drafted (public + secret), agent team run on four tasks, landing page
+live at weird.delivery, mail domain verified. The service and engine are called
+**Weird.Delivery**; The Department is its first game.
