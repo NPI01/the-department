@@ -3,7 +3,7 @@ import { verifySvix, parseGameAddress, parseGrammar, stripQuoted } from "@/lib/e
 import { emailDomain } from "@/lib/email/resend";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 
-async function fetchReceived(id: string): Promise<{ text: string; html: string | null; headers: Record<string, string> } | null> {
+async function fetchReceived(id: string): Promise<{ text: string; html: string | null; headers: Record<string, string>; authentication: unknown } | null> {
   const key = process.env.RESEND_API_KEY;
   if (!id || !key) return null;
   try {
@@ -12,7 +12,7 @@ async function fetchReceived(id: string): Promise<{ text: string; html: string |
     const j = await r.json();
     const headers: Record<string, string> = {};
     for (const h of (j.headers ?? []) as { name: string; value: string }[]) headers[String(h.name).toLowerCase()] = h.value;
-    return { text: String(j.text ?? ""), html: j.html ?? null, headers };
+    return { text: String(j.text ?? ""), html: j.html ?? null, headers, authentication: j.authentication ?? null };
   } catch { return null; }
 }
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   // email_id, message_id, attachments). The body comes from the receiving
   // API, which needs a full-access key. Measured 2026-10-11.
   const full = await fetchReceived(String(d.email_id ?? ""));
-  if (full) { d.text = full.text; d.html = full.html; d.headers = full.headers; }
+  if (full) { d.text = full.text; d.html = full.html; d.headers = full.headers; d.authentication = full.authentication; }
 
   const toList = ([] as string[]).concat((d.to as string[] | string) ?? []);
   const ccList = ([] as string[]).concat((d.cc as string[] | string) ?? []);
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     body_text: bodyText,
     body_html: (d.html as string) ?? null,
     raw: d,
-    auth: { token_present: Boolean(token), token_matched: trusted },
+    auth: { token_present: Boolean(token), token_matched: trusted, provider: d.authentication ?? null },
     trusted,
   }, { onConflict: "message_id" }).select("id").single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
