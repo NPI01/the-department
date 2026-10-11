@@ -96,11 +96,15 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
       const t0 = Date.now();
       let status: number | null = null;
       try {
+        // A streamed reply is alive the whole time it generates (measured: a
+        // 12k-token dossier set took 855 s), so its deadline is generous; a
+        // plain reply that has sent nothing for 5 min is dead.
+        const deadline = opts.timeoutMs ?? (streaming ? 1_500_000 : 300_000);
         const res = await fetch(`${cfg.base}/chat/completions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.key}` },
           body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall }, ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
-          signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 300_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 300_000),
+          signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(deadline)]) : AbortSignal.timeout(deadline),
         });
         status = res.status;
         const raw = res.ok && streaming ? await readStream(res) : await res.text();
