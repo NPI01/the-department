@@ -5,8 +5,8 @@ import "./globals.css";
 const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Office of Administrative Survey",
-  description: "Records management, government property inventories, and unusual interagency administrative matters.",
+  title: "Royce Industries — DSRD",
+  description: "A privately held research and development company on the northern Great Plains. Now hiring.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

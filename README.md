@@ -1,8 +1,8 @@
 # The Department
 
-A six-month multiplayer correspondence game set in an alternate October 1977. Players
-are recruited into a clandestine federal agency (public name: the Office of
-Administrative Survey) and play by email: one round a day, fourteen rounds an episode,
+A six-month multiplayer correspondence game set in October 1977, north-central North
+Dakota. Players are new hires at Royce Industries, a private R&D company whose secret
+unit is the Department of Special Research and Development. They play by email: one round a day, fourteen rounds an episode,
 twelve episodes a season. All correspondence routes through the engine, which is both
 mail server and referee.
 
@@ -11,7 +11,8 @@ and inbound mail) · Cobble Network inference (Qwen 27B-class agents).
 
 ## Read first
 - `docs/00-plan-audit.md` — the audit of the design brainstorm and the decisions it forces.
-- `docs/source/chatgpt-brainstorm.md` — the raw design conversation this started from.
+- `docs/source/world-bible-02-04-royce.md` — Nathan's World Bibles 02–04 (the setting).
+- `docs/source/chatgpt-brainstorm.md` — the earlier design conversation (mechanics; its federal-agency setting is superseded).
 - `canon/` — what is true in the world. `canon/secret/` is engine-only.
 - `agents/README.md` — the Qwen agent team that helps write story and rules.
 

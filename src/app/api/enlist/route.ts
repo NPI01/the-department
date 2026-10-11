@@ -17,13 +17,13 @@ export async function POST(req: Request) {
 
   await sendMail({
     to: email,
-    subject: "Receipt of Form OAS-1",
+    subject: "Receipt of Form RI-1",
     text: [
-      "OFFICE OF ADMINISTRATIVE SURVEY", "PERSONNEL DIVISION · WASHINGTON, D.C.", "",
-      "Your request for appointment has been received and filed.", "",
-      "Appointments are made in cohorts. You will be notified by this address when a cohort is convened.", "",
+      "ROYCE INDUSTRIES", "PERSONNEL & ADMINISTRATION · STATION R, NORTH DAKOTA", "",
+      "Your application for employment has been received and filed.", "",
+      "Employees are hired in cohorts. You will be notified at this address when a cohort is convened.", "",
       "Please retain this receipt. Do not reply to this message.", "",
-      "OFFICE OF PERSONNEL ASSIGNMENTS",
+      "PERSONNEL & ADMINISTRATION",
     ].join("\n"),
   });
 

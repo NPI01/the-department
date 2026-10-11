@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
    1977-flavoured mail clients and spam filters alike. */
 
 export function emailDomain() { return process.env.EMAIL_DOMAIN || "example.com"; }
-export function emailFrom() { return process.env.EMAIL_FROM || `Office of Administrative Survey <personnel@${emailDomain()}>`; }
+export function emailFrom() { return process.env.EMAIL_FROM || `Royce Industries Personnel <personnel@${emailDomain()}>`; }
 
 /* The address a player writes to for a given character. The player's own
    mail token rides in the plus-part so the inbound side can trust the sender

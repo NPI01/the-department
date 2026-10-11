@@ -1,5 +1,10 @@
 # The Department — Plan Audit
 
+> 2026-10-11: the setting moved from a federal agency to Royce Industries (World Bibles
+> 02–04). The mechanics audited here still apply; references to NIGHTJAR-as-federal-
+> program, Marsh-as-federal-researcher and the Continuity Council are superseded by
+> `canon/`. §2.1–2.11 and §3 stand unchanged.
+
 Audited 2026-10-10 against the ChatGPT brainstorm in `docs/source/chatgpt-brainstorm.md`
 (Game Design 03, Game Design 04, World Bible 01). Designs 01 and 02 were not in the share,
 so anything they covered (the core world-state model, the original engine sketch) is
