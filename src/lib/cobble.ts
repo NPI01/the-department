@@ -77,6 +77,12 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
     chat_template_kwargs: { enable_thinking: think },
   };
   if (opts.json) body.response_format = { type: "json_object" };
+  // Streamed by default: Cobble's hosts sit behind Cloudflare, which closes a
+  // connection that has sent nothing for ~2 minutes (524 → gateway 503). A
+  // non-streamed reply sends nothing until generation ends, so any long
+  // reply dies whole. Streaming delivers bytes from the first token.
+  // COBBLE_STREAM=0 sends plain requests.
+  const streaming = process.env.COBBLE_STREAM !== "0";
 
   let lastErr: CobbleError | null = null;
   for (const model of chain) {
@@ -93,11 +99,11 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
         const res = await fetch(`${cfg.base}/chat/completions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.key}` },
-          body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall } }),
+          body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall }, ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
           signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 300_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 300_000),
         });
         status = res.status;
-        const raw = await res.text();
+        const raw = res.ok && streaming ? await readStream(res) : await res.text();
         if (!res.ok) {
           const retryAfter = parseRetryAfter(res.status, raw, res.headers);
           lastErr = new CobbleError(`${model} answered ${res.status}`, res.status, raw.slice(0, 500), retryAfter);
@@ -129,6 +135,36 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
     }
   }
   throw lastErr ?? new CobbleError("no models in chain", null, "", null);
+}
+
+/* Assemble a streamed chat completion into the same JSON shape a plain
+   reply has: content from content deltas (reasoning deltas skipped),
+   finish_reason, and usage from the final chunk. */
+async function readStream(res: Response): Promise<string> {
+  if (!res.body) return "";
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  let buf = ""; let content = ""; let finish: string | null = null; let usage: Usage | null = null; let model = "";
+  const handle = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") return;
+    let j: { model?: string; usage?: Usage; choices?: { finish_reason?: string; delta?: { content?: string } }[] };
+    try { j = JSON.parse(payload); } catch { return; }
+    if (j.model) model = j.model;
+    if (j.usage) usage = j.usage;
+    const c = j.choices?.[0];
+    if (c?.finish_reason) finish = c.finish_reason;
+    if (typeof c?.delta?.content === "string") content += c.delta.content;
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buf.indexOf("\n")) >= 0) { handle(buf.slice(0, nl).replace(/\r$/, "")); buf = buf.slice(nl + 1); }
+  }
+  if (buf.trim()) handle(buf.trim());
+  return JSON.stringify({ model, usage, choices: [{ finish_reason: finish, message: { content } }] });
 }
 
 /* Tolerant JSON: strip fences and thinking, try whole text, then the largest
