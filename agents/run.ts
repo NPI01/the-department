@@ -20,6 +20,9 @@ const args = process.argv.slice(2);
 const slug = args.find((a) => !a.startsWith("--"));
 const pinned = args.includes("--model") ? args[args.indexOf("--model") + 1] : undefined;
 const forceThink = args.includes("--think");
+// --resume <stamp>: reuse showrunner.json and draft-*.json from an earlier run
+// folder and go straight to the Skeptic and Archivist.
+const resumeStamp = args.includes("--resume") ? args[args.indexOf("--resume") + 1] : undefined;
 if (!slug) { console.error("usage: pnpm agents <task-slug> [--model m] [--think]"); process.exit(2); }
 
 const taskPath = join(ROOT, "agents/tasks", `${slug}.md`);
@@ -68,18 +71,34 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
 
 (async () => {
   console.log(`\nTHE DEPARTMENT · agent team · task "${slug}"\n`);
-  const plan = (await ask("showrunner", `TASK BRIEF:\n${task}\n\nProduce the plan.`)) as Plan | null;
-  if (!plan?.briefs?.length) { console.error("Showrunner produced no briefs; see", outDir); process.exit(1); }
-  console.log(`  ${plan.briefs.length} briefs, ${plan.decisions?.length ?? 0} decisions`);
+  let plan: Plan | null = null;
+  let drafts: { brief: Brief; role: RoleName; out: unknown }[] = [];
+  if (resumeStamp) {
+    const prev = join(ROOT, "agents/out", slug, resumeStamp);
+    plan = JSON.parse(readFileSync(join(prev, "showrunner.json"), "utf8")) as Plan;
+    drafts = readdirSync(prev).filter((f) => /^draft-\d+-/.test(f)).sort().map((f) => {
+      const i = Number(f.match(/^draft-(\d+)-/)![1]) - 1;
+      const out = JSON.parse(readFileSync(join(prev, f), "utf8")) as Record<string, unknown>;
+      return { brief: plan!.briefs[i], role: f.replace(/^draft-\d+-/, "").replace(/\.json$/, "") as RoleName, out };
+    }).filter((d) => d.brief && Object.keys(d.out as object).length);
+    console.log(`  resuming from ${resumeStamp}: ${plan.briefs.length} briefs, ${drafts.length} usable drafts`);
+    save("showrunner.json", plan);
+  } else {
+    plan = (await ask("showrunner", `TASK BRIEF:\n${task}\n\nProduce the plan.`)) as Plan | null;
+    if (!plan?.briefs?.length) { console.error("Showrunner produced no briefs; see", outDir); process.exit(1); }
+    console.log(`  ${plan.briefs.length} briefs, ${plan.decisions?.length ?? 0} decisions`);
+  }
+  if (!resumeStamp) {
 
   // Writers run two at a time: Cobble queues per model, and five parallel
   // canon-sized prompts filled them (measured 2026-10-11: a 503 after the
   // whole chain was refused). One failed brief does not sink the run.
   const CONCURRENCY = Number(process.env.AGENTS_CONCURRENCY || 2);
   const results: PromiseSettledResult<{ brief: Brief; role: RoleName; out: unknown }>[] = [];
-  const queue = plan.briefs.map((b, i) => async () => {
+  const queue = plan!.briefs.map((b, i) => async () => {
     const role = (["character_writer", "rules_lawyer", "correspondent", "archivist"].includes(b.role) ? b.role : "correspondent") as RoleName;
-    const user = `TASK: ${plan.task_summary}\n\nCANON CONSTRAINTS:\n${(plan.canon_constraints ?? []).map((c) => `- ${c}`).join("\n")}\n\nDECISIONS ALREADY MADE:\n${(plan.decisions ?? []).map((d) => `- ${d.question} → ${d.recommendation}`).join("\n")}\n\nYOUR BRIEF (${b.title}):\n${b.instructions}\n\nDELIVERABLE: ${b.deliverable}`;
+    const p = plan!;
+    const user = `TASK: ${p.task_summary}\n\nCANON CONSTRAINTS:\n${(p.canon_constraints ?? []).map((c) => `- ${c}`).join("\n")}\n\nDECISIONS ALREADY MADE:\n${(p.decisions ?? []).map((d) => `- ${d.question} → ${d.recommendation}`).join("\n")}\n\nYOUR BRIEF (${b.title}):\n${b.instructions}\n\nDELIVERABLE: ${b.deliverable}`;
     const out = await ask(role === "archivist" ? "rules_lawyer" : role, user, { secret: role !== "correspondent" && role !== "character_writer" });
     save(`draft-${i + 1}-${role}.json`, out ?? {});
     return { brief: b, role, out };
@@ -87,15 +106,16 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
     while (queue.length) { const job = queue.shift()!; results.push(await Promise.allSettled([job()]).then((r) => r[0])); }
   }));
-  const drafts = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  drafts = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
   const failed = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason?.message ?? String(r));
   if (failed.length) console.log(`  ${failed.length} brief(s) failed: ${failed.join(" | ")}`);
+  }
   if (!drafts.length) { console.error("No drafts succeeded; see", outDir); process.exit(1); }
 
   const bundle = drafts.map((d, i) => `### Draft ${i + 1} — ${d.role} — ${d.brief.title}\n${JSON.stringify(d.out, null, 1)}`).join("\n\n");
-  const review = await ask("skeptic", `TASK: ${plan.task_summary}\n\nReview these drafts.\n\n${bundle}`, { secret: true });
+  const review = await ask("skeptic", `TASK: ${plan!.task_summary}\n\nReview these drafts.\n\n${bundle}`, { secret: true });
 
-  const canonDoc = await ask("archivist", `TASK: ${plan.task_summary}\n\nSHOWRUNNER PLAN:\n${JSON.stringify(plan, null, 1)}\n\nDRAFTS:\n${bundle}\n\nSKEPTIC REVIEW:\n${JSON.stringify(review, null, 1)}\n\nProduce the canon document for this task. Apply the Skeptic's high and medium findings. Keep PUBLIC CANON and SECRET CANON in separate top-level sections.`, { secret: true }) as string;
+  const canonDoc = await ask("archivist", `TASK: ${plan!.task_summary}\n\nSHOWRUNNER PLAN:\n${JSON.stringify(plan, null, 1)}\n\nDRAFTS:\n${bundle}\n\nSKEPTIC REVIEW:\n${JSON.stringify(review, null, 1)}\n\nProduce the canon document for this task. Apply the Skeptic's high and medium findings. Keep PUBLIC CANON and SECRET CANON in separate top-level sections.`, { secret: true }) as string;
 
   const latest = join(ROOT, "agents/out", slug, "latest.md");
   writeFileSync(latest, canonDoc);
