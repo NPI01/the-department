@@ -102,33 +102,54 @@ function Body({ text, className = "" }: { text: string; className?: string }) {
   return <div className={`type whitespace-pre-line text-[13.5px] leading-snug ${className}`}>{text}</div>;
 }
 
-/* The Information Systems issue of the Station R map, as the attachment the
-   player opens. Drawn, not photographed: a mimeographed plan. */
+/* The Information Systems issue of the Station R plat, as the attachment the
+   player opens: a county survey sheet with the buildings as points spread
+   across the property, not a floor plan. Small, like a scanned enclosure. */
 function MapAttachment() {
-  const B: [number, number, number, number, string][] = [[40, 60, 90, 50, "1"], [150, 60, 70, 40, "2"], [240, 60, 90, 60, "3"], [40, 130, 60, 60, "4"], [120, 140, 110, 50, "5"], [250, 140, 80, 50, "6"], [120, 210, 70, 40, "8"]];
+  const P: [number, number, string][] = [[88, 64, "1"], [150, 52, "2"], [214, 70, "3"], [70, 118, "4"], [128, 104, "5"], [196, 126, "6"], [112, 160, "8"]];
   return (
-    <div className="mt-3 border border-ink/30 bg-paper p-2">
-      <div className="flex items-center justify-between text-[10px] tracking-[0.18em] uppercase text-ink-2"><span>📎 station-r-layout-IS.pdf · 1 page</span><span>Attachment</span></div>
-      <svg viewBox="0 0 380 290" className="mt-2 w-full" role="img" aria-label="Map of Station R, Information Systems issue, with Building 7 marked restricted">
-        <rect x="0" y="0" width="380" height="290" fill="var(--paper-2)" />
-        <text x="12" y="24" fontFamily="Oswald, Impact, sans-serif" fontSize="16" fill="var(--ink)" letterSpacing="2">STATION R · CAMPUS LAYOUT</text>
-        <text x="12" y="40" fontFamily="ui-monospace, monospace" fontSize="8" fill="var(--ink-2)" letterSpacing="1.5">INFORMATION SYSTEMS ISSUE · OCT 1977 · NOT FOR CIRCULATION</text>
-        <path d="M20 50 H360 V270 H20 Z" fill="none" stroke="var(--ink)" strokeWidth="1" strokeDasharray="4 3" />
-        <text x="24" y="282" fontFamily="ui-monospace, monospace" fontSize="7" fill="var(--ink-2)">PERIMETER ROAD</text>
-        <path d="M30 100 C 80 90, 120 110, 200 100 S 320 95, 350 105" fill="none" stroke="var(--ink-2)" strokeWidth="1.2" />
-        {B.map(([x, y, w, h, n]) => (
+    <div className="mt-3 max-w-[22rem] border border-ink/30 bg-paper p-2 shadow-[3px_3px_0_rgba(0,0,0,.25)]">
+      <div className="flex items-center justify-between text-[9px] tracking-[0.18em] uppercase text-ink-2"><span>📎 station-r-plat-IS.pdf · 1 page</span><span>Attachment</span></div>
+      <svg viewBox="0 0 320 210" className="mt-1.5 w-full" role="img" aria-label="Survey plat of the Station R property in Ward County, North Dakota, with buildings marked as points and Building 7 circled in red">
+        <defs>
+          <pattern id="sec" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 H0 V40" fill="none" stroke="var(--ink)" strokeOpacity=".18" strokeWidth=".6" /></pattern>
+          <pattern id="tone" width="3" height="3" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".45" fill="var(--ink)" fillOpacity=".12" /></pattern>
+        </defs>
+        <rect width="320" height="210" fill="var(--paper-2)" />
+        <rect width="320" height="210" fill="url(#tone)" />
+        <rect x="8" y="26" width="304" height="160" fill="url(#sec)" stroke="var(--ink)" strokeWidth=".8" />
+        {/* creek, railroad, county road */}
+        <path d="M8 150 C 50 140, 70 170, 110 158 S 170 130, 220 148 S 290 170, 312 156" fill="none" stroke="var(--ink)" strokeOpacity=".55" strokeWidth="1" />
+        <text x="246" y="146" fontFamily="ui-monospace, monospace" fontSize="6" fill="var(--ink-2)" fontStyle="italic">Des Lacs R.</text>
+        <path d="M8 44 L312 120" fill="none" stroke="var(--ink)" strokeWidth="1.2" />
+        <path d="M8 44 L312 120" fill="none" stroke="var(--paper-2)" strokeWidth=".8" strokeDasharray="3 3" />
+        <text x="252" y="112" fontFamily="ui-monospace, monospace" fontSize="6" fill="var(--ink-2)" transform="rotate(14 252 112)">SOO LINE</text>
+        <path d="M160 26 V186" fill="none" stroke="var(--ink)" strokeWidth=".9" strokeDasharray="6 2" />
+        <text x="163" y="184" fontFamily="ui-monospace, monospace" fontSize="6" fill="var(--ink-2)">CO. RD. 15</text>
+        {/* property boundary */}
+        <path d="M46 40 H236 V176 H46 Z" fill="var(--paper)" fillOpacity=".35" stroke="var(--ink)" strokeWidth="1.1" strokeDasharray="5 3" />
+        <text x="48" y="37" fontFamily="ui-monospace, monospace" fontSize="6.5" fill="var(--ink)" letterSpacing="1">ROYCE INDUSTRIES · 600 AC.</text>
+        {/* buildings as points */}
+        {P.map(([x, y, n]) => (
           <g key={n}>
-            <rect x={x} y={y} width={w} height={h} fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.2" />
-            <text x={x + 6} y={y + 14} fontFamily="Oswald, Impact, sans-serif" fontSize="12" fill="var(--ink)">{n}</text>
+            <circle cx={x} cy={y} r="4.2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.3" />
+            <circle cx={x} cy={y} r="1.1" fill="var(--ink)" />
+            <text x={x + 6.5} y={y + 3} fontFamily="Oswald, Impact, sans-serif" fontSize="9" fill="var(--ink)">{n}</text>
           </g>
         ))}
         <g>
-          <rect x="250" y="210" width="90" height="46" fill="none" stroke="var(--red)" strokeWidth="1.6" />
-          <text x="256" y="225" fontFamily="Oswald, Impact, sans-serif" fontSize="12" fill="var(--red)">7</text>
-          <text x="256" y="246" fontFamily="ui-monospace, monospace" fontSize="7.5" fill="var(--red)" letterSpacing="1">(RESTRICTED)</text>
+          <circle cx="206" cy="166" r="7" fill="none" stroke="var(--red)" strokeWidth="1.4" />
+          <circle cx="206" cy="166" r="1.3" fill="var(--red)" />
+          <text x="215" y="162" fontFamily="Oswald, Impact, sans-serif" fontSize="9" fill="var(--red)">7</text>
+          <text x="215" y="171" fontFamily="ui-monospace, monospace" fontSize="5.5" fill="var(--red)" letterSpacing=".8">RESTRICTED</text>
         </g>
-        <g transform="translate(340 72)"><path d="M0 -14 L4 0 L0 -4 L-4 0 Z" fill="var(--ink)" /><text x="-3" y="12" fontFamily="ui-monospace, monospace" fontSize="8" fill="var(--ink)">N</text></g>
-        <text x="300" y="282" fontFamily="ui-monospace, monospace" fontSize="7" fill="var(--ink-2)">FACILITIES MGMT · COPY 11 OF 14</text>
+        {/* furniture */}
+        <text x="12" y="18" fontFamily="Oswald, Impact, sans-serif" fontSize="11" fill="var(--ink)" letterSpacing="1.5">STATION R · PROPERTY PLAT</text>
+        <text x="190" y="18" fontFamily="ui-monospace, monospace" fontSize="6.5" fill="var(--ink-2)" letterSpacing="1">WARD CO., N.D. · T156N R84W</text>
+        <g transform="translate(292 48)"><path d="M0 -10 L3 0 L0 -3 L-3 0 Z" fill="var(--ink)" /><text x="-2.5" y="9" fontFamily="ui-monospace, monospace" fontSize="6.5" fill="var(--ink)">N</text></g>
+        <g transform="translate(12 196)"><path d="M0 0 H40" stroke="var(--ink)" strokeWidth="1.2" /><path d="M0 -3 V3 M20 -3 V3 M40 -3 V3" stroke="var(--ink)" strokeWidth=".8" /><text x="44" y="2.5" fontFamily="ui-monospace, monospace" fontSize="6" fill="var(--ink-2)">1 MILE</text></g>
+        <text x="200" y="200" fontFamily="ui-monospace, monospace" fontSize="6" fill="var(--ink-2)">MINOT 42 MI. →</text>
+        <text x="12" y="206" fontFamily="ui-monospace, monospace" fontSize="5.5" fill="var(--ink-2)">INFORMATION SYSTEMS ISSUE · OCT 1977 · COPY 11 OF 14 · NOT FOR CIRCULATION</text>
       </svg>
     </div>
   );
