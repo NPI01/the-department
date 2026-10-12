@@ -53,7 +53,7 @@ export function parseGrammar(text: string): GrammarAct[] {
     }
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {
       const c = m[2].toUpperCase(); acts.push({ kind: "vote", motion: m[1].toUpperCase(), choice: c === "FOR" || c === "REMOVE" ? "for" : c === "ABSTAIN" ? "abstain" : "against" });
-    } else if (/^HOLD\s*(POSITION)?\s*$/i.test(line)) acts.push({ kind: "hold" });
+    } else if (/^(?:H\.?|HOLD(?:\s+POSITION)?)\s*$/i.test(line)) acts.push({ kind: "hold" });
     else if ((m = line.match(/^ORDER\s*:\s*([A-Z_]+)\s*(.*)$/i))) acts.push({ kind: "order", verb: m[1].toLowerCase(), args: m[2].trim() });
     else if ((m = line.match(/^ACCEPT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "accept", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^REJECT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "reject", agreement: m[1].toUpperCase() });
