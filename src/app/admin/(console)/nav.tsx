@@ -7,6 +7,7 @@ export const NAV = [
   { href: "/admin/schedule", label: "Season Schedule" },
   { href: "/admin/plans", label: "Episode Plans" },
   { href: "/admin/review", label: "Review" },
+  { href: "/admin/mail", label: "Mail" },
   { href: "/admin/seasons", label: "Seasons & Episodes" },
   { href: "/admin/casting", label: "Casting Call" },
   { href: "/admin/players", label: "Players" },

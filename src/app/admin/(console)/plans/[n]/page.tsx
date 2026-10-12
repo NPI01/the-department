@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getCanonDoc, getEpisodeDocs, openProposalCount, type CanonDoc } from "@/lib/admin/review";
 import { getCalendar, getSeasons, todayOf } from "@/lib/admin/queries";
-import { ARC_PATH, fictionalDate, parseArc, parseBeats, type Beat } from "@/lib/canon/episodes";
+import { ARC_PATH, ARCS_PATH, arcFor, fictionalDate, parseArc, parseBeats, type Beat } from "@/lib/canon/episodes";
 import { parseBlocks, section } from "@/lib/canon/markdown";
 import { Markdown, inline } from "@/lib/canon/render";
 import { A, Badge, Empty, Loading, PageHeader, Panel, statusTone, type Tone } from "../../ui";
@@ -22,7 +22,8 @@ const docHref = (d: CanonDoc) => `/admin/review/doc?path=${encodeURIComponent(d.
 async function Content({ params }: { params: PageProps<"/admin/plans/[n]">["params"] }) {
   const n = Number((await params).n);
   if (!Number.isInteger(n) || n < 1) notFound();
-  const [docs, arcDoc, { season }] = await Promise.all([getEpisodeDocs(n), getCanonDoc(ARC_PATH), getSeasons()]);
+  const [docs, arcDoc, arcsDoc, { season }] = await Promise.all([getEpisodeDocs(n), getCanonDoc(ARC_PATH), getCanonDoc(ARCS_PATH), getSeasons()]);
+  const story = arcsDoc ? arcFor(arcsDoc.content, n) : null;
   const arc = arcDoc ? parseArc(arcDoc.content).episodes.find((e) => e.n === n) : undefined;
   if (!docs.length && !arc) notFound();
 
@@ -46,13 +47,20 @@ async function Content({ params }: { params: PageProps<"/admin/plans/[n]">["para
   return (
     <>
       <PageHeader kicker={<><A href="/admin/plans">Episode Plans</A> · Episode {String(n).padStart(2, "0")}{arc ? ` · ${arc.stage}` : ""}</>} title={arc?.title ?? `Episode ${n}`}>
-        {fmt(first.date)} – {fmt(last.date)}, 1977{first.exact ? "" : " (approximate: intermissions not fixed)"} · 14 rounds
+        {fmt(first.date)}{first.date.getUTCFullYear() !== last.date.getUTCFullYear() ? `, ${first.date.getUTCFullYear()}` : ""} – {fmt(last.date)}, {last.date.getUTCFullYear()}{first.exact ? "" : " (approximate: intermissions not fixed)"} · 14 rounds
         {ep && <> · <Badge tone={statusTone(ep.status)}>{ep.status}</Badge> in {season?.title}</>}
         {open > 0 && <> · <A href="/admin/review">{open} open proposal{open > 1 ? "s" : ""} in this episode&apos;s docs</A></>}
         <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
           {docs.map((d) => <A key={d.path} href={docHref(d)}>{d.path.replace(/^canon\//, "")}</A>)}
         </span>
       </PageHeader>
+
+      {story && (
+        <Panel title="Story arc" className="mb-4" action={<A href={`/admin/review/doc?path=${encodeURIComponent(ARCS_PATH)}`}>review</A>}>
+          {story.logline && <p className="mb-4 text-base font-semibold leading-snug">{inline(story.logline)}</p>}
+          <Markdown md={story.body} />
+        </Panel>
+      )}
 
       {arc && (
         <Panel title="From the season arc" className="mb-4">
@@ -65,7 +73,7 @@ async function Content({ params }: { params: PageProps<"/admin/plans/[n]">["para
         </Panel>
       )}
 
-      {!docs.length ? <Empty>Only the arc exists for this episode. Its plan has not been written.</Empty> : (
+      {!docs.length ? <Empty>No round-by-round plan yet: only the season arc and the story arc above.</Empty> : (
         <>
           <div className="mb-4 grid gap-4 xl:grid-cols-2">
             <Panel title="What a new hire sees">

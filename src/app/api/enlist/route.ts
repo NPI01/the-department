@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { sendMail } from "@/lib/email/resend";
+import { letterLinks } from "@/lib/email/letter";
+import { renderTemplate } from "@/lib/email/template-store";
+import { renderSample, templateByKey } from "@/lib/email/templates";
 
 const Body = z.object({ email: z.string().email().max(200), note: z.string().max(2000).optional().nullable() });
 
@@ -15,17 +18,10 @@ export async function POST(req: Request) {
     if (error) return Response.json({ error: "The form could not be filed." }, { status: 500 });
   }
 
-  await sendMail({
-    to: email,
-    subject: "Receipt of Form RI-1",
-    text: [
-      "ROYCE INDUSTRIES", "PERSONNEL & ADMINISTRATION · STATION R, NORTH DAKOTA", "",
-      "Your application for employment has been received and filed.", "",
-      "Employees are hired in cohorts. You will be notified at this address when a cohort is convened.", "",
-      "Please retain this receipt. Do not reply to this message.", "",
-      "PERSONNEL & ADMINISTRATION",
-    ].join("\n"),
-  });
+  const { subject, html, text } = supabaseConfigured()
+    ? await renderTemplate(supabaseAdmin(), "receipt", { email }, letterLinks())
+    : renderSample(templateByKey("receipt")!, templateByKey("receipt")!.defaults);
+  await sendMail({ to: email, subject, text, html });
 
   return Response.json({ message: "Your request has been filed. A receipt has been mailed to the address given." });
 }

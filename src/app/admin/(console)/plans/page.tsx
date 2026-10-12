@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getCanonDoc, getEpisodeDocIndex } from "@/lib/admin/review";
-import { ARC_PATH, parseArc } from "@/lib/canon/episodes";
+import { ARC_PATH, ARCS_PATH, arcFor, parseArc } from "@/lib/canon/episodes";
 import { inline } from "@/lib/canon/render";
 import { A, Badge, Empty, Loading, PageHeader, Panel } from "../ui";
 
@@ -13,7 +13,7 @@ export default function PlansPage() {
 }
 
 async function Content() {
-  const [arcDoc, index] = await Promise.all([getCanonDoc(ARC_PATH), getEpisodeDocIndex()]);
+  const [arcDoc, arcsDoc, index] = await Promise.all([getCanonDoc(ARC_PATH), getCanonDoc(ARCS_PATH), getEpisodeDocIndex()]);
   if (!arcDoc) return <PageHeader kicker="Episode Plans" title="No season arc synced">Run <code>pnpm canon:sync</code>.</PageHeader>;
   const { episodes, acts } = parseArc(arcDoc.content);
 
@@ -31,10 +31,11 @@ async function Content() {
                 <article key={e.n} className="grid gap-x-6 gap-y-1 border-b border-rule/60 pb-4 last:border-0 last:pb-0 md:grid-cols-[14rem_1fr]">
                   <div>
                     <p className="text-xs text-ink-2">Episode {String(e.n).padStart(2, "0")} · {e.stage}</p>
-                    <p className="font-semibold">{docs.length ? <A href={`/admin/plans/${e.n}`}>{e.title}</A> : e.title}</p>
-                    <p className="mt-1">{docs.length ? <Badge tone="ok">{docs.length} plan docs</Badge> : <Badge>arc only</Badge>}</p>
+                    <p className="font-semibold"><A href={`/admin/plans/${e.n}`}>{e.title}</A></p>
+                    <p className="mt-1">{docs.length ? <Badge tone="ok">{docs.length} plan docs</Badge> : <Badge>story arc only</Badge>}</p>
                   </div>
                   <div className="space-y-1 text-sm">
+                    {arcsDoc && arcFor(arcsDoc.content, e.n)?.logline && <p className="font-semibold">{inline(arcFor(arcsDoc.content, e.n)!.logline!)}</p>}
                     <p>{inline(e.crisis)}</p>
                     <p className="text-ink-2"><span className="text-xs uppercase tracking-wider">Decision</span> · {inline(e.decision)}</p>
                     <p className="text-xs text-ink-2">Tagus: {inline(e.tagus)} · Carries forward: {inline(e.carries)}</p>

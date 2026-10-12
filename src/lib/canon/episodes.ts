@@ -35,3 +35,14 @@ export function fictionalDate(episode: number, round: number) {
   const d = new Date(Date.UTC(1977, 9, 10 + (episode - 1) * 14 + (round - 1)));
   return { date: d, exact: episode === 1 };
 }
+
+export const ARCS_PATH = "canon/secret/10-episode-arcs.md";
+
+/* One episode's story arc from 10-episode-arcs.md: the logline, and the rest
+   of the section as markdown. */
+export function arcFor(md: string, n: number): { logline: string | null; body: string } | null {
+  const s = section(md, `Episode ${String(n).padStart(2, "0")}`);
+  if (!s) return null;
+  const m = s.match(/\*\*Logline\.\*\*\s*([\s\S]*?)(\n\s*\n|$)/);
+  return { logline: m ? m[1].replace(/\s+/g, " ").trim() : null, body: m ? s.replace(m[0], "").trim() : s };
+}

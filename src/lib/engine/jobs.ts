@@ -9,7 +9,9 @@
      player_brief  the console's model-written note on a player (src/lib/admin/brief.ts) */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
-import { sendMail } from "@/lib/email/resend";
+import { emailDomain, sendMail } from "@/lib/email/resend";
+import { gameDate, letterLinks, renderLetter, type LetterKind } from "@/lib/email/letter";
+import { renderTemplate } from "@/lib/email/template-store";
 import { fetchReceived, parseGrammar, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
 import { writeBrief } from "@/lib/admin/brief";
 
@@ -166,12 +168,70 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     await writeBrief(db, p.brief_id as string);
   },
 
+  /* Deliver an outbound correspondence row: one message per recipient, each in
+     the game's letterhead with that player's own file link, and a reply address
+     carrying their own seal so their answer is trusted. Progress is recorded per
+     recipient, so a retry never mails anyone twice. */
   async send(db, p) {
     const id = p.correspondence_id as string;
     const { data: c } = await db.from("correspondence").select("*").eq("id", id).single();
     if (!c || c.direction !== "outbound" || c.raw?.sent) return;
-    const r = await sendMail({ to: c.to_addresses, subject: c.subject ?? "(no subject)", text: c.body_text, html: c.body_html ?? undefined, messageId: c.message_id ?? undefined, inReplyTo: c.in_reply_to ?? undefined });
-    if (r.error) throw new Error(r.error);
-    await db.from("correspondence").update({ raw: { ...(c.raw ?? {}), sent: true, resend_id: r.id }, message_id: r.messageId }).eq("id", id);
+    const sentTo: string[] = c.raw?.sent_to ?? [];
+    const resendIds: string[] = c.raw?.resend_ids ?? [];
+    const domain = emailDomain();
+
+    const { data: from } = c.from_character
+      ? await db.from("characters").select("slug, name, title, divisions(name)").eq("id", c.from_character).maybeSingle()
+      : { data: null };
+    const sender = from as { slug: string; name: string; title: string | null; divisions: { name: string } | null } | null;
+    const { data: round } = c.round_id
+      ? await db.from("rounds").select("number, episode_round, episodes(number)").eq("id", c.round_id).maybeSingle()
+      : { data: null };
+    const r = round as { number: number; episode_round: number | null; episodes: { number: number } | null } | null;
+
+    const addresses = (c.to_addresses as string[]).map((a) => a.toLowerCase()).filter((a) => !sentTo.includes(a));
+    const { data: players } = addresses.length ? await db.from("players").select("id, email, file_token, mail_token").in("email", addresses) : { data: [] };
+    const { data: recips } = (c.to_characters as string[])?.length ? await db.from("characters").select("name, title, player_id").in("id", c.to_characters) : { data: [] };
+    const kind = (c.raw?.letter_kind as LetterKind | undefined) ?? (sender ? "letter" : r ? "dispatch" : "notice");
+
+    for (const addr of addresses) {
+      const pl = ((players ?? []) as { id: string; email: string; file_token: string; mail_token: string }[]).find((x) => x.email === addr);
+      const to = ((recips ?? []) as { name: string; title: string | null; player_id: string | null }[]).find((x) => pl && x.player_id === pl.id);
+      const common = {
+        to: to ? { name: to.name, title: to.title } : null,
+        date: r ? gameDate(r.number) : null,
+        round: kind === "dispatch" && r ? { number: r.number, episode: r.episodes?.number ?? null, episodeRound: r.episode_round } : null,
+        links: letterLinks(pl?.file_token),
+      };
+      const { html, text } = c.body_html
+        ? { html: c.body_html as string, text: c.body_text as string }
+        : kind === "letter" && sender
+          ? await renderTemplate(db, "letter", { subject: c.subject ?? "(no subject)", body: c.body_text, sender_name: sender.name, sender_title: sender.title ?? sender.divisions?.name ?? "", name: to?.name, title: to?.title }, common.links,
+              { ...common, ...(c.raw?.classification ? { classification: c.raw.classification as string } : {}) })
+          : renderLetter({
+              kind,
+              subject: c.subject ?? "(no subject)",
+              from: sender ? { name: sender.name, title: sender.title, department: sender.divisions?.name } : { name: "Personnel & Administration", department: "Royce Industries" },
+              classification: (c.raw?.classification as string | undefined) ?? null,
+              body: c.body_text,
+              signature: sender ? { name: sender.name, title: sender.title } : null,
+              ...common,
+            });
+      const first = !sentTo.length;
+      const res = await sendMail({
+        to: addr,
+        from: sender ? `${sender.name} <${sender.slug}@${domain}>` : undefined,
+        replyTo: sender && pl ? `${sender.slug}+${pl.mail_token}@${domain}` : undefined,
+        subject: c.subject ?? "(no subject)",
+        text, html,
+        messageId: first ? c.message_id ?? undefined : undefined,
+        inReplyTo: c.in_reply_to ?? undefined,
+      });
+      if (res.error) throw new Error(res.error);
+      sentTo.push(addr);
+      if (res.id) resendIds.push(res.id);
+      await db.from("correspondence").update({ raw: { ...(c.raw ?? {}), sent_to: sentTo, resend_ids: resendIds }, ...(first ? { message_id: res.messageId } : {}) }).eq("id", id);
+    }
+    await db.from("correspondence").update({ raw: { ...(c.raw ?? {}), sent: true, sent_to: sentTo, resend_ids: resendIds } }).eq("id", id);
   },
 };

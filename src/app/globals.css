@@ -10,6 +10,11 @@
   --red: #e32f1e;
   --red-2: #b8241a;
   --rule: #c9bea4;
+  /* showrunner console status inks */
+  --stamp: #b8241a;
+  --accent: #2f4f4a;
+  --ok: #3d6b35;
+  --warn: #8a6414;
 }
 
 @theme inline {
@@ -20,6 +25,10 @@
   --color-red: var(--red);
   --color-red-2: var(--red-2);
   --color-rule: var(--rule);
+  --color-stamp: var(--stamp);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
   --font-mono: "Geist Mono", ui-monospace, "Courier New", monospace;
   --font-display: "Oswald", Impact, sans-serif;
   --font-type: "Special Elite", "Courier New", monospace;
