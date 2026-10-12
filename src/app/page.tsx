@@ -44,7 +44,7 @@ export default function Home() {
         <a href="#top" className="display text-sm tracking-[0.35em]">Weird<span className="text-red">.</span>Delivery</a>
         <nav className="hidden gap-6 text-[11px] tracking-[0.25em] uppercase sm:flex">
           <a href="#how" className="hover:text-red">How it plays</a>
-          <a href="#demo" className="hover:text-red">Three rounds</a>
+          <Link href="/demo" className="hover:text-red">Demo</Link>
           <a href="#company" className="hover:text-red">The company</a>
           <a href="#social" className="hover:text-red">The secret game</a>
           <a href="#season" className="hover:text-red">Season one</a>
