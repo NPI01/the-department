@@ -15,10 +15,11 @@ export async function GET(req: NextRequest) {
   const result = await heartbeat(db, "work", async () => {
     const started = Date.now();
     let done = 0;
+    // One job at a time, fast kinds first, so a slow model call never delays a receipt.
     while (Date.now() - started < 240_000) {
-      const jobs = await claimJobs(db, 5);
-      if (!jobs.length) break;
-      for (const j of jobs) { await runJob(db, j); done++; }
+      const j = await claimNext(db);
+      if (!j) break;
+      await runJob(db, j); done++;
     }
     return { ok: true, done, ms: Date.now() - started };
   });
