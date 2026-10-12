@@ -85,7 +85,7 @@ function Message({ b, latest }: { b: Beat; latest: boolean }) {
   if (b.kind === "dispatch" || b.kind === "in") {
     const player = b.kind === "in" && b.player;
     return (
-      <div className={`demo-msg ${latest ? "demo-msg-new" : ""} border-l-4 ${b.kind === "dispatch" ? "border-red" : player ? "border-ink" : "border-rule"} bg-paper px-4 py-3`}>
+      <div className={`demo-msg ${latest ? "demo-msg-new" : ""} border-l-4 ${b.kind === "dispatch" ? "border-red" : player ? "border-ink" : "border-rule"} bg-paper px-4 py-3 text-ink`}>
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-[10px] tracking-[0.18em] uppercase text-ink-2">
           <span>{b.kind === "dispatch" ? "Dispatch" : player ? "From another player" : "From"} · {b.from}</span><span>{b.time}</span>
         </div>
@@ -95,13 +95,13 @@ function Message({ b, latest }: { b: Beat; latest: boolean }) {
     );
   }
   if (b.kind === "out") return (
-    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-l-4 border-red bg-paper-2 px-4 py-3 sm:ml-12`}>
+    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-l-4 border-red bg-paper-2 px-4 py-3 text-ink sm:ml-12`}>
       <div className="flex justify-between text-[10px] tracking-[0.18em] uppercase text-ink-2"><span>You → {b.to}</span><span>{b.time}</span></div>
       <p className="type mt-1 text-[13.5px] leading-snug">{typedOut}{latest && typedOut.length < b.text.length && <span className="caret" />}</p>
     </div>
   );
   if (b.kind === "order") return (
-    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-2 border-dashed border-ink bg-paper-2 px-4 py-3 sm:ml-12`}>
+    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-2 border-dashed border-ink bg-paper-2 px-4 py-3 text-ink sm:ml-12`}>
       <div className="flex justify-between text-[10px] tracking-[0.18em] uppercase text-ink-2"><span>Your order packet</span><span>{b.time}</span></div>
       {b.lines.map((l, i) => <p key={l} className="mt-1 text-[13px]" style={{ animation: latest ? `riseIn .5s ${i * 0.5}s both` : undefined }}><span className="text-red">▸</span> {l}</p>)}
       <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-ink-2">Binding at 8:00 PM. Everything else you wrote today was conversation.</p>
