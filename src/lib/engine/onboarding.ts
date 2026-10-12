@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { assignGoal } from "@/lib/game/goals";
 import { ALL_GOAL_KEYS, DEPARTMENTS, GOALS, KNOWLEDGE, SKILLS, SPECIALIZATIONS, identity } from "@/lib/game/creation";
 import { gameDate, letterLinks } from "@/lib/email/letter";
 import { emailDomain, gameMailbox, sendMail } from "@/lib/email/resend";
@@ -90,6 +91,7 @@ export async function approveApplication(db: SupabaseClient, applicationId: stri
     }).select("id").single();
     if (error) throw new Error(`character: ${error.message}`);
     characterId = ch.id;
+    await assignGoal(db, { campaignId: cid, characterId: ch.id, goalKey });
     await db.from("resources").upsert({ character_id: characterId, kind: "au", balance: idn.startAu, cap: 60 }, { onConflict: "character_id,kind" });
     if (app.identity === "transfer") await db.from("relationships").upsert({ campaign_id: cid, from_character: sup.id, to_character: characterId, trust: 0.4 }, { onConflict: "from_character,to_character" });
     if (app.identity === "referred") await db.from("relationships").upsert({ campaign_id: cid, from_character: characterId, to_character: sup.id, obligation: 0.5 }, { onConflict: "from_character,to_character" });

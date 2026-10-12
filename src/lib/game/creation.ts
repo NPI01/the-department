@@ -85,17 +85,18 @@ export const DEPARTMENTS: Record<string, { positions: string[]; supervisor: stri
 /* The player-facing goal text, from the Objective column of canon/secret/07.
    The predicate the engine scores stays in that document. Objectives 10–12
    (Cult Recruit, Federal Informant, Independent Investigator) are not a
-   supervisor's to give and are not in this pool. */
-export const GOALS: Record<string, { text: string; deadline: string }> = {
-  "ep1-1": { text: "Determine who approved the Tagus shipments.", deadline: "the end of the month" },
-  "ep1-2": { text: "Identify who has been passing company material to outsiders.", deadline: "the end of the month" },
-  "ep1-3": { text: "Obtain access to an ORPHEUS sample.", deadline: "the end of the month" },
-  "ep1-4": { text: "Explain three altered personnel records.", deadline: "the end of the month" },
-  "ep1-5": { text: "Recover the missing NIGHTJAR test log before the flight review.", deadline: "October 19" },
-  "ep1-6": { text: "Establish whether the HARVEST samples were obtained under legitimate authority.", deadline: "the end of the month" },
-  "ep1-7": { text: "Trace a classified appropriation through the company accounts.", deadline: "the end of the month" },
-  "ep1-8": { text: "Explain the future-dated entries in the computer records.", deadline: "the end of the month" },
-  "ep1-9": { text: "Secure enough Board support to carry the departmental reporting motion the way this office requires.", deadline: "October 16" },
+   supervisor's to give and are not in this pool. Points are the published
+   value, the base figure from 07; partial credit and bonuses stay secret. */
+export const GOALS: Record<string, { text: string; deadline: string; points: number }> = {
+  "ep1-1": { text: "Determine who approved the Tagus shipments.", deadline: "the end of the month", points: 15 },
+  "ep1-2": { text: "Identify who has been passing company material to outsiders.", deadline: "the end of the month", points: 20 },
+  "ep1-3": { text: "Obtain access to an ORPHEUS sample.", deadline: "the end of the month", points: 15 },
+  "ep1-4": { text: "Explain three altered personnel records.", deadline: "the end of the month", points: 20 },
+  "ep1-5": { text: "Recover the missing NIGHTJAR test log before the flight review.", deadline: "October 19", points: 15 },
+  "ep1-6": { text: "Establish whether the HARVEST samples were obtained under legitimate authority.", deadline: "the end of the month", points: 20 },
+  "ep1-7": { text: "Trace a classified appropriation through the company accounts.", deadline: "the end of the month", points: 15 },
+  "ep1-8": { text: "Explain the future-dated entries in the computer records.", deadline: "the end of the month", points: 20 },
+  "ep1-9": { text: "Secure enough Board support to carry the departmental reporting motion the way this office requires.", deadline: "October 16", points: 25 },
 };
 
 export const ALL_GOAL_KEYS = Object.keys(GOALS);

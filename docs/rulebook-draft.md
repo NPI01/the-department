@@ -92,7 +92,7 @@ never discloses anyone's membership.
 | Specialization | what you are particularly good at (§4.3) |
 | Background | a private paragraph: why Royce hired you, what you bring, what you would rather nobody knew |
 | A relationship | one person at Royce or nearby who knows you already |
-| Episode objective | a private goal with a fourteen-round deadline (§10) |
+| Personal Goal | a confidential goal from your supervisor, worth points (§10) |
 | Mailbox and address book | how you write to people (§7) |
 | Resources | 10 Action Units to start (§5) |
 
@@ -394,29 +394,35 @@ A finding can be properly established and still be wrong. Documents can be authe
 contradict each other. People lie. The game keeps track of what is true; nobody else
 does.
 
-## 10. Objectives: what you are playing for
+## 10. Personal Goals and points: what you are playing for
 
-[PROPOSED throughout.]
+[Scoring decided by Nathan 2026-10-12: points and a season standings board with a
+winner. Point values below are the published figures; the rest is PROPOSED.]
 
-**10.1 Three levels.**
+**10.1 Your first goal.** Every new hire starts with one **Personal Goal**, set by your
+supervisor in the first work memo you receive: for example, *Determine who approved the
+Tagus shipments*. It is confidential, it has a deadline, and it is worth a stated number
+of points. It is also on your personnel file, with your running score.
 
-- **Daily intentions** are yours alone: find this file, win that vote, keep that secret.
-- **Episode objectives** arrive privately at the start of each episode, with a
-  fourteen-round deadline and a precise condition (hold this document, see this finding
-  established, keep this person in their post). Some players' objectives conflict.
-- **Season ambitions** are larger aims you can take on during the season, such as
-  control of a department, exposure of a project, or the survival of someone you care
-  about. Some are incompatible with others.
+**10.2 More goals.** As the season goes on you may be given further goals: by your
+supervisor, by people you make deals with, or by the episode itself. Each one is worth
+points. You can hold several at once. Some players' goals depend on each other; some
+conflict outright.
 
-**10.2 Rewards.** At the end of each episode, the dispatch reports which objectives you
-met. Meeting them brings things that matter in play: AU, clearance recommendations,
-standing with the people who set them, and sometimes a discovery. Failing costs you
-nothing but the opportunity, and occasionally your reputation with whoever was counting
-on you.
+**10.3 What counts as done.** A goal's text says what you are after, not what proof the
+company will accept. Working that out is part of the game. When a goal is judged, your
+personnel file shows it as **Met** (with the points given, which may be less than the
+full value for a partial result) or **Not met**, sometimes with a short ruling. Failing
+a goal costs you nothing but the points.
 
-**10.3 Winning.** There is no single winner. The season ends with an epilogue for each
-character, written from what they actually did. Some ambitions can only be achieved at
-another player's expense. Some can only be achieved together.
+**10.4 Standings and winning.** Your score is the sum of points from goals you have met.
+The season standings, posted on your personnel file, list everyone in your cohort by
+score; goals themselves stay confidential, only totals are posted. The employee who
+stands first when the season ends wins it. Ties share a place. Every character also gets
+an epilogue, written from what they actually did.
+
+**10.5 Daily intentions** are still yours alone: find this file, win that vote, keep that
+secret. They score nothing by themselves, but they are usually how goals get met.
 
 ## 11. Absence, leave and leaving
 
@@ -488,8 +494,8 @@ Help:  showrunner@weird.delivery (out of character)                [PROPOSED]
    deterministic resolution where ties go to the defender.
 6. **Delivery timing (§7.3).** Player-to-player letters delivered immediately, or held
    and delivered in batches.
-7. **Objectives and winning (§10).** No single winner, with rewards in play currency and
-   an epilogue, is my proposal. A season-end score is the alternative.
+7. **Objectives and winning (§10).** DECIDED 2026-10-12: points for met Personal Goals,
+   a posted standings board, and a season winner. Point values public; conditions secret.
 8. **Absence (§11).** The 3- and 7-round thresholds.
 9. **Player-founded organizations (§8.6)** and **aliases (§7.6)** in the pilot, or later.
 10. **Political capital.** The schema and the brainstorm have it; canon does not. This

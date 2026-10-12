@@ -8,7 +8,7 @@ import { gameMailbox } from "@/lib/email/resend";
 import { PublicShell } from "../../_public-shell";
 import { BIO_FIELDS, bioFrom, particulars } from "@/lib/game/personnel";
 import { OfficeCalendar } from "./calendar";
-import { GOALS } from "@/lib/game/creation";
+import { goalsFor, scoreOf, standings } from "@/lib/game/goals";
 import { saveBio } from "./actions";
 
 /* A player's personnel file, reached by the private link in every letter the
@@ -24,6 +24,8 @@ export default function FilePage({ params, searchParams }: PageProps<"/file/[tok
     </Suspense>
   );
 }
+
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 
 type Char = { id: string; campaign_id: string; slug: string; name: string; title: string | null; division_id: string | null; clearance: number; specialization: string | null; status: string; public_profile: string | null; sheet: { bio?: string | null; profile?: Record<string, string> } | null; supervisor_id: string | null; created_at: string; goal_key: string | null };
 
@@ -57,6 +59,9 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
     db.from("characters").select("id, slug, name, title, division_id").eq("campaign_id", me.campaign_id).eq("status", "active").not("division_id", "is", null).order("name"),
   ]);
   const bio = bioFrom(me.sheet, me.public_profile);
+  const [goals, table] = await Promise.all([goalsFor(db, me.id), standings(db, me.campaign_id)]);
+  const score = scoreOf(goals);
+  const rank = table.find((r) => r.characterId === me.id)?.rank ?? null;
   // DSRD is not on the org chart new hires receive; its people appear under the Executive Office.
   const div = new Map(((divisions ?? []) as { id: string; name: string; slug: string }[]).map((d) => [d.id, d.slug === "dsrd" ? "Executive Office" : d.name]));
   const au = ((resources ?? []) as { kind: string; balance: number; cap: number | null }[]).find((r) => r.kind === "au");
@@ -85,16 +90,32 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
         {row("Committees", ((memberships ?? []) as unknown as { role: string | null; organizations: { name: string } | null }[]).map((m) => `${m.organizations?.name}${m.role ? ` (${m.role})` : ""}`).join("; ") || "—")}
       </section>
 
-      {me.goal_key && GOALS[me.goal_key] && (
-        <section className="mt-10 border-2 border-red bg-paper-2 p-5 shadow-[6px_6px_0_0_var(--ink)]">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-red">Personal Goal · Confidential</p>
-            <span className="inline-block -rotate-2 border-2 border-red px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red">Open</span>
+      <section className="mt-10">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="display text-2xl">Personal Goals</h2>
+          <Link href={`/file/${token}/standings`} className="text-sm hover:text-red">
+            <span className="display text-3xl text-red">{score}</span> <span className="text-xs uppercase tracking-[0.2em]">points{rank ? ` · ${ordinal(rank)} of ${table.length}` : ""} · standings →</span>
+          </Link>
+        </div>
+        <p className="mt-2 text-sm text-ink-2">Meet a goal and its points are yours; the season standings are the sum. You start with one goal and may be given more as the season goes on. What counts as done is for you to work out: the company does not say what proof it will accept.</p>
+        {goals.length ? (
+          <div className="mt-4 space-y-4">
+            {goals.map((g) => (
+              <article key={g.id} className={`border-2 bg-paper-2 p-5 ${g.status === "open" ? "border-red shadow-[6px_6px_0_0_var(--ink)]" : "border-ink"}`}>
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-red">Confidential · worth {g.points} points</p>
+                  <span className={`inline-block -rotate-2 border-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] ${g.status === "met" ? "border-ok text-ok" : g.status === "failed" ? "border-ink-2 text-ink-2" : "border-red text-red"}`}>
+                    {g.status === "met" ? `Met · +${g.awarded ?? g.points}` : g.status === "failed" ? "Not met" : "Open"}
+                  </span>
+                </div>
+                <p className={`type mt-3 text-xl leading-snug ${g.status === "failed" ? "line-through decoration-red/60" : ""}`}>{g.text}</p>
+                <p className="mt-3 text-sm text-ink-2">{g.deadline ? `Due ${g.deadline}. ` : ""}{g.assignedRound === 1 && g === goals[0] ? `Set by ${p.supervisor ? p.supervisor.name : "your supervisor"} in your first memo.` : g.assignedRound ? `Assigned in Round ${g.assignedRound}.` : ""}</p>
+                {g.note && <p className="mt-2 border-l-2 border-red pl-3 text-sm">{g.note}</p>}
+              </article>
+            ))}
           </div>
-          <p className="type mt-3 text-xl leading-snug">{GOALS[me.goal_key].text}</p>
-          <p className="mt-3 text-sm text-ink-2">Due {GOALS[me.goal_key].deadline}. Set by {p.supervisor ? p.supervisor.name : "your supervisor"} in your first memo. This is what you are being measured on; how you get there is up to you. More goals may come your way as the season goes on.</p>
-        </section>
-      )}
+        ) : <p className="mt-4 text-sm text-ink-2">Your first goal arrives with your supervisor&apos;s first memo.</p>}
+      </section>
 
       <section className="mt-12">
         <OfficeCalendar startRound={p.startRound} currentRound={p.currentRound} roundOpenedAt={p.roundOpenedAt} timezone={p.timezone} />

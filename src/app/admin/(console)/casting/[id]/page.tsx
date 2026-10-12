@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCharacter, getSeasons } from "@/lib/admin/queries";
 import { fmtDateTime } from "@/lib/admin/format";
 import { A, Badge, Empty, KV, Loading, PageHeader, Panel, Table, statusTone } from "../../ui";
+import { GoalsPanel } from "./goals";
 
 export default function CharacterPage({ params }: PageProps<"/admin/casting/[id]">) {
   return (
@@ -68,6 +69,8 @@ async function Content({ params }: { params: PageProps<"/admin/casting/[id]">["p
           )}
         </Panel>
       </div>
+
+      {c.player_id && <GoalsPanel characterId={c.id} campaignId={c.campaign_id} />}
 
       <Panel title="Recent correspondence" className="mt-4">
         {!d.mail.length ? <Empty>No letters to or from this character.</Empty> : (
