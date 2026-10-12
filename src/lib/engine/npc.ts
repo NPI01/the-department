@@ -75,21 +75,33 @@ THE RIGHT LEVEL, for a first-week letter about a strange sighting (an example of
 
 /* Words a staff member would not put in writing to a newcomer in the first
    week unless the newcomer wrote them first. Checked only for rounds 1–3. */
-const EARLY_TERMS = /\b(cults?|satan\w*|devil\w*|rituals?|occult\w*|sacrific\w*|covens?|mutilat\w*|conspirac\w*|cover-?ups?|jamming|disinformation|surveillance|logs?|sensors?|radar|cameras?|cctv|footage|investigat\w*|suspects?|suspicio\w*|interrogat\w*|revocation|revoked|dismissal|terminat\w*|insubordinat\w*|loyalty|anomal\w*)\b/gi;
+const EARLY_TERMS = /\b(cults?|satan\w*|devil\w*|rituals?|occult\w*|sacrific\w*|covens?|mutilat\w*|conspirac\w*|cover-?ups?|disinformation)\b/gi;
+/* Words that are fine in a refusal ("Security does not release surveillance imagery")
+   and wrong in a finding ("the surveillance showed"). Flagged for the Skeptic, not rejected. */
+const SOFT_TERMS = /\b(surveillance|sensors?|logs?|cameras?|cctv|footage|radar|investigat\w*|suspects?|suspicio\w*|interrogat\w*|anomal\w*|loyalty|jamming|manifests?|records?)\b/gi;
+
+function stem(w: string): string { return w.toLowerCase().replace(/s$/, ""); }
+function notTheirs(draft: string, playerLetter: string, re: RegExp): string[] {
+  const theirs = new Set((playerLetter.match(re) ?? []).map(stem));
+  const out = new Set<string>();
+  for (const w of draft.match(re) ?? []) if (!theirs.has(stem(w))) out.add(w);
+  return [...out];
+}
 
 export function leaks(draft: string, playerLetter: string, round: number): string[] {
   const out = new Set<string>();
   const m = draft.match(SECRET_TERMS); if (m) out.add(m[0]);
-  if (round <= 3) {
-    const theirs = new Set((playerLetter.match(EARLY_TERMS) ?? []).map((w) => w.toLowerCase().replace(/s$/, "")));
-    for (const w of draft.match(EARLY_TERMS) ?? []) { const k = w.toLowerCase().replace(/s$/, ""); if (!theirs.has(k)) out.add(w); }
-  }
+  if (round <= 3) for (const w of notTheirs(draft, playerLetter, EARLY_TERMS)) out.add(w);
   return [...out];
+}
+
+export function softFlags(draft: string, playerLetter: string, round: number): string[] {
+  return round <= 3 ? notTheirs(draft, playerLetter, SOFT_TERMS) : [];
 }
 
 /* The Skeptic: a second, cheaper read of the draft against the pacing rules.
    Returns the reasons it fails, or none. */
-export async function reviewDraft(draft: string, input: ReplyInput): Promise<string[]> {
+export async function reviewDraft(draft: string, input: ReplyInput, flagged: string[] = []): Promise<string[]> {
   const system = `You are the Skeptic, the continuity editor for a 1977 corporate-intrigue correspondence game played by email. A staff character has drafted a reply to a player's letter. Your only job is pacing: does the draft give away more than this character would at this point in the game?
 
 THE RULE FOR THIS ROUND
@@ -104,7 +116,8 @@ FAIL the draft only for one of these:
 Do not fail a draft for tone, formality, word choice, length, bureaucratic jargon, demands, forms, deadlines, repeating something the character said before, or small invented details about the character's job. Those are the character's business. When in doubt, PASS.
 
 Answer with one line, PASS or FAIL. For a FAIL, add up to three lines, each beginning "- ", each giving the rule number and then the offending phrase copied exactly from the draft inside double quotes, like: - 3 "the footage shows only routine patrol". Nothing else.`;
-  const user = `ROUND ${input.round}. THE CHARACTER: ${input.dossier.name}${input.dossier.title ? `, ${input.dossier.title}` : ""}.\n\nTHE PLAYER WROTE:\n${input.letter.body.slice(0, 2500)}\n\nTHE DRAFT REPLY:\n${draft}`;
+  const flags = flagged.length ? `\nWORDS TO LOOK AT: the draft uses ${flagged.map((w) => `"${w}"`).join(", ")}. Each is fine in a refusal or a policy statement and a failure under rule 3 if it reports what was seen, found or concluded.\n` : "";
+  const user = `ROUND ${input.round}. THE CHARACTER: ${input.dossier.name}${input.dossier.title ? `, ${input.dossier.title}` : ""}.${flags}\n\nTHE PLAYER WROTE:\n${input.letter.body.slice(0, 2500)}\n\nTHE DRAFT REPLY:\n${draft}`;
   try {
     const res = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tag: `skeptic:${input.dossier.name}`, temperature: 0.2, maxTokens: 250, think: false, timeoutMs: 60_000, onLedger: input.onLedger });
     const lines = res.text.trim().split("\n").map((l) => l.trim()).filter(Boolean);
@@ -151,7 +164,7 @@ RULES
 
 LIMITS FOR THIS POINT IN THE GAME (these override everything above)
 ${pacing(input.round)}${input.round <= 3 ? `
-Words you do not use this week, whatever the writer says: surveillance, sensor, log, camera, CCTV, footage, radar, investigation, suspect, suspicious, interrogate, anomaly, loyalty, cult, ritual, occult, conspiracy, cover-up. If you must refer to a record, call it "the file" or "my notes" and say nothing of what is in it.` : ""}
+Words you do not use this week unless the writer used them first: cult, ritual, occult, conspiracy, cover-up, disinformation. Words you use only to refuse, never to report: surveillance, sensor, log, camera, footage, radar, record, manifest, investigation, suspect, anomaly. If you must refer to a record, call it "the file" or "my notes" and say nothing of what is in it.` : ""}
 
 FORMAT. Write the letter as plain text. Then, on its own line, write exactly three tildes: ~~~
 After the tildes, three lines for the clerk, which the writer never sees:
@@ -196,7 +209,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     else {
       const bad = leaks(draft.body, input.letter.body, input.round);
       if (bad.length) { guarded = true; reasons.push(`uses words you must not: ${bad.join(", ")}`); }
-      if (!reasons.length && input.review !== false) reasons.push(...(await reviewDraft(draft.body, input)));
+      if (!reasons.length && input.review !== false) reasons.push(...(await reviewDraft(draft.body, input, softFlags(draft.body, input.letter.body, input.round))));
     }
     if (!reasons.length) { out = draft; break; }
     rejected.push({ draft: draft.body || `[unparsed] ${res.text.slice(0, 1500)}`, reasons });
