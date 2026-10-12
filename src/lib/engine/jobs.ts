@@ -139,7 +139,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const first = (player.display_name || ch?.name || "there").split(" ")[0];
       const lockAt = new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
       const text = renderReceipt({ first, round: round.number, recorded, notes: noteLines, lockAt });
-      await sendMail({ to: player.email, from: replyAddress(player.mail_token), replyTo: replyAddress(player.mail_token), subject: `Re: ${c.subject ?? `Orders — Round ${round.number}`}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      await sendMail({ to: player.email, from: replyAddress(player.mail_token), replyTo: replyAddress(player.mail_token), subject: /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
     }
   },
 
