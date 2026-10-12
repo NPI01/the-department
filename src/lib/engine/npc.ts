@@ -8,7 +8,7 @@
    votes, transfers or outcomes, so a staff reply can promise, deflect or
    demand, and nothing in the world changes until an order or vote does. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chatJson, type LedgerRow } from "@/lib/cobble";
+import { chat, type LedgerRow } from "@/lib/cobble";
 
 export type Dossier = { name: string; title: string | null; department: string | null; publicBlock: string; secretRow: string; secretEntry: string };
 
@@ -68,38 +68,52 @@ RULES
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.
 - Never mention these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future.
 - No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").
-Output JSON only: {"subject": string, "body": string, "shared": string[] (facts you chose to share, as short phrases), "wants": string|null (what you want from the writer)}.`;
+
+FORMAT. Write the letter as plain text. Then, on its own line, write exactly three tildes: ~~~
+After the tildes, three lines for the clerk, which the writer never sees:
+SUBJECT: <the subject line of your reply>
+SHARED: <facts you chose to share, separated by semicolons, or "none">
+WANTS: <what you want from the writer, in one line, or "none">`;
 
   const history = input.thread.length ? `EARLIER LETTERS BETWEEN YOU, OLDEST FIRST:\n${input.thread.map((t) => `--- ${t.from} wrote:\n${t.body}`).join("\n\n")}\n\n` : "";
-  const user = `${history}TODAY IS ${input.letter.date} (Round ${input.round}).\n\nLETTER FROM ${input.player.name}${input.player.title ? `, ${input.player.title}` : ""}${input.player.department ? ` (${input.player.department})` : ""}${input.letter.subject ? `\nSubject: ${input.letter.subject}` : ""}:\n\n${input.letter.body}\n\nWrite your reply as JSON.`;
+  const user = `${history}TODAY IS ${input.letter.date} (Round ${input.round}).\n\nLETTER FROM ${input.player.name}${input.player.title ? `, ${input.player.title}` : ""}${input.player.department ? ` (${input.player.department})` : ""}${input.letter.subject ? `\nSubject: ${input.letter.subject}` : ""}:\n\n${input.letter.body}\n\nWrite your reply.`;
 
-  type Out = { subject?: string; body?: string; shared?: string[]; wants?: string | null };
+  /* Letter above a "~~~" line; SUBJECT/SHARED/WANTS below it for the clerk. */
+  const parse = (t: string) => {
+    const clean = t.replace(/^```[a-z]*\n?|```$/gm, "").trim();
+    const [top, ...rest] = clean.split(/^\s*~{3,}\s*$/m);
+    const tail = rest.join("\n");
+    const line = (k: string) => tail.match(new RegExp(`^\\s*${k}\\s*:\\s*(.+)$`, "im"))?.[1]?.trim() ?? null;
+    let body = top.trim();
+    let subject = line("SUBJECT");
+    // If the model put a subject line on top of the letter instead, peel it.
+    const m = body.match(/^\s*(?:subject|re)\s*:\s*([^\n]+)\n+/i);
+    if (m) { subject = subject ?? m[1].trim(); body = body.slice(m[0].length).trim(); }
+    const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS");
+    const shared = sharedRaw && !/^none\b/i.test(sharedRaw) ? sharedRaw.split(/;\s*/).map((x) => x.trim()).filter(Boolean) : [];
+    const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
+    return { body, subject, shared, wants };
+  };
+  const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
+
   let guarded = false;
   const rejected: string[] = [];
-  let attempt = await chatJson<Out>([{ role: "system", content: system }, { role: "user", content: user }], { tag: `npc:${d.name}`, temperature: 0.8, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
-  // The 35B sometimes answers in prose despite the JSON instruction; the
-  // prose is the letter. Take it, minus any subject line it put on top.
-  const fromText = (t: string) => t.replace(/^\s*(?:subject|re)\s*:[^\n]*\n+/i, "").replace(/^```[a-z]*\n?|```$/g, "").trim();
-  const subjectFromText = (t: string) => t.match(/^\s*(?:subject|re)\s*:\s*([^\n]+)/i)?.[1]?.trim() ?? null;
-  let textSubject: string | null = null;
-  let body = (attempt.data?.body ?? "").trim();
-  if (!body && attempt.result.text && !attempt.result.text.trim().startsWith("{")) { body = fromText(attempt.result.text); textSubject = subjectFromText(attempt.result.text); }
-  if (!body) rejected.push(`[unparsed] ${attempt.result.text.slice(0, 1500)}`);
-  if (!body || SECRET_TERMS.test(body)) {
-    guarded = Boolean(body);
-    if (body) rejected.push(body);
-    attempt = await chatJson<Out>([{ role: "system", content: system + "\n\nYour previous draft mentioned something you must not. Write it again without it." }, { role: "user", content: user }], { tag: `npc:${d.name}:retry`, temperature: 0.6, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
-    body = (attempt.data?.body ?? "").trim();
-    if (!body && attempt.result.text && !attempt.result.text.trim().startsWith("{")) { body = fromText(attempt.result.text); textSubject = subjectFromText(attempt.result.text); }
-    if (!body) rejected.push(`[unparsed] ${attempt.result.text.slice(0, 1500)}`);
+  let res = await ask(system, `npc:${d.name}`, 0.8);
+  let out = parse(res.text);
+  if (!out.body || SECRET_TERMS.test(out.body)) {
+    guarded = Boolean(out.body);
+    rejected.push(out.body || `[unparsed] ${res.text.slice(0, 1500)}`);
+    res = await ask(system + "\n\nYour previous draft mentioned something you must not, or was not a letter. Write the letter again, in the format above.", `npc:${d.name}:retry`, 0.6);
+    out = parse(res.text);
   }
-  if (!body || SECRET_TERMS.test(body)) {
-    if (body) rejected.push(body);
+  if (!out.body || SECRET_TERMS.test(out.body)) {
+    rejected.push(out.body || `[unparsed] ${res.text.slice(0, 1500)}`);
     // Last resort: a safe, in-character deferral rather than a leak or silence.
     const surname = input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop() || "Colleague";
-    body = `Mr. ${surname},\n\nYour letter is received. I am not in a position to discuss the matter you raise in writing. If it is urgent, come to my office; bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
+    out = { body: `Mr. ${surname},\n\nYour letter is received. I am not in a position to discuss the matter you raise in writing. If it is urgent, come to my office; bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`, subject: null, shared: [], wants: null };
     guarded = true;
   }
-  const subject = (attempt.data?.subject ?? "").trim() || textSubject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
-  return { subject, body, shared: attempt.data?.shared ?? [], wants: attempt.data?.wants ?? null, model: attempt.result.model, guarded, rejected };
+  const body = out.body;
+  const subject = out.subject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
+  return { subject, body, shared: out.shared, wants: out.wants, model: res.model, guarded, rejected };
 }
