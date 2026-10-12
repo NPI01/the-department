@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { parseFormSubmission } from "@/lib/engine/forms";
 
 /* Resend signs webhooks the Svix way: headers svix-id, svix-timestamp,
    svix-signature; signed content is `${id}.${timestamp}.${rawBody}`; the
@@ -32,6 +33,7 @@ export function parseGameAddress(address: string, domain: string): { slug: strin
    of a line, are parsed without any model. Everything else is prose. */
 export type GrammarAct =
   | { kind: "command"; name: "directory" | "help" | "resign" }
+  | { kind: "form_request"; form: string }
   | { kind: "select"; code: string }
   | { kind: "vote"; motion: string; choice: "for" | "against" | "abstain" }
   | { kind: "hold" }
@@ -50,7 +52,14 @@ const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go wi
 
 export function parseGrammar(text: string): GrammarAct[] {
   const acts: GrammarAct[] = [];
-  for (const raw of text.split(/\r?\n/)) {
+  // A filled-in form is a block of numbered answers; none of its lines are acts.
+  // A bare "FORM 14-B" line asks for a blank.
+  const form = parseFormSubmission(text);
+  const filled = form && Object.keys(form.answers).length > 0;
+  if (form && !filled) acts.push({ kind: "form_request", form: form.form });
+  const lines = text.split(/\r?\n/);
+  for (const [i, raw] of lines.entries()) {
+    if (form && i >= form.startLine && i <= (filled ? form.endLine : form.startLine)) continue;
     const line = raw.trim();
     if (line.startsWith(">")) continue; // quoted
     let m: RegExpMatchArray | null;

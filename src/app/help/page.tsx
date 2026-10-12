@@ -45,6 +45,15 @@ H                               ← hold: keep your units this round`}</Code>
       <P>To write to someone, send an ordinary email from your own address. Any of these reach the person: put their address (fisk@weird.delivery) in your To field; or reply to any Department letter and begin with their name ("Mr. Fisk,"); or start the letter with a line "To: Mr. Fisk". Use your mail program's Subject line as usual. You do not need to type To: or Re: in the body.</P>
       <P>Staff reply as themselves, usually within the hour, sometimes not until the morning. Other players reply when they reply. Letters cost nothing; only orders cost Action Units.</P>
 
+      <H>Forms</H>
+      <P>Some matters are handled on paper. A staff member may require a company form before acting on, or even discussing, what you have raised. Reply <strong>FORM 14-B</strong> to any Department mail and the blank comes back at once. To file it, reply with the form number on a line by itself and your answers, each beginning with its number:</P>
+      <Code>{`FORM 14-B
+1. Joseph Pruitt, badge 4471, Information Systems, supervisor R. Okafor
+2. Monday, October 10, about 8:15 AM. I looked at the dash clock.
+...
+12. Joseph Pruitt`}</Code>
+      <P>A filed form is on the record under your name. It costs nothing and is not an order, but staff read it and remember it, and it can be cited against you. Incomplete forms may be returned.</P>
+
       <H>Votes and committees</H>
       <P>When a ballot is open, the notice tells you its number. Reply with a line such as <code>VOTE E-77-001: Okafor</code> or <code>VOTE B-77-003: FOR</code> before the lock on its closing day.</P>
 

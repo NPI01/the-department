@@ -41,10 +41,17 @@ Intelligence (believed relevant) → Evidence (an artifact, document or testimon
 provenance) → Established Finding (accepted by a committee under its procedures). A
 finding can be formally established and still be wrong.
 
+## Forms
+Some matters are handled on paper. A staff member may require a company form before
+acting on, or discussing, what you have raised. Reply `FORM 14-B` to receive a blank;
+reply with the form number and numbered answers to file it. A filed form is on the
+record under your name, costs nothing, is not an order, and is remembered by the office
+that owns it. See `06-forms.md`.
+
 ## Committees
 Royce is governed by its Board, the Research Committee, and the Safety Committee, each
 with members, quorum and thresholds (charter in progress: `agents/tasks/royce-governance-charter.md`).
 Every episode contains at least one collective decision: a vote, an authorization, an
 appointment, a sealing order.
 
-CHANGELOG: v1 sets the player-facing rules of correspondence, the deterministic grammar, round modes, evidence tiers, committee outline.
+CHANGELOG: v1 sets the player-facing rules of correspondence, the deterministic grammar, round modes, evidence tiers, committee outline. v1.1 (2026-10-12) adds forms.

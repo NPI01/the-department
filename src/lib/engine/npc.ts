@@ -9,6 +9,7 @@
    demand, and nothing in the world changes until an order or vote does. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chat, type LedgerRow } from "@/lib/cobble";
+import { formBriefFor } from "@/lib/engine/forms";
 
 export type Dossier = { name: string; title: string | null; department: string | null; publicBlock: string; secretRow: string; secretEntry: string };
 
@@ -46,12 +47,13 @@ export type Memory = {
   saidToThisPerson: string[];
   saidToOthers: { to: string; text: string }[];
   heardFromThisPerson: string[];
+  filed?: string[];                                 // forms this person has on file, e.g. "Form 14-B (S-77-001), Round 1"
 };
 
 export type ReplyInput = {
   dossier: Dossier;
   player: { name: string; title: string | null; department: string | null };
-  letter: { subject: string | null; body: string; date: string };
+  letter: { subject: string | null; body: string; date: string; formNote?: string | null };
   thread: { from: string; body: string }[];       // earlier letters between the two, oldest first
   round: number;
   memory?: Memory;
@@ -149,10 +151,11 @@ Answer with one line, PASS or FAIL. For a FAIL, add up to three lines, each begi
 export async function generateStaffReply(input: ReplyInput): Promise<StaffReply> {
   const d = input.dossier;
   const mem = input.memory;
-  const memoryBlock = mem && (mem.saidToThisPerson.length || mem.saidToOthers.length || mem.heardFromThisPerson.length)
+  const memoryBlock = mem && (mem.saidToThisPerson.length || mem.saidToOthers.length || mem.heardFromThisPerson.length || mem.filed?.length)
     ? `\nWHAT YOU REMEMBER
-${mem.heardFromThisPerson.length ? `This person has told you: ${mem.heardFromThisPerson.join("; ")}.\n` : ""}${mem.saidToThisPerson.length ? `You have already told this person: ${mem.saidToThisPerson.join("; ")}. Do not repeat it; build on it or move on.\n` : ""}${mem.saidToOthers.length ? `You have told others: ${mem.saidToOthers.map((s) => `(to ${s.to}) ${s.text}`).join("; ")}. Keep your story consistent with that.\n` : ""}`
+${mem.heardFromThisPerson.length ? `This person has told you: ${mem.heardFromThisPerson.join("; ")}.\n` : ""}${mem.saidToThisPerson.length ? `You have already told this person: ${mem.saidToThisPerson.join("; ")}. Do not repeat it; build on it or move on.\n` : ""}${mem.saidToOthers.length ? `You have told others: ${mem.saidToOthers.map((s) => `(to ${s.to}) ${s.text}`).join("; ")}. Keep your story consistent with that.\n` : ""}${mem.filed?.length ? `Forms this person has on file: ${mem.filed.join("; ")}.\n` : `This person has filed no forms with any office.\n`}`
     : "";
+  const formsBlock = `\nFORMS\n${formBriefFor(d.department)}\n`;
   const system = `You are ${d.name}${d.title ? `, ${d.title}` : ""}${d.department ? ` in ${d.department}` : ""}, an employee of Royce Industries, writing a reply to an interoffice letter from a new employee. Stay entirely in character and in period.
 
 ${WORLD}
@@ -163,7 +166,7 @@ ${d.publicBlock || "(no public profile on file; use title and department)"}
 WHAT YOU PRIVATELY WANT AND KNOW (shorthand notes for you alone; they shape what you say, what you avoid, what you ask for; never repeat their wording or names in a letter):
 ${d.secretRow || "(none)"}
 ${d.secretEntry || ""}
-${memoryBlock}
+${formsBlock}${memoryBlock}
 RULES
 - Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.
@@ -181,7 +184,7 @@ SHARED: <every piece of information in your letter that the writer did not alrea
 WANTS: <what you want from the writer, in one line, or "none">`;
 
   const history = input.thread.length ? `EARLIER LETTERS BETWEEN YOU, OLDEST FIRST:\n${input.thread.map((t) => `--- ${t.from} wrote:\n${t.body}`).join("\n\n")}\n\n` : "";
-  const user = `${history}TODAY IS ${input.letter.date} (Round ${input.round}).\n\nLETTER FROM ${input.player.name}${input.player.title ? `, ${input.player.title}` : ""}${input.player.department ? ` (${input.player.department})` : ""}${input.letter.subject ? `\nSubject: ${input.letter.subject}` : ""}:\n\n${input.letter.body}\n\nWrite your reply.`;
+  const user = `${history}TODAY IS ${input.letter.date} (Round ${input.round}).\n\nLETTER FROM ${input.player.name}${input.player.title ? `, ${input.player.title}` : ""}${input.player.department ? ` (${input.player.department})` : ""}${input.letter.subject ? `\nSubject: ${input.letter.subject}` : ""}:\n\n${input.letter.body}${input.letter.formNote ? `\n\n[Clerk's note, not part of the letter: ${input.letter.formNote}]` : ""}\n\nWrite your reply.`;
 
   /* Letter above a "~~~" line; SUBJECT/SHARED/WANTS below it for the clerk. */
   const parse = (t: string) => {

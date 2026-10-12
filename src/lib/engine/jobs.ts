@@ -16,8 +16,9 @@ import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
 import { generateStaffReply, loadDossier, type Memory } from "@/lib/engine/npc";
+import { FORMS, formIsKnown, parseFormSubmission, renderBlankForm, renderFormReceipt, summarizeSubmission } from "@/lib/engine/forms";
 import { newMessageId } from "@/lib/email/resend";
-import { menuFor, renderDirectory, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
+import { menuFor, renderDirectory, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
 /* Short stable key for a remembered sentence (djb2), so re-runs do not duplicate. */
@@ -76,7 +77,7 @@ export async function runJob(db: SupabaseClient, job: Job): Promise<void> {
 }
 
 /* True when the reply contained only commands (DIRECTORY/HELP), so no receipt is owed. */
-function nothingFoundExceptCommands(acts: GrammarAct[]) { return acts.length > 0 && acts.every((a) => a.kind === "command" || (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args))); }
+function nothingFoundExceptCommands(acts: GrammarAct[]) { return acts.length > 0 && acts.every((a) => a.kind === "command" || a.kind === "form_request" || (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args))); }
 
 const ledger = (db: SupabaseClient) => async (r: LedgerRow) => { await db.from("model_ledger").insert({ tag: r.tag, model: r.model, ok: r.ok, status: r.status, ms: r.ms, prompt_tokens: r.usage?.prompt_tokens ?? null, completion_tokens: r.usage?.completion_tokens ?? null, error: r.error }); };
 
@@ -137,9 +138,37 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const key = `grammar:${id}`;
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
     if (dup) return;
+    const { data: routed } = await db.from("correspondence").select("to_characters").eq("id", id).single();
+    const { data: ch0 } = await db.from("characters").select("name, slug, players(email, mail_token, display_name)").eq("id", c.from_character).single();
+    const player0 = (ch0 as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
+    const first0 = (player0?.display_name || ch0?.name || "there").split(" ")[0];
+
+    // A filled-in form: file it deterministically, tell the office that owns it, receipt.
+    const form = c.body_text ? parseFormSubmission(c.body_text as string) : null;
+    if (form && Object.keys(form.answers).length && formIsKnown(form.form)) {
+      const def = FORMS[form.form];
+      const fkey = `form:${id}`;
+      const { data: fdup } = await db.from("events").select("id").eq("idempotency_key", fkey).maybeSingle();
+      if (!fdup) {
+        const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("campaign_id", c.campaign_id).eq("kind", "form.filed");
+        const index = `S-77-${String((count ?? 0) + 1).padStart(3, "0")}`;
+        await db.from("correspondence_events").insert({ correspondence_id: id, kind: "form_submission", payload: { form: form.form, index, answers: form.answers, signed: form.signed, missing: form.missing, round: round.number }, confidence: 1, span: null, provenance: { parser: "deterministic" } });
+        // The office that owns the form remembers what was written on it, as do any named addressees.
+        const { data: owners } = await db.from("characters").select("id, divisions!inner(name)").eq("campaign_id", c.campaign_id).is("player_id", null).eq("divisions.name", def.owner);
+        const readers = new Set<string>([...((routed?.to_characters as string[] | null) ?? []), ...(owners ?? []).map((o) => o.id)]);
+        const summary = summarizeSubmission(form, index);
+        if (readers.size) await db.from("knowledge").insert([...readers].map((rid) => ({ character_id: rid, fact_key: `told:${ch0?.slug ?? "unknown"}:form:${form.form}:${index}`, value: { kind: "form", text: summary, from: c.from_character, from_name: ch0?.name ?? null, round: round.number, form: form.form, index }, confidence: 1, source_kind: "told", source_ref: id, learned_round: round.number })));
+        await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "form.filed", payload: { correspondence_id: id, form: form.form, index, missing: form.missing, signed: form.signed, character: c.from_character }, idempotency_key: fkey, visible_to: [c.from_character] });
+        if (player0?.email) {
+          const from = replyAddress(player0.mail_token);
+          const text = renderFormReceipt({ first: first0, form: form.form, index, round: round.number, missing: form.missing, signed: form.signed, owner: def.owner }) + "\n\n" + renderFooter();
+          await sendMail({ to: player0.email, from, replyTo: from, subject: `Form ${form.form} filed · ${index}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+        }
+      }
+      if (!acts.length) return; // the form was the letter
+    }
     // A letter to a person that carries no order lines is correspondence, not
     // an order packet: no receipt, the addressee answers instead.
-    const { data: routed } = await db.from("correspondence").select("to_characters").eq("id", id).single();
     if (!acts.length && (routed?.to_characters as string[] | null)?.length) return;
 
     const menu = await menuFor(db, round.id, c.from_character);
@@ -151,6 +180,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const commands = new Set<string>();
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
+      if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
       if (a.kind === "select") {
         const opt = menu.find((o) => o.code === a.code);
@@ -242,6 +272,14 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const text = renderDirectory({ first, cohort, staff, committees: (orgs ?? []).map((o) => o.name) });
         await sendMail({ to: player.email, from, replyTo: from, subject: "Personnel Directory · Station R", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
+      for (const cmd of commands) {
+        if (!cmd.startsWith("form:")) continue;
+        const fid = cmd.slice(5);
+        const text = fid === "unknown"
+          ? `${first},\n\nNo form by that number is in use. The forms currently in use are: ${Object.values(FORMS).map((f) => `Form ${f.id} (${f.owner})`).join("; ")}. Reply FORM and the number to receive a blank.\n\n— The Department\n\n${renderFooter()}`
+          : `${renderBlankForm(fid, first)}\n\n${renderFooter()}`;
+        await sendMail({ to: player.email, from, replyTo: from, subject: fid === "unknown" ? "No such form" : `Form ${fid} · ${FORMS[fid].title}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      }
       if (commands.has("resign")) {
         await db.from("characters").update({ status: "retired" }).eq("id", c.from_character);
         const text = `${first},\n\nYour resignation is recorded. Your character is retired at the next lock and you will receive no further dispatches. The Department thanks you for your service and asks that you remember the confidentiality agreement.\n\n— Personnel & Administration, Royce Industries\n\nIf this was a mistake, write to thedepartment@weird.delivery.`;
@@ -319,12 +357,16 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // What this character remembers: said (to whom) and heard (from this writer).
     const { data: known } = await db.from("knowledge").select("source_kind, value").eq("character_id", npcId).in("source_kind", ["stated", "told"]).order("created_at").limit(60);
     type KV = { kind?: string; text: string; to?: string; to_name?: string; from?: string };
-    const memory: Memory = { saidToThisPerson: [], saidToOthers: [], heardFromThisPerson: [] };
+    const memory: Memory = { saidToThisPerson: [], saidToOthers: [], heardFromThisPerson: [], filed: [] };
+    const { data: filedEv } = await db.from("events").select("payload").eq("campaign_id", c.campaign_id).eq("kind", "form.filed").contains("payload", { character: pc.id });
+    for (const f of filedEv ?? []) { const v = f.payload as { form: string; index: string; missing?: number[] }; memory.filed!.push(`Form ${v.form} (${v.index})${v.missing?.length ? ", incomplete" : ""}`); }
+    const thisForm = parseFormSubmission(c.body_text as string);
+    const formNote = thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
     for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
       if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
       else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
     }
-    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo) }, thread, round: roundNo, memory, onLedger: ledger(db) });
+    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote }, thread, round: roundNo, memory, onLedger: ledger(db) });
     const { data: row, error } = await db.from("correspondence").insert({
       campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
       from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,

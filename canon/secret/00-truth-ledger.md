@@ -114,3 +114,12 @@ stay that way; the engine adjudicates them by rule, not by answer.
   single descents work). Threshold 7, the Opening, is OPEN.
 
 CHANGELOG: v1 establishes the truth ledger from Bibles 02–04 with proposed fills for Marsh, Greeley, Kessler, Sublevel Nine, the Convergence Index, prophecy documents, and the Seven Descents.
+
+## Forms
+- PROPOSED. Form 14-B's question 11 (sleep, appetite, sense of time since the
+  observation) was added in the September 1977 reprint on a one-line instruction from
+  the Department's office, after the March 17 OMEGA session, to collect reports of
+  time-sense disturbance from staff without telling Security what they are for. Fisk
+  thinks it screens for drink and pills. Any filed 14-B with a non-NONE answer to
+  question 11 is copied to Sublevel Nine under "Refer D-SRD"; the observer is never told.
+  Player answers to question 11 feed the hidden Convergence Index as a small input.
