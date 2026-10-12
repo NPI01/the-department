@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { EnlistForm } from "./enlist-form";
 import { Reveal } from "./_landing/Reveal";
 import { Typewriter } from "./_landing/Typewriter";
@@ -118,6 +119,9 @@ export default function Home() {
           <p className="type mt-6 text-[17px] leading-relaxed text-ink-2">A new hire's first three days, compressed. Dispatches arrive. Another player writes. You answer. At eight o'clock your orders lock and the world resolves overnight. In the morning, consequences. Everything in it is what the game actually does.</p>
         </Reveal>
         <div className="mt-12"><RoundsDemo /></div>
+        <Reveal className="reveal mt-6 text-[11px] tracking-[0.3em] uppercase text-ink-2">
+          <Link href="/demo" className="hover:text-red">Open full-screen →</Link>
+        </Reveal>
       </section>
 
       {/* ---------- the company ---------- */}

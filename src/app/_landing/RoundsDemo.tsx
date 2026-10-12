@@ -111,7 +111,7 @@ function Message({ b, latest }: { b: Beat; latest: boolean }) {
   return null;
 }
 
-export function RoundsDemo() {
+export function RoundsDemo({ fill = false }: { fill?: boolean } = {}) {
   const [i, setI] = useState(-1);          // index of the latest beat shown
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
@@ -145,9 +145,9 @@ export function RoundsDemo() {
   const progress = i < 0 ? 0 : (i + 1) / SCRIPT.length;
 
   return (
-    <div ref={ref} className="relative mx-auto max-w-5xl">
+    <div ref={ref} className={fill ? "relative flex h-full flex-col" : "relative mx-auto max-w-5xl"}>
       {/* frame */}
-      <div className="border-2 border-ink bg-ink text-paper shadow-[14px_14px_0_var(--red)]">
+      <div className={fill ? "flex min-h-0 flex-1 flex-col bg-ink text-paper" : "border-2 border-ink bg-ink text-paper shadow-[14px_14px_0_var(--red)]"}>
         {/* title bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper/20 px-4 py-2 text-[11px] tracking-[0.22em] uppercase">
           <div className="flex items-center gap-3">
@@ -160,9 +160,9 @@ export function RoundsDemo() {
           </div>
         </div>
 
-        <div className="grid min-h-[520px] md:grid-cols-[1fr_15rem]">
+        <div className={`grid md:grid-cols-[1fr_15rem] ${fill ? "min-h-0 flex-1" : "min-h-[520px]"}`}>
           {/* feed */}
-          <div ref={feedRef} className="relative max-h-[560px] space-y-3 overflow-y-auto bg-ink p-4 [scrollbar-width:thin]">
+          <div ref={feedRef} className={`relative space-y-3 overflow-y-auto bg-ink p-4 [scrollbar-width:thin] ${fill ? "h-full max-h-[calc(100dvh-6.5rem)]" : "max-h-[560px]"}`}>
             {i < 0 && <p className="type p-6 text-center text-paper/60">Scroll here to begin. Three rounds, about two minutes.</p>}
             {visible.map((b, k) => <Message key={`${b.round}-${k}`} b={b} latest={b === beat} />)}
             {locked && (
