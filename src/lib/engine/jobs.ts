@@ -125,6 +125,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const key = `grammar:${id}`;
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
     if (dup) return;
+    // A letter to a person that carries no order lines is correspondence, not
+    // an order packet: no receipt, the addressee answers instead.
+    const { data: routed } = await db.from("correspondence").select("to_characters").eq("id", id).single();
+    if (!acts.length && (routed?.to_characters as string[] | null)?.length) return;
 
     const menu = await menuFor(db, round.id, c.from_character);
     const recorded: string[] = [];
