@@ -1,10 +1,11 @@
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 
-/* Player-facing documents served from the canon copy in Supabase. Only the
-   paths listed here can be served; nothing secret is reachable. Editorial
-   material is stripped: the draft note at the top, sections addressed to
-   Nathan or to engine work, CHANGELOG lines and [PROPOSED] markers. */
+/* Player-facing documents. A version edited in the console (published_docs)
+   wins; otherwise the page is served from the repo draft's copy in canon_docs.
+   Only the paths listed here can be served; nothing secret is reachable.
+   Editorial material is stripped from the draft: the note at the top, sections
+   addressed to Nathan or to engine work, CHANGELOG lines and [PROPOSED] markers. */
 
 export const PUBLIC_DOCS = {
   rules: "docs/rulebook-draft.md",
@@ -32,12 +33,29 @@ export function forPlayers(md: string) {
     .trim();
 }
 
-export async function publicDoc(key: keyof typeof PUBLIC_DOCS) {
+export type PublicDocKey = keyof typeof PUBLIC_DOCS;
+
+export const DEFAULT_BANNER: Record<PublicDocKey, string | null> = {
+  rules: "Pilot rules, still in draft. Details and numbers will change before and during the pilot; your dispatch always reflects the rules in force.",
+  guide: null,
+};
+
+export const publicDocTag = (key: PublicDocKey) => `public-doc:${key}`;
+
+/* The repo draft as players would see it: no title line, editorial bits removed. */
+export function draftForPlayers(content: string) {
+  return forPlayers(content).replace(/^#\s+.+\n/, "");
+}
+
+export async function publicDoc(key: PublicDocKey) {
   "use cache";
   cacheLife("minutes");
+  cacheTag(publicDocTag(key));
   if (!supabaseConfigured()) return null;
-  const { data } = await supabaseAdmin().from("canon_docs").select("title, content, synced_at").eq("path", PUBLIC_DOCS[key]).maybeSingle();
+  const db = supabaseAdmin();
+  const { data: edited } = await db.from("published_docs").select("banner, content, updated_at").eq("key", key).maybeSingle();
+  if (edited) return { body: edited.content as string, banner: edited.banner as string | null, updatedAt: edited.updated_at as string };
+  const { data } = await db.from("canon_docs").select("content, synced_at").eq("path", PUBLIC_DOCS[key]).maybeSingle();
   if (!data) return null;
-  const body = forPlayers(data.content as string).replace(/^#\s+.+\n/, "");
-  return { title: data.title as string, body, syncedAt: data.synced_at as string };
+  return { body: draftForPlayers(data.content as string), banner: DEFAULT_BANNER[key], updatedAt: data.synced_at as string };
 }

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Rulebook · The Department", descrip
 export default async function RulesPage() {
   const doc = await publicDoc("rules");
   return (
-    <PublicShell kicker="Rules of employment" title="Rulebook" banner="Pilot rules, still in draft. Details and numbers will change before and during the pilot; your dispatch always reflects the rules in force.">
+    <PublicShell kicker="Rules of employment" title="Rulebook" banner={doc?.banner ?? undefined}>
       {doc ? <div className="type text-[15px]"><Markdown md={doc.body} /></div> : <p>The rulebook is being typed. Check back shortly.</p>}
     </PublicShell>
   );
