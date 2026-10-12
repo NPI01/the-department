@@ -84,9 +84,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
   async grammar(db, p) {
     if (!p.trusted) return; // untrusted senders' acts wait for web confirmation
     const id = p.correspondence_id as string;
-    const acts = (p.acts as GrammarAct[]) ?? [];
     const { data: c } = await db.from("correspondence").select("campaign_id, from_character, from_address, body_text, subject, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed"); // retry after route
+    // Always parse from the stored body with the current grammar; the acts in
+    // the job payload were parsed at receipt and may be stale.
+    const acts: GrammarAct[] = c.body_text ? parseGrammar(c.body_text as string) : ((p.acts as GrammarAct[]) ?? []);
     const { data: round } = await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
     if (!round) return; // no open round: acts are ignored, dispatch will say so
     const key = `grammar:${id}`;
