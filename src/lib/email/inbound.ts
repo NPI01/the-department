@@ -45,7 +45,7 @@ export function replyMode(text: string): "append" | "replace" {
   return /\b(also|add|adding|plus|in addition|as well|too)\b/i.test(text) ? "append" : "replace";
 }
 
-const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go with|go for|select|want|like|try|then|plus|and|instead|switch to|change to|also|letter)\b/i;
+const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go with|go for|select|want|like|try|then|plus|and|instead|switch to|change to|also|letter|keep|keeping|stick with|stay with)\b/i;
 
 export function parseGrammar(text: string): GrammarAct[] {
   const acts: GrammarAct[] = [];
