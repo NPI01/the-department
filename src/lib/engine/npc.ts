@@ -75,11 +75,11 @@ Output JSON only: {"subject": string, "body": string, "shared": string[] (facts 
 
   type Out = { subject?: string; body?: string; shared?: string[]; wants?: string | null };
   let guarded = false;
-  let attempt = await chatJson<Out>([{ role: "system", content: system }, { role: "user", content: user }], { tag: `npc:${d.name}`, temperature: 0.8, maxTokens: 900, think: false, onLedger: input.onLedger });
+  let attempt = await chatJson<Out>([{ role: "system", content: system }, { role: "user", content: user }], { tag: `npc:${d.name}`, temperature: 0.8, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
   let body = (attempt.data?.body ?? "").trim();
   if (!body || SECRET_TERMS.test(body)) {
     guarded = Boolean(body);
-    attempt = await chatJson<Out>([{ role: "system", content: system + "\n\nYour previous draft mentioned something you must not. Write it again without it." }, { role: "user", content: user }], { tag: `npc:${d.name}:retry`, temperature: 0.6, maxTokens: 900, think: false, onLedger: input.onLedger });
+    attempt = await chatJson<Out>([{ role: "system", content: system + "\n\nYour previous draft mentioned something you must not. Write it again without it." }, { role: "user", content: user }], { tag: `npc:${d.name}:retry`, temperature: 0.6, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
     body = (attempt.data?.body ?? "").trim();
   }
   if (!body || SECRET_TERMS.test(body)) {

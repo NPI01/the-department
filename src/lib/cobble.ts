@@ -50,6 +50,18 @@ export class CobbleError extends Error {
   constructor(message: string, public status: number | null, public body: string, public retryAfter: number | null) { super(message); }
 }
 
+/* A model that answered "no ready replica" is skipped for a while, so a chain
+   does not spend minutes re-asking a pool that has nothing to answer with
+   (measured 2026-10-12: four 60 s waits on the 27B before the 35B answered in
+   8 s). Per process; cold starts simply try again. */
+const DOWN_UNTIL = new Map<string, number>();
+const DOWN_FOR_MS = 5 * 60_000;
+export function modelIsDown(model: string) { return (DOWN_UNTIL.get(model) ?? 0) > Date.now(); }
+
+function noReplica(body: string): boolean {
+  return /FLEET_MODEL_UNAVAILABLE|no ready replica|model is unavailable/i.test(body);
+}
+
 function parseRetryAfter(status: number, body: string, headers: Headers): number | null {
   const h = headers.get("retry-after");
   if (h && !Number.isNaN(Number(h))) return Number(h);
@@ -87,6 +99,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
 
   let lastErr: CobbleError | null = null;
   for (const model of chain) {
+    if (modelIsDown(model) && chain.length > 1) { lastErr = new CobbleError(`${model} marked down`, 429, "", null); continue; }
     // attempt 0: as asked. attempt 1: once more after a quoted retry_after, OR with
     // thinking off when the model spent its whole budget reasoning and emitted
     // nothing (measured 2026-10-11: 35B-A3B reasons ~2000 tokens on a one-line
@@ -115,6 +128,8 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
           await opts.onLedger?.({ tag: opts.tag ?? "untagged", model, ok: false, status, ms: Date.now() - t0, usage: null, error: lastErr.message, attempt });
           // 400 = bad model name or bad request for this model: never retry it
           if (res.status === 400 || res.status === 401 || res.status === 404) break;
+          // No replica: the next model in the chain is the answer, not patience.
+          if (res.status === 429 && noReplica(raw) && chain.length > 1) { DOWN_UNTIL.set(model, Date.now() + DOWN_FOR_MS); break; }
           if (attempt === LADDER.length || opts.patient === false) break;
           const wait = retryAfter !== null ? Math.min(retryAfter, 120) * 1000 : LADDER[attempt];
           await sleep(wait, opts.signal); continue;
