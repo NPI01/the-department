@@ -20,13 +20,32 @@ import { writeBrief } from "@/lib/admin/brief";
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
 
-export async function claimJobs(db: SupabaseClient, limit = 5): Promise<Job[]> {
+/* Fast work first. A slow model call must never hold up routing, orders or
+   receipts (measured 2026-10-12: one extraction claimed in a batch of five
+   locked the other four for ten minutes). */
+const PRIORITY = ["route", "fetch_body", "grammar", "send", "tick_phase", "npc_reply", "extract"];
+
+/* Claim one job: the highest-priority due job whose lock is free or stale.
+   The lock is taken with a conditional update so two workers cannot both win. */
+export async function claimNext(db: SupabaseClient): Promise<Job | null> {
   const now = new Date().toISOString();
-  const { data } = await db.from("jobs").select("id, kind, payload, attempts").is("done_at", null).lte("run_after", now)
-    .or(`locked_at.is.null,locked_at.lt.${new Date(Date.now() - 10 * 60_000).toISOString()}`).order("id").limit(limit);
-  const jobs = (data ?? []) as Job[];
-  if (jobs.length) await db.from("jobs").update({ locked_at: now }).in("id", jobs.map((j) => j.id));
-  return jobs;
+  const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data } = await db.from("jobs").select("id, kind, payload, attempts, locked_at").is("done_at", null).lte("run_after", now)
+    .or(`locked_at.is.null,locked_at.lt.${stale}`).order("id").limit(25);
+  const candidates = ((data ?? []) as (Job & { locked_at: string | null })[]).sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind) || a.id - b.id);
+  for (const j of candidates) {
+    const q = db.from("jobs").update({ locked_at: now }).eq("id", j.id);
+    const { data: won } = await (j.locked_at ? q.eq("locked_at", j.locked_at) : q.is("locked_at", null)).select("id");
+    if (won?.length) return { id: j.id, kind: j.kind, payload: j.payload, attempts: j.attempts };
+  }
+  return null;
+}
+
+/* Kept for callers that drain in batches; claims one at a time underneath. */
+export async function claimJobs(db: SupabaseClient, limit = 5): Promise<Job[]> {
+  const out: Job[] = [];
+  for (let i = 0; i < limit; i++) { const j = await claimNext(db); if (!j) break; out.push(j); }
+  return out;
 }
 
 export async function runJob(db: SupabaseClient, job: Job): Promise<void> {
@@ -229,7 +248,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { count } = await db.from("correspondence_events").select("id", { count: "exact", head: true }).eq("correspondence_id", id);
     if (count) return; // already extracted
     const system = `You read one email from a player in a 1977 corporate-intrigue correspondence game and list the game-relevant things it does. You never decide anything; you propose. Output JSON: {"events":[{"kind":"claim|proposal|offer|threat|promise|info_share|vote_intent|order_intent","payload":{},"confidence":0..1,"span":"quoted text"}]}. Claims are what the sender asserts as fact (payload: {subject, claim}). Proposals/offers are deals (payload: {to, give, get, conditions}). Promises are commitments (payload: {to, what, by}). vote_intent and order_intent are only when the sender clearly means to act but did not use the formal grammar (payload: {what}). Be conservative: fewer, surer events.`;
-    const { data, result } = await chatJson<{ events: { kind: string; payload: unknown; confidence: number; span: string }[] }>([{ role: "system", content: system }, { role: "user", content: `SUBJECT: ${c.subject ?? ""}\n\n${c.body_text.slice(0, 6000)}` }], { tag: "extract", maxTokens: 1500, onLedger: ledger(db) });
+    const { data, result } = await chatJson<{ events: { kind: string; payload: unknown; confidence: number; span: string }[] }>([{ role: "system", content: system }, { role: "user", content: `SUBJECT: ${c.subject ?? ""}\n\n${c.body_text.slice(0, 6000)}` }], { tag: "extract", maxTokens: 1500, timeoutMs: 110_000, onLedger: ledger(db) });
     const events = (data?.events ?? []).filter((e) => e && e.kind && typeof e.confidence === "number");
     if (!events.length) return;
     await db.from("correspondence_events").insert(events.map((e) => ({ correspondence_id: id, kind: e.kind, payload: e.payload ?? {}, confidence: Math.max(0, Math.min(1, e.confidence)), span: e.span ?? null, provenance: { model: result.model, usage: result.usage }, requires_confirmation: e.kind === "vote_intent" || e.kind === "order_intent" })));

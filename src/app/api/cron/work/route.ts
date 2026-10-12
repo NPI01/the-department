@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
-import { claimJobs, runJob } from "@/lib/engine/jobs";
+import { claimNext, runJob } from "@/lib/engine/jobs";
 import { heartbeat } from "@/lib/engine/heartbeat";
 
 export const maxDuration = 300;
