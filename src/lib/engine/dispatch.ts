@@ -69,11 +69,45 @@ export function renderDispatch(p: { first: string; date: string; round: number; 
     ``,
     p.signature ?? `— Personnel & Administration, Royce Industries`,
     ``,
-    `Weird.Delivery · you are receiving this because you applied to The Department. Reply RESIGN to leave the game.`,
+    renderFooter(),
   ].join("\n");
 }
 
-export function renderReceipt(p: { first: string; round: number; onFile: string[]; added: string[]; replaced: boolean; ignored: string[]; notes: number; lockAt: string; nothingFound: boolean }) {
+export const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://weird.delivery";
+
+export function renderFooter() {
+  return [
+    `———`,
+    `Help: ${SITE}/help · Rules: ${SITE}/rules · Field guide: ${SITE}/guide`,
+    `Directory: reply DIRECTORY · Leave the game: reply RESIGN`,
+    `Weird.Delivery · thedepartment@weird.delivery`,
+  ].join("\n");
+}
+
+export type DirectoryEntry = { name: string; title: string | null; division: string | null; address: string };
+export function renderDirectory(p: { first: string; cohort: DirectoryEntry[]; staff: DirectoryEntry[]; committees: string[] }) {
+  const row = (e: DirectoryEntry) => `  ${e.name}${e.title ? `, ${e.title}` : ""}${e.division ? ` — ${e.division}` : ""}\n      ${e.address}`;
+  return [
+    `PERSONNEL DIRECTORY · STATION R`,
+    ``,
+    `${p.first}, here is the directory as of this morning. Write to anyone on it`,
+    `from your own address; letters to staff are answered with the next dispatch.`,
+    ``,
+    `YOUR COHORT`,
+    ...(p.cohort.length ? p.cohort.map(row) : [`  (you are the first to arrive)`]),
+    ``,
+    `STAFF`,
+    ...p.staff.map(row),
+    ``,
+    `COMMITTEES`,
+    ...p.committees.map((c) => `  ${c}`),
+    ``,
+    renderFooter(),
+  ].join("\n");
+}
+
+export type LedgerLine = { label: string; cost: number; estimated: boolean; funded: boolean };
+export function renderReceipt(p: { first: string; round: number; onFile: string[]; added: string[]; replaced: boolean; ignored: string[]; notes: number; lockAt: string; nothingFound: boolean; ledger: LedgerLine[]; balance: number }) {
   const out: string[] = [`Received, ${p.first}.`, ``];
   if (p.nothingFound) {
     out.push(`No orders were found in your reply, so nothing changed.`, ``,
@@ -86,8 +120,22 @@ export function renderReceipt(p: { first: string; round: number; onFile: string[
   }
   if (p.ignored.length) out.push(`Not acted on:`, ...p.ignored.map((r) => `  · ${r}`), ``);
   out.push(`On file for Round ${p.round}:`, ...(p.onFile.length ? p.onFile.map((r, i) => `  ${i + 1}. ${r}`) : [`  (nothing yet)`]), ``);
+  if (p.ledger.length) {
+    const w = Math.max(...p.ledger.map((l) => l.label.length), 10);
+    const funded = p.ledger.filter((l) => l.funded); const unfunded = p.ledger.filter((l) => !l.funded);
+    const spent = funded.reduce((n, l) => n + l.cost, 0);
+    out.push(`ACTION UNITS`);
+    for (const l of funded) out.push(`  ${l.label.padEnd(w + 2)}${String(l.cost).padStart(3)}${l.estimated ? " est." : ""}`);
+    out.push(`  ${"".padEnd(w + 2)}———`, `  ${"on hand".padEnd(w + 2)}${String(p.balance).padStart(3)}`, `  ${"spent".padEnd(w + 2)}${String(spent).padStart(3)}`, `  ${"remaining".padEnd(w + 2)}${String(p.balance - spent).padStart(3)}`);
+    if (unfunded.length) {
+      out.push(``, `BEYOND YOUR BALANCE — these will not be carried out unless you drop`, `something before the lock:`);
+      for (const l of unfunded) out.push(`  ${l.label.padEnd(w + 2)}${String(l.cost).padStart(3)}${l.estimated ? " est." : ""}`);
+    }
+    if (p.ledger.some((l) => l.estimated)) out.push(``, `Free-form orders are costed in the morning; ${p.ledger.filter((l) => l.estimated).length === 1 ? "an estimate is" : "estimates are"} carried for now.`);
+    out.push(``);
+  }
   if (p.notes) out.push(`Your ${p.notes === 1 ? "note was" : "notes were"} read and filed; ${p.notes === 1 ? "it is" : "they are"} not orders.`);
-  out.push(`These lock at ${p.lockAt}. Reply again before then to change them. Say "also" to add; otherwise a new reply replaces the list.`, ``, `— The Department`);
+  out.push(`These lock at ${p.lockAt}. Reply again before then to change them. Say "also" to add; otherwise a new reply replaces the list.`, ``, `— The Department`, ``, renderFooter());
   return out.join("\n");
 }
 

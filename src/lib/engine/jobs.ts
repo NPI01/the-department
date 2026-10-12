@@ -15,7 +15,7 @@ import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } f
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, replyMode, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
-import { menuFor, renderReceipt, replyAddress, textToHtml } from "@/lib/engine/dispatch";
+import { menuFor, renderDirectory, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
@@ -41,6 +41,9 @@ export async function runJob(db: SupabaseClient, job: Job): Promise<void> {
     await db.from("jobs").update({ attempts, error: String((e as Error).message).slice(0, 500), locked_at: null, run_after: new Date(Date.now() + backoff).toISOString(), ...(attempts >= 5 ? { done_at: new Date().toISOString() } : {}) }).eq("id", job.id);
   }
 }
+
+/* True when the reply contained only commands (DIRECTORY/HELP), so no receipt is owed. */
+function nothingFoundExceptCommands(acts: GrammarAct[]) { return acts.length > 0 && acts.every((a) => a.kind === "command" || (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args))); }
 
 const ledger = (db: SupabaseClient) => async (r: LedgerRow) => { await db.from("model_ledger").insert({ tag: r.tag, model: r.model, ok: r.ok, status: r.status, ms: r.ms, prompt_tokens: r.usage?.prompt_tokens ?? null, completion_tokens: r.usage?.completion_tokens ?? null, error: r.error }); };
 
@@ -96,7 +99,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const orderRows: { verb: string; args: Record<string, unknown>; label: string }[] = [];
     let hold = false;
     const mode = replyMode(c.body_text as string);
+    const commands = new Set<string>();
     for (const a of acts) {
+      if (a.kind === "command") { commands.add(a.name); continue; }
+      if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
       if (a.kind === "select") {
         const opt = menu.find((o) => o.code === a.code);
         if (a.code === "X") continue; // X is the free-form prompt, not an option
@@ -122,7 +128,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
 
     // A reply that says "also" adds to the packet; any other reply replaces it.
-    const nothingFound = !orderRows.length && !hold && !recorded.length && !ignored.length;
+    const nothingFound = !orderRows.length && !hold && !recorded.length && !ignored.length && !commands.size;
     let replaced = false; const added: string[] = [];
     if (orderRows.length || hold) {
       const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !orderRows.length ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
@@ -144,6 +150,25 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const opt = a.code ? menu.find((o) => o.code === a.code) : null;
       return opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — cost ruled in the morning` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
     });
+    // Action Units: menu costs are known; free-form orders carry an estimate
+    // until the morning ruling. Orders are funded in the order given; the
+    // first one that does not fit, and everything after it, is unfunded.
+    const FREEFORM_EST = 5;
+    const { data: au } = await db.from("resources").select("balance").eq("character_id", c.from_character).eq("kind", "au").maybeSingle();
+    const balance = Number(au?.balance ?? 0);
+    let spent = 0;
+    const ledger: LedgerLine[] = (rows ?? []).map((r) => {
+      const a = r.args as { code?: string; freeform?: boolean; cost?: number; text?: string };
+      const opt = a.code ? menu.find((o) => o.code === a.code) : null;
+      const cost = opt ? opt.cost : FREEFORM_EST;
+      const label = opt ? `${opt.code}. ${opt.label}` : `ORDER: ${(a.text ?? "").slice(0, 40)}${(a.text ?? "").length > 40 ? "…" : ""}`;
+      const funded = spent + cost <= balance; if (funded) spent += cost;
+      return { label, cost, estimated: !opt, funded };
+    });
+    if (pk && ledger.some((l) => !l.funded)) {
+      // Flag unfunded orders on the rows so the lock phase skips them unless changed.
+      for (const [i, r] of (rows ?? []).entries()) await db.from("orders").update({ args: { ...(r.args as object), funded: ledger[i].funded } }).eq("packet_id", pk.id).eq("seq", i + 1);
+    }
     if (pk?.mode === "hold" && !onFile.length) onFile.push("HOLD — conserving");
     await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "grammar.recorded", payload: { acts, mode, added, replaced, ignored, onFile, recorded }, idempotency_key: key, visible_to: [c.from_character] });
 
@@ -154,8 +179,27 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (player?.email) {
       const first = (player.display_name || ch?.name || "there").split(" ")[0];
       const lockAt = new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
-      const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound });
-      await sendMail({ to: player.email, from: replyAddress(player.mail_token), replyTo: replyAddress(player.mail_token), subject: /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      const from = replyAddress(player.mail_token);
+      const reSubject = /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`;
+      if (commands.has("directory") || commands.has("help")) {
+        const { data: chars } = await db.from("characters").select("slug, name, title, player_id, status, divisions(name)").eq("campaign_id", c.campaign_id).eq("status", "active").order("name");
+        const entry = (x: { slug: string; name: string; title: string | null; divisions: { name: string } | { name: string }[] | null }): DirectoryEntry => ({ name: x.name, title: x.title, division: Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null, address: `${x.slug}@${process.env.EMAIL_DOMAIN || "weird.delivery"}` });
+        const cohort = (chars ?? []).filter((x) => x.player_id && x.player_id !== null).map(entry);
+        const staff = (chars ?? []).filter((x) => !x.player_id).map(entry);
+        const { data: orgs } = await db.from("organizations").select("name, kind").eq("campaign_id", c.campaign_id).in("kind", ["council", "committee"]);
+        const text = renderDirectory({ first, cohort, staff, committees: (orgs ?? []).map((o) => o.name) });
+        await sendMail({ to: player.email, from, replyTo: from, subject: "Personnel Directory · Station R", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      }
+      if (commands.has("resign")) {
+        await db.from("characters").update({ status: "retired" }).eq("id", c.from_character);
+        const text = `${first},\n\nYour resignation is recorded. Your character is retired at the next lock and you will receive no further dispatches. The Department thanks you for your service and asks that you remember the confidentiality agreement.\n\n— Personnel & Administration, Royce Industries\n\nIf this was a mistake, write to thedepartment@weird.delivery.`;
+        await sendMail({ to: player.email, from, replyTo: from, subject: "Resignation recorded", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+        return;
+      }
+      if (!(commands.size && nothingFoundExceptCommands(acts))) {
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      }
     }
   },
 
