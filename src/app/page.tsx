@@ -116,7 +116,7 @@ export default function Home() {
         <Reveal className="reveal max-w-2xl">
           <p className="text-[11px] tracking-[0.4em] uppercase text-red">Three rounds</p>
           <h2 className="display mt-2 text-5xl sm:text-7xl">Watch it play.</h2>
-          <p className="type mt-6 text-[17px] leading-relaxed text-ink-2">A new hire's first three days, compressed. Dispatches arrive. Another player writes. You answer. At eight o'clock your orders lock and the world resolves overnight. In the morning, consequences. Everything in it is what the game actually does.</p>
+          <p className="type mt-6 text-[17px] leading-relaxed text-ink-2">Joe Pruitt's first three days at Royce, compressed. Dispatches arrive. Another player writes. He answers. At eight o'clock your orders lock and the world resolves overnight. In the morning, consequences. Everything in it is what the game actually does.</p>
         </Reveal>
         <div className="mt-12"><RoundsDemo /></div>
         <Reveal className="reveal mt-6 text-[11px] tracking-[0.3em] uppercase text-ink-2">
