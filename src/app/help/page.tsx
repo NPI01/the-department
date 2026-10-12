@@ -41,7 +41,9 @@ H                               ← hold: keep your units this round`}</Code>
       <P>Orders lock at 8:00 PM Eastern. Whatever is on file at that moment is what the Department carries out overnight. Your latest receipt is the record. After the lock, the night resolves and the next dispatch arrives at 9:00 AM.</P>
 
       <H>Writing to people</H>
-      <P>Reply <strong>DIRECTORY</strong> to any Department mail and the Personnel Directory comes back at once: your cohort, the staff you can write to, and the committees. Write to anyone on it from your own address, exactly as you would write to a colleague. Letters to staff are answered with the next dispatch. Talking is free; only orders cost Action Units.</P>
+      <P>Reply <strong>DIRECTORY</strong> to any Department mail and the Personnel Directory comes back at once: your cohort, the staff you can write to, and the committees.</P>
+      <P>To write to someone, send an ordinary email from your own address. Any of these reach the person: put their address (fisk@weird.delivery) in your To field; or reply to any Department letter and begin with their name ("Mr. Fisk,"); or start the letter with a line "To: Mr. Fisk". Use your mail program's Subject line as usual. You do not need to type To: or Re: in the body.</P>
+      <P>Staff reply as themselves, usually within the hour, sometimes not until the morning. Other players reply when they reply. Letters cost nothing; only orders cost Action Units.</P>
 
       <H>Votes and committees</H>
       <P>When a ballot is open, the notice tells you its number. Reply with a line such as <code>VOTE E-77-001: Okafor</code> or <code>VOTE B-77-003: FOR</code> before the lock on its closing day.</P>

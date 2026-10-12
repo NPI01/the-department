@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifySvix, parseGameAddress, parseGrammar, parseToLines, stripQuoted, fetchReceived } from "@/lib/email/inbound";
+import { verifySvix, parseGameAddress, parseGrammar, parseToLines, parseSalutation, stripQuoted, fetchReceived } from "@/lib/email/inbound";
 import { emailDomain, gameMailbox } from "@/lib/email/resend";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   const recipients: { slug?: string; name?: string }[] = [
     ...parsedTo.filter((r) => r.slug !== mailbox).map((r) => ({ slug: r.slug })),
     ...names.map((name) => ({ name })),
+    ...parseSalutation(bodyText).names.map((name) => ({ name })),   // "Mr. Fisk," on the first line
   ];
   const acts = parseGrammar(bodyText);
 

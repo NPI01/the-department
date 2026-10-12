@@ -14,7 +14,9 @@ import { gameMailbox, sendMail } from "@/lib/email/resend";
 import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } from "@/lib/email/letter";
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
-import { fetchReceived, parseGrammar, replyMode, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
+import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
+import { generateStaffReply, loadDossier } from "@/lib/engine/npc";
+import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderDirectory, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
@@ -81,9 +83,18 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const { data: aliases } = await db.from("aliases").select("character_id").eq("campaign_id", campaign).in("mailbox", slugs);
       for (const x of chars ?? []) to.add(x.id); for (const x of aliases ?? []) to.add(x.character_id);
     }
-    for (const name of recipients.map((r) => r.name).filter(Boolean) as string[]) {
-      const { data: hit } = await db.from("characters").select("id").eq("campaign_id", campaign).ilike("name", `%${name.replace(/[%_]/g, "")}%`).limit(1).maybeSingle();
-      if (hit) to.add(hit.id);
+    // Names from TO: lines, from the salutation ("Mr. Fisk,"), or a bare
+    // address: match on surname against the roster.
+    const { data: bodyRow } = await db.from("correspondence").select("body_text").eq("id", id).single();
+    const names = [...(recipients.map((r) => r.name).filter(Boolean) as string[]), ...parseSalutation((bodyRow?.body_text as string) ?? "").names];
+    if (names.length) {
+      const { data: roster } = await db.from("characters").select("id, name, slug").eq("campaign_id", campaign).eq("status", "active");
+      for (const name of names) {
+        const key = surnameKey(name);
+        if (!key) continue;
+        const hit = (roster ?? []).find((x) => x.slug === key || surnameKey(x.name) === key || x.name.toLowerCase().includes(key));
+        if (hit) to.add(hit.id);
+      }
     }
     // A reply to a letter goes to whoever wrote it.
     if (!to.size && c.in_reply_to) {
@@ -97,7 +108,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (!to.size) { await db.from("events").insert({ campaign_id: campaign, kind: "mail.unrouted", payload: { correspondence_id: id }, idempotency_key: `unrouted:${id}` }); return; }
     // NPC recipients get a reply job; the model answers in the next dispatch window.
     const { data: npcs } = await db.from("characters").select("id").in("id", [...to]).is("player_id", null);
-    for (const n of npcs ?? []) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: id, character_id: n.id }, run_after: new Date(Date.now() + 15 * 60_000).toISOString() });
+    // Staff answer within a few minutes: long enough to feel like a person, short enough to keep a conversation going.
+    for (const n of npcs ?? []) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: id, character_id: n.id }, run_after: new Date(Date.now() + (2 + Math.random() * 4) * 60_000).toISOString() });
   },
 
   async grammar(db, p) {
@@ -255,8 +267,36 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
   },
 
   async npc_reply(db, p) {
-    // Placeholder until the Character Writer role is mounted: record that a reply is owed.
-    await db.from("events").insert({ campaign_id: process.env.CAMPAIGN_ID, kind: "npc.reply_owed", payload: p, idempotency_key: `npc_reply:${p.correspondence_id}:${p.character_id}` }).select("id");
+    const id = p.correspondence_id as string; const npcId = p.character_id as string;
+    const key = `npc_reply:${id}:${npcId}`;
+    const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
+    if (dup) return;
+    const { data: c } = await db.from("correspondence").select("campaign_id, thread_id, round_id, from_character, from_address, subject, body_text, message_id").eq("id", id).single();
+    if (!c?.from_character) throw new Error("sender not yet routed");
+    const { data: npc } = await db.from("characters").select("id, slug, name, title, divisions(name)").eq("id", npcId).single();
+    const { data: pc } = await db.from("characters").select("id, name, title, divisions(name), players(email)").eq("id", c.from_character).single();
+    if (!npc || !pc) throw new Error("character missing");
+    const dept = (x: { divisions?: { name: string } | { name: string }[] | null }) => Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null;
+    const playerEmail = (pc as { players?: { email: string } | { email: string }[] | null }).players;
+    const email = Array.isArray(playerEmail) ? playerEmail[0]?.email : playerEmail?.email;
+    if (!email) return; // nothing to send to
+    const { data: round } = c.round_id ? await db.from("rounds").select("number").eq("id", c.round_id).maybeSingle() : await db.from("rounds").select("number").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
+    const roundNo = round?.number ?? 1;
+    // Earlier letters between the two, oldest first.
+    const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).neq("id", id)
+      .or(`and(from_character.eq.${c.from_character},to_characters.cs.{${npcId}}),and(from_character.eq.${npcId},to_characters.cs.{${c.from_character}})`).order("received_at").limit(6);
+    const thread = (prior ?? []).map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
+    const salute = parseSalutation(c.body_text as string);
+    const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc) });
+    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo) }, thread, round: roundNo, onLedger: ledger(db) });
+    const { data: row, error } = await db.from("correspondence").insert({
+      campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
+      from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
+      raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id },
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
+    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "npc.replied", payload: { to: id, reply: row.id, npc: npc.slug, model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants }, idempotency_key: key, visible_to: [c.from_character] });
   },
 
   async tick_phase(db, p) {

@@ -139,3 +139,26 @@ export async function fetchReceived(id: string): Promise<{ text: string; html: s
     return { text: String(j.text ?? ""), html: j.html ?? null, headers, authentication: j.authentication ?? null };
   } catch (e) { console.error(`[inbound] receiving API fetch failed for ${id}: ${(e as Error).message}`); return null; }
 }
+
+/* Who a letter is addressed to when the player wrote it the way people write
+   letters: "Mr. Fisk," / "Dear Dr. Ely" / "Attn: Sloane" on the first lines.
+   Also picks up a leading "Re: …" or "Subject: …" line as the subject. */
+export function parseSalutation(text: string): { names: string[]; subject: string | null } {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 4);
+  const names: string[] = []; let subject: string | null = null;
+  for (const l of lines) {
+    let m: RegExpMatchArray | null;
+    if ((m = l.match(/^(?:re|subject|subj)\s*:\s*(.+)$/i))) { subject = m[1].trim(); continue; }
+    if ((m = l.match(/^(?:attn|attention|for)\s*:?\s*(.+?)[,:.]?$/i))) { names.push(m[1]); continue; }
+    if ((m = l.match(/^(?:dear\s+)?((?:mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|director|professor|prof)\.?\s+[A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s*[,:—-]?\s*$/i))) { names.push(m[1]); continue; }
+    if ((m = l.match(/^dear\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s*[,:]?\s*$/i))) { names.push(m[1]); continue; }
+  }
+  return { names, subject };
+}
+
+/* "Mr. Fisk" → "fisk"; "Dr. Sarah Ely" → "ely"; "fisk@weird.delivery" → "fisk". */
+export function surnameKey(name: string): string {
+  const clean = name.replace(/<[^>]*>/g, "").replace(/@.*$/, "").replace(/\b(mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|director|professor|prof)\.?\s*/gi, "").replace(/[,.]/g, " ").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  return (parts[parts.length - 1] || "").toLowerCase();
+}
