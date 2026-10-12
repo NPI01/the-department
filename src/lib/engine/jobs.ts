@@ -101,7 +101,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         if (!opt) { recorded.push(`${a.code}. — not on tonight's list, ignored`); continue; }
         orderRows.push({ verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` });
       } else if (a.kind === "order") {
-        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: true }, label: `ORDER: ${a.verb}${a.args ? " " + a.args : ""} — cost ruled in the morning` });
+        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform" }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — cost ruled in the morning` });
       } else if (a.kind === "hold") hold = true;
       else if (a.kind === "vote") {
         const { data: m } = await db.from("motions").select("id, status, number").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();

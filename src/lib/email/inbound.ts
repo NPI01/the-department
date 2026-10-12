@@ -54,7 +54,13 @@ export function parseGrammar(text: string): GrammarAct[] {
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {
       const c = m[2].toUpperCase(); acts.push({ kind: "vote", motion: m[1].toUpperCase(), choice: c === "FOR" || c === "REMOVE" ? "for" : c === "ABSTAIN" ? "abstain" : "against" });
     } else if (/^(?:H\.?|HOLD(?:\s+POSITION)?)\s*$/i.test(line)) acts.push({ kind: "hold" });
-    else if ((m = line.match(/^ORDER\s*:\s*([A-Z_]+)\s*(.*)$/i))) acts.push({ kind: "order", verb: m[1].toLowerCase(), args: m[2].trim() });
+    else if ((m = line.match(/^ORDER\s*:\s*(.+)$/i))) {
+      // "ORDER: REQUEST_FILES …" names an engine verb; "ORDER: I want to see
+      // the directory" is prose and is kept whole for the morning ruling.
+      const sv = m[1].match(/^([A-Z][A-Z_]{2,})\b\s*(.*)$/);
+      if (sv) acts.push({ kind: "order", verb: sv[1].toLowerCase(), args: sv[2].trim() });
+      else acts.push({ kind: "order", verb: "freeform", args: m[1].trim() });
+    }
     else if ((m = line.match(/^ACCEPT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "accept", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^REJECT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "reject", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^TRANSFER\s+(\d+)\s+([A-Z_]+)\s+TO\s+([a-z0-9._-]+)/i))) acts.push({ kind: "transfer", amount: Number(m[1]), resource: m[2].toLowerCase(), to: m[3].toLowerCase() });
@@ -78,8 +84,13 @@ export function parseToLines(text: string): { names: string[]; body: string } {
 export function stripQuoted(text: string): string {
   const lines = text.split(/\r?\n/);
   const out: string[] = [];
-  for (const l of lines) {
-    if (/^On .{5,120} wrote:\s*$/.test(l) || /^-----Original Message-----/.test(l) || /^From: .+Sent: /.test(l)) break;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    // Gmail's attribution ("On Mon, Oct 12, 2026 at 11:12 AM The Department
+    // <addr> wrote:") can wrap over two or three lines; join ahead to test it.
+    const ahead = [l, lines[i + 1] ?? "", lines[i + 2] ?? ""].join(" ");
+    if (/^On .{5,200}? wrote:\s*$/.test(l) || (/^On\b/.test(l) && /wrote:\s*(\s|$)/.test(ahead) && ahead.length < 320)) break;
+    if (/^-----Original Message-----/.test(l) || /^From: .+Sent: /.test(l) || /^Sent from my (iPhone|iPad|Android)/.test(l)) break;
     if (/^--\s*$/.test(l)) break;
     if (l.trim().startsWith(">")) continue;
     out.push(l);
