@@ -80,6 +80,15 @@ const EARLY_TERMS = /\b(cults?|satan\w*|devil\w*|rituals?|occult\w*|sacrific\w*|
    and wrong in a finding ("the surveillance showed"). Flagged for the Skeptic, not rejected. */
 const SOFT_TERMS = /\b(surveillance|sensors?|logs?|cameras?|cctv|footage|radar|investigat\w*|suspects?|suspicio\w*|interrogat\w*|anomal\w*|loyalty|jamming|manifests?|records?)\b/gi;
 
+/* "the badge log shows you were", "our manifests list no aircraft", "sensors detected nothing":
+   a record named and then read from. A refusal names the record without reading it. */
+const FINDING = /\b(logs?|footage|sensors?|records?|manifests?|cameras?|radar|surveillance|files?|data|register|tapes?)\b[^.;:\n]{0,50}?\b(show(s|ed|ing)?|indicat\w+|confirm(s|ed)?|reveal\w*|detect\w+|recorded|found|list(s|ed)?|place[sd]?|puts?|contradict\w*|consistent|inconsistent)\b|\b(no|our|the)\s+(records?|logs?|manifests?|files?)\s+(of|show|list|indicate|place)\b|\bcross-referenc\w*\b/i;
+
+export function findings(draft: string): string | null {
+  const m = draft.match(FINDING);
+  return m ? m[0] : null;
+}
+
 function stem(w: string): string { return w.toLowerCase().replace(/s$/, ""); }
 function notTheirs(draft: string, playerLetter: string, re: RegExp): string[] {
   const theirs = new Set((playerLetter.match(re) ?? []).map(stem));
@@ -101,7 +110,7 @@ export function softFlags(draft: string, playerLetter: string, round: number): s
 
 /* The Skeptic: a second, cheaper read of the draft against the pacing rules.
    Returns the reasons it fails, or none. */
-export async function reviewDraft(draft: string, input: ReplyInput, flagged: string[] = []): Promise<string[]> {
+export async function reviewDraft(draft: string, input: ReplyInput, temperature = 0.2): Promise<string[]> {
   const system = `You are the Skeptic, the continuity editor for a 1977 corporate-intrigue correspondence game played by email. A staff character has drafted a reply to a player's letter. Your only job is pacing: does the draft give away more than this character would at this point in the game?
 
 THE RULE FOR THIS ROUND
@@ -116,10 +125,9 @@ FAIL the draft only for one of these:
 Do not fail a draft for tone, formality, word choice, length, bureaucratic jargon, demands, forms, deadlines, repeating something the character said before, or small invented details about the character's job. Those are the character's business. When in doubt, PASS.
 
 Answer with one line, PASS or FAIL. For a FAIL, add up to three lines, each beginning "- ", each giving the rule number and then the offending phrase copied exactly from the draft inside double quotes, like: - 3 "the footage shows only routine patrol". Nothing else.`;
-  const flags = flagged.length ? `\nWORDS TO LOOK AT: the draft uses ${flagged.map((w) => `"${w}"`).join(", ")}. Each is fine in a refusal or a policy statement and a failure under rule 3 if it reports what was seen, found or concluded.\n` : "";
-  const user = `ROUND ${input.round}. THE CHARACTER: ${input.dossier.name}${input.dossier.title ? `, ${input.dossier.title}` : ""}.${flags}\n\nTHE PLAYER WROTE:\n${input.letter.body.slice(0, 2500)}\n\nTHE DRAFT REPLY:\n${draft}`;
+  const user = `ROUND ${input.round}. THE CHARACTER: ${input.dossier.name}${input.dossier.title ? `, ${input.dossier.title}` : ""}.\n\nTHE PLAYER WROTE:\n${input.letter.body.slice(0, 2500)}\n\nTHE DRAFT REPLY:\n${draft}`;
   try {
-    const res = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tag: `skeptic:${input.dossier.name}`, temperature: 0.2, maxTokens: 250, think: false, timeoutMs: 60_000, onLedger: input.onLedger });
+    const res = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tag: `skeptic:${input.dossier.name}`, temperature, maxTokens: 250, think: false, timeoutMs: 60_000, onLedger: input.onLedger });
     const lines = res.text.trim().split("\n").map((l) => l.trim()).filter(Boolean);
     if (!lines.length || /^pass\b/i.test(lines[0])) return [];
     // A reason only counts if the phrase it quotes is really in the draft; the editor imagines things.
@@ -209,7 +217,13 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     else {
       const bad = leaks(draft.body, input.letter.body, input.round);
       if (bad.length) { guarded = true; reasons.push(`uses words you must not: ${bad.join(", ")}`); }
-      if (!reasons.length && input.review !== false) reasons.push(...(await reviewDraft(draft.body, input, softFlags(draft.body, input.letter.body, input.round))));
+      const found = input.round <= 3 ? findings(draft.body) : null;
+      if (found) reasons.push(`reports what a record showed: "${found}"; this week you only take the report`);
+      if (!reasons.length && input.review !== false) {
+        // The editor is strict and sometimes wrong; a draft is rejected only when two reads agree.
+        const first = await reviewDraft(draft.body, input, 0.2);
+        if (first.length) { const second = await reviewDraft(draft.body, input, 0.5); if (second.length) reasons.push(...first, ...second.filter((r) => !first.includes(r))); }
+      }
     }
     if (!reasons.length) { out = draft; break; }
     rejected.push({ draft: draft.body || `[unparsed] ${res.text.slice(0, 1500)}`, reasons });
