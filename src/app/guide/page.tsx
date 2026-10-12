@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Field Guide · The Department", desc
 export default async function GuidePage() {
   const doc = await publicDoc("guide");
   return (
-    <PublicShell kicker="For new employees" title="Field Guide">
+    <PublicShell kicker="For new employees" title="Field Guide" banner={doc?.banner ?? undefined}>
       {doc ? <div className="type text-[15px]"><Markdown md={doc.body} /></div> : <p>The field guide is being typed. Check back shortly.</p>}
     </PublicShell>
   );

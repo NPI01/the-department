@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/lib/canon/render";
 import { joinSections, splitSections } from "@/lib/public/sections";
-import { saveRulebook } from "./actions";
+import { DOC_META, type PublicDocKey } from "@/lib/public/docs";
+import { saveDoc } from "./actions";
 
 /* Section by section: rename, rewrite, add, remove and reorder the "## "
    sections, each with a preview. "Whole document" edits the same text as one
@@ -20,7 +21,8 @@ const toSecs = (md: string, from: number) => {
   return { intro: s.intro, numbered: s.numbered, secs: s.sections.map((x, i) => ({ id: from + i, title: x.title, body: x.body, open: false, preview: false })) };
 };
 
-export function RulebookEditor({ initialContent, initialBanner }: { initialContent: string; initialBanner: string }) {
+export function DocEditor({ docKey, initialContent, initialBanner }: { docKey: PublicDocKey; initialContent: string; initialBanner: string }) {
+  const meta = DOC_META[docKey];
   const [start] = useState(() => toSecs(initialContent, 0));
   const nextId = useRef(10_000);
   const [banner, setBanner] = useState(initialBanner);
@@ -71,7 +73,7 @@ export function RulebookEditor({ initialContent, initialBanner }: { initialConte
     setMode(m);
   };
   const save = () => startSave(async () => {
-    const r = await saveRulebook({ banner, content: content() });
+    const r = await saveDoc(docKey, { banner, content: content() });
     setMsg(r);
     if (r.ok) { setDirty(false); setRenumbered(false); }
   });
@@ -90,14 +92,14 @@ export function RulebookEditor({ initialContent, initialBanner }: { initialConte
       </div>
 
       <label className="block text-sm">
-        <span className="text-ink-2">Notice above the rulebook</span> <span className="text-xs text-ink-2">· shown in a red box; leave empty for none</span>
-        <input id="rb-banner" value={banner} onChange={(e) => { setBanner(e.target.value); touch(); }} className={`${input} mt-1 text-sm`} />
+        <span className="text-ink-2">Notice above the {meta.label.toLowerCase()}</span> <span className="text-xs text-ink-2">· shown in a red box; leave empty for none</span>
+        <input id={`${docKey}-banner`} value={banner} onChange={(e) => { setBanner(e.target.value); touch(); }} className={`${input} mt-1 text-sm`} />
       </label>
 
       {mode === "whole" ? (
         <label className="block text-sm">
-          <span className="text-ink-2">The whole rulebook in Markdown</span> <span className="text-xs text-ink-2">· each <code>## Heading</code> starts a section</span>
-          <textarea id="rb-whole" value={whole} onChange={(e) => { setWhole(e.target.value); touch(); }} rows={40} className={`${input} mt-1 font-mono text-xs leading-relaxed`} />
+          <span className="text-ink-2">The whole {meta.label.toLowerCase()} in Markdown</span> <span className="text-xs text-ink-2">· each <code>## Heading</code> starts a section</span>
+          <textarea id={`${docKey}-whole`} value={whole} onChange={(e) => { setWhole(e.target.value); touch(); }} rows={40} className={`${input} mt-1 font-mono text-xs leading-relaxed`} />
         </label>
       ) : (
         <>
@@ -106,7 +108,7 @@ export function RulebookEditor({ initialContent, initialBanner }: { initialConte
           </nav>
           <label className="block text-sm">
             <span className="text-ink-2">Opening text</span> <span className="text-xs text-ink-2">· before the first section</span>
-            <textarea id="rb-intro" value={intro} onChange={(e) => { setIntro(e.target.value); touch(); }} rows={rows(intro, 3)} className={`${input} mt-1 font-mono text-xs leading-relaxed`} />
+            <textarea id={`${docKey}-intro`} value={intro} onChange={(e) => { setIntro(e.target.value); touch(); }} rows={rows(intro, 3)} className={`${input} mt-1 font-mono text-xs leading-relaxed`} />
           </label>
           <AddHere onAdd={() => add(0)} />
           {secs.map((s, i) => (
@@ -146,7 +148,7 @@ export function RulebookEditor({ initialContent, initialBanner }: { initialConte
 
       <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-t border-rule bg-paper px-1 py-3">
         <button type="button" onClick={save} disabled={pending || !dirty} className="border border-ink bg-ink px-4 py-2 text-sm text-paper hover:bg-accent disabled:opacity-40">{pending ? "Saving…" : "Save and publish"}</button>
-        <a href="/rules" target="_blank" rel="noreferrer" className="text-sm underline decoration-rule underline-offset-2 hover:decoration-ink">View the rulebook ↗</a>
+        <a href={meta.path} target="_blank" rel="noreferrer" className="text-sm underline decoration-rule underline-offset-2 hover:decoration-ink">View the {meta.label.toLowerCase()} ↗</a>
         {dirty && !msg.error && <span className="text-sm text-warn">Unsaved changes</span>}
         {msg.ok && <span className="text-sm text-ok">{msg.ok}</span>}
         {msg.error && <span role="alert" className="text-sm text-stamp">{msg.error}</span>}

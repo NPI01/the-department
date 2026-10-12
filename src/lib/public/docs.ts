@@ -40,6 +40,12 @@ export const DEFAULT_BANNER: Record<PublicDocKey, string | null> = {
   guide: null,
 };
 
+export const DOC_META: Record<PublicDocKey, { label: string; path: string; admin: string }> = {
+  rules: { label: "Rulebook", path: "/rules", admin: "/admin/rulebook" },
+  guide: { label: "Field Guide", path: "/guide", admin: "/admin/field-guide" },
+};
+export const isPublicDocKey = (k: unknown): k is PublicDocKey => typeof k === "string" && k in PUBLIC_DOCS;
+
 export const publicDocTag = (key: PublicDocKey) => `public-doc:${key}`;
 
 /* The repo draft as players would see it: no title line, editorial bits removed. */
