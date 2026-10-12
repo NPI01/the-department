@@ -11,6 +11,7 @@ export function PublicShell({ kicker, title, banner, children }: { kicker: strin
         <span className="flex gap-4">
           <Link href="/rules" className="hover:text-red">Rulebook</Link>
           <Link href="/guide" className="hover:text-red">Field guide</Link>
+          <Link href="/about" className="hover:text-red">About</Link>
         </span>
       </nav>
       <p className="text-xs uppercase tracking-[0.3em] text-red">{kicker}</p>

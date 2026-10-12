@@ -45,6 +45,7 @@ export default function Home() {
           <a href="#company" className="hover:text-red">The company</a>
           <a href="#social" className="hover:text-red">The secret game</a>
           <a href="#season" className="hover:text-red">Season one</a>
+          <a href="/about" className="hover:text-red">About</a>
         </nav>
         <a href="#apply" className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Apply</a>
       </header>
@@ -247,7 +248,7 @@ export default function Home() {
       <footer className="border-t-2 border-ink bg-paper px-5 py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 text-[11px] tracking-[0.25em] uppercase text-ink-2">
           <span className="display text-base tracking-[0.35em] text-ink">Weird<span className="text-red">.</span>Delivery</span>
-          <span>Play-by-mail games for people who check their inbox</span>
+          <a href="/about" className="hover:text-red">Play-by-mail games for people who check their inbox · About</a>
           <a href="mailto:thedepartment@weird.delivery" className="hover:text-red">thedepartment@weird.delivery</a>
         </div>
       </footer>
