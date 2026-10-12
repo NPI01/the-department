@@ -25,6 +25,7 @@ async function Content({ params }: { params: PageProps<"/admin/casting/[id]">["p
     <>
       <PageHeader kicker={`Casting Call · ${c.player_id ? "player character" : "NPC"}`} title={c.name}>
         <Badge tone={statusTone(c.status)}>{c.status}</Badge> {c.title ?? "No title"}{d.division && <> · {d.division}</>} · clearance {c.clearance}
+        {c.player_id && <> · <A href={`/admin/casting/${c.id}/case-file`}>Case File</A></>}
       </PageHeader>
 
       <div className="grid gap-4 xl:grid-cols-2">

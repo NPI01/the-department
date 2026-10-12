@@ -78,6 +78,11 @@ async function File({ params }: { params: PageProps<"/file/[token]">["params"] }
 
       {me.public_profile && <p className="type mt-6 text-[15px] leading-relaxed">{me.public_profile}</p>}
 
+      <Link href={`/file/${token}/case`} className="mt-10 flex items-center justify-between gap-4 border-2 border-ink bg-paper-2 px-5 py-4 hover:border-red hover:text-red">
+        <span><span className="display block text-3xl">Case File</span><span className="mt-1 block text-sm text-ink-2">Every letter, document, photograph and map you hold, and your private notes on them.</span></span>
+        <span aria-hidden className="text-2xl">→</span>
+      </Link>
+
       <h2 className="display mt-12 text-2xl">Holdings</h2>
       {(assets ?? []).length ? (
         <ul className="mt-3 space-y-1 text-sm">
