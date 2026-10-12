@@ -222,7 +222,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-5 py-24 sm:py-32">
           <Reveal className="reveal">
             <p className="text-[11px] tracking-[0.4em] uppercase text-red">Season one · twelve episodes · six months</p>
-            <h2 className="display mt-2 text-5xl sm:text-7xl">The High Country<br />Program</h2>
+            <h2 className="display mt-2 text-5xl sm:text-7xl">The High Country</h2>
           </Reveal>
           <ol className="mt-12 grid gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             {EPISODES.map(([n, t], i) => (

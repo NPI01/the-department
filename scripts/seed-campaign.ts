@@ -20,7 +20,7 @@ async function must<T = unknown>(p: PromiseLike<{ data: unknown; error: { messag
 }
 
 (async () => {
-  const campaign = await must<{ id: string }>(db.from("campaigns").upsert({ slug: "season-one", title: "Season One — The High Country Program", timezone: "America/New_York", lock_time: "20:00", dispatch_time: "09:00", status: "draft" }, { onConflict: "slug" }).select("id").single(), "campaign");
+  const campaign = await must<{ id: string }>(db.from("campaigns").upsert({ slug: "season-one", title: "Season One — The High Country", timezone: "America/New_York", lock_time: "20:00", dispatch_time: "09:00", status: "draft" }, { onConflict: "slug" }).select("id").single(), "campaign");
   const cid = campaign.id;
   console.log("campaign", cid);
 

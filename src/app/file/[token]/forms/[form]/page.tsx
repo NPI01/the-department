@@ -7,6 +7,7 @@ import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { characterForToken } from "@/lib/game/case-file";
 import { FORMS } from "@/lib/engine/forms";
 import { submitForm } from "./actions";
+import { bioFrom, longDate, particulars, roundDate } from "@/lib/game/personnel";
 
 /* A company form, hosted. Reached from the letter that required it (the
    button) or from the personnel file. Same private token, no login. Submitting
@@ -36,6 +37,16 @@ async function Content({ params, searchParams }: { params: Params; searchParams:
   if (!me) notFound();
   const { data: prior } = await db.from("events").select("payload, created_at").eq("campaign_id", me.campaignId).eq("kind", "form.filed").contains("payload", { character: me.id, form: def.id }).order("created_at");
   const filings = (prior ?? []).map((e) => e.payload as { index: string; missing: number[]; case_slug: string });
+  const { data: ch } = await db.from("characters").select("id, campaign_id, name, division_id, supervisor_id, created_at, sheet, public_profile, divisions(name, slug)").eq("id", me.id).single();
+  const p = await particulars(db, ch!);
+  const d = ch!.divisions as unknown as { name: string; slug: string } | null;
+  const dept = d ? (d.slug === "dsrd" ? "Executive Office" : d.name) : null;
+  const residence = bioFrom(ch!.sheet as never, ch!.public_profile as string | null).residence ?? "";
+  const today = p.currentRound ? longDate(roundDate(p.currentRound)) : null;
+  // Question 1 and question 10 start with what Personnel already has; the player may change them.
+  const prefill: Partial<Record<number, string>> = def.id === "14-B"
+    ? { 1: [me.name, `badge ${p.badge}`, dept, p.supervisor ? `supervisor ${p.supervisor.name}` : null].filter(Boolean).join(", "), ...(residence ? { 10: residence } : {}) }
+    : {};
   const missingSet = new Set((missing ?? "").split(",").filter(Boolean).map(Number));
 
   return (
@@ -57,6 +68,17 @@ async function Content({ params, searchParams }: { params: Params; searchParams:
           <p className="mt-1">Answer every question. Where there is nothing to report, write NONE. Unanswered: {[...missingSet].join(", ")}.</p>
         </div>
       )}
+
+      <aside className="mb-8 border border-ink bg-paper px-4 py-3 text-[13px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-ink-2">Your particulars, from Personnel</p>
+        <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1">
+          <dt className="text-ink-2">Badge No.</dt><dd className="font-mono">{p.badge}</dd>
+          <dt className="text-ink-2">Department</dt><dd>{dept ?? "—"}</dd>
+          <dt className="text-ink-2">Supervisor</dt><dd>{p.supervisor ? `${p.supervisor.name}${p.supervisor.title ? `, ${p.supervisor.title}` : ""}` : "—"}</dd>
+          <dt className="text-ink-2">Today</dt><dd>{today ?? "Your cohort has not yet convened"}{today && <span className="text-ink-2"> · Round {p.currentRound}</span>}</dd>
+        </dl>
+        <p className="mt-2 text-[11px] text-ink-2">The calendar and the time clock are on <Link href={`/file/${token}`} className="underline">your personnel file</Link>.</p>
+      </aside>
 
       <article className="border-2 border-ink bg-paper-2 shadow-[6px_6px_0_0_var(--ink)]">
         <div className="h-1.5 bg-red" />
@@ -85,8 +107,8 @@ async function Content({ params, searchParams }: { params: Params; searchParams:
                     <span className="font-mono text-xs text-ink-2">{String(q.n).padStart(2, "0")}.</span> {q.text}
                   </label>
                   {last
-                    ? <input id={`q${q.n}`} name={`q${q.n}`} required maxLength={120} placeholder="Type your full name" className="type mt-2 w-full border-b-2 border-ink bg-transparent px-1 py-2 text-lg outline-none focus:border-red" />
-                    : <textarea id={`q${q.n}`} name={`q${q.n}`} required={q.required} rows={q.n === 6 ? 6 : 2} maxLength={4000} className="type mt-2 w-full resize-y border border-ink bg-paper px-3 py-2 text-[15px] leading-relaxed outline-none focus:border-red" />}
+                    ? <input id={`q${q.n}`} name={`q${q.n}`} defaultValue={prefill[q.n]} required maxLength={120} placeholder="Type your full name" className="type mt-2 w-full border-b-2 border-ink bg-transparent px-1 py-2 text-lg outline-none focus:border-red" />
+                    : <textarea id={`q${q.n}`} name={`q${q.n}`} defaultValue={prefill[q.n]} required={q.required} rows={q.n === 6 ? 6 : 2} maxLength={4000} className="type mt-2 w-full resize-y border border-ink bg-paper px-3 py-2 text-[15px] leading-relaxed outline-none focus:border-red" />}
                 </li>
               );
             })}

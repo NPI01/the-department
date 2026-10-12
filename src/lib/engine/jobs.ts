@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
 import { gameMailbox, sendMail } from "@/lib/email/resend";
 import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } from "@/lib/email/letter";
+import { badgeNumber, bioForPrompt, bioFrom, particulars } from "@/lib/game/personnel";
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
@@ -262,7 +263,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           await sendMail({ to: player.email, from, replyTo: from, subject: "No such form", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
           continue;
         }
-        const letter = blankFormLetter(fid, { to: { name: ch?.name ?? first, title: (ch0 as { title?: string | null } | null)?.title ?? null }, date: gameDate(round.number), fileToken: player0?.file_token ?? null, links: letterLinks(player0?.file_token) });
+        const { data: me } = await db.from("characters").select("id, campaign_id, division_id, supervisor_id, created_at, divisions(name)").eq("id", c.from_character).single();
+        const pt = me ? await particulars(db, me) : null;
+        const deptName = (me?.divisions as unknown as { name: string } | null)?.name;
+        const particularsLine = pt ? [`Badge ${pt.badge}`, deptName, pt.supervisor ? `Supervisor: ${pt.supervisor.name}${pt.supervisor.title ? `, ${pt.supervisor.title}` : ""}` : null].filter(Boolean).join(" · ") : null;
+        const letter = blankFormLetter(fid, { particulars: particularsLine, to: { name: ch?.name ?? first, title: (ch0 as { title?: string | null } | null)?.title ?? null }, date: gameDate(round.number), fileToken: player0?.file_token ?? null, links: letterLinks(player0?.file_token) });
         const { html, text } = renderLetter(letter);
         await sendMail({ to: player.email, from, replyTo: from, subject: letter.subject, text, html, inReplyTo: c.message_id ?? undefined });
       }
@@ -326,7 +331,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: c } = await db.from("correspondence").select("campaign_id, thread_id, round_id, from_character, from_address, subject, body_text, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed");
     const { data: npc } = await db.from("characters").select("id, slug, name, title, divisions(name)").eq("id", npcId).single();
-    const { data: pc } = await db.from("characters").select("id, slug, name, title, divisions(name), players(email)").eq("id", c.from_character).single();
+    const { data: pc } = await db.from("characters").select("id, slug, name, title, sheet, public_profile, divisions(name), players(email)").eq("id", c.from_character).single();
     if (!npc || !pc) throw new Error("character missing");
     const dept = (x: { divisions?: { name: string } | { name: string }[] | null }) => Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null;
     const playerEmail = (pc as { players?: { email: string } | { email: string }[] | null }).players;
@@ -352,7 +357,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
       else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
     }
-    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote }, thread, round: roundNo, memory, onLedger: ledger(db) });
+    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote }, thread, round: roundNo, memory, onLedger: ledger(db) });
     const { data: row, error } = await db.from("correspondence").insert({
       campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
       from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,

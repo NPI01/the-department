@@ -41,7 +41,7 @@ export function renderFilledFormMarkdown(s: FormSubmission, p: { index: string; 
 }
 
 /* The blank form as a letter from the owning office, with a link to the hosted page. */
-export function blankFormLetter(id: string, p: { to: { name: string; title: string | null }; date: string; fileToken: string | null; links: LetterLinks }): Letter {
+export function blankFormLetter(id: string, p: { to: { name: string; title: string | null }; date: string; particulars?: string | null; fileToken: string | null; links: LetterLinks }): Letter {
   const f = FORMS[id];
   const url = p.fileToken ? `${siteUrl()}/file/${p.fileToken}/forms/${f.id}` : null;
   return {
@@ -55,6 +55,7 @@ export function blankFormLetter(id: string, p: { to: { name: string; title: stri
     classification: "Internal",
     body: [...f.instructions, ...f.questions.map((q) => `${q.n}. ${q.text}`)].join("\n\n"),
     sections: [
+      ...(p.particulars ? [{ heading: "Your particulars, from Personnel", body: p.particulars }] : []),
       { heading: `For ${f.owner} use only`, body: f.officeUse.join("\n") },
       { heading: "To file this form", body: [url ? `The quickest way is the form on your personnel file (the button below). Your answers are filed the moment you submit and a copy goes into your Case File.` : null, `Or reply to this message with FORM ${f.id} on a line by itself, then your answers, each beginning with its number. An answer may run to several lines. Question ${f.questions.length} is your signature: type your full name.`, `Filing a form costs nothing and is not an order. The office that owns it is told, and its staff remember what you wrote.`].filter(Boolean).join("\n\n") },
     ],

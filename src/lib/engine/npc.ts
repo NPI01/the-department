@@ -52,7 +52,7 @@ export type Memory = {
 
 export type ReplyInput = {
   dossier: Dossier;
-  player: { name: string; title: string | null; department: string | null };
+  player: { name: string; title: string | null; department: string | null; badge?: string; bio?: string };
   letter: { subject: string | null; body: string; date: string; formNote?: string | null };
   thread: { from: string; body: string }[];       // earlier letters between the two, oldest first
   round: number;
@@ -166,7 +166,10 @@ ${d.publicBlock || "(no public profile on file; use title and department)"}
 WHAT YOU PRIVATELY WANT AND KNOW (shorthand notes for you alone; they shape what you say, what you avoid, what you ask for; never repeat their wording or names in a letter):
 ${d.secretRow || "(none)"}
 ${d.secretEntry || ""}
-${formsBlock}${memoryBlock}
+${formsBlock}${memoryBlock}${input.player.bio || input.player.badge ? `
+THE WRITER'S PERSONNEL FILE (a company record you may have seen; what the writer told Personnel about themselves, not verified. Use it as a colleague would, lightly; never quote it back wholesale)
+${input.player.badge ? `Badge ${input.player.badge}. ` : ""}${input.player.bio ?? ""}
+` : ""}
 RULES
 - Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.

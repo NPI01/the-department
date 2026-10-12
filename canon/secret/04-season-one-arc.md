@@ -1,4 +1,4 @@
-# Season One Arc — The High Country Program
+# Season One Arc — The High Country
 
 SECRET CANON v1 (2026-10-11). Engine and GM only. Reconciles Bible 02 §18 (six-stage
 progression), Bible 03 §19 (the April 1978 countdown) and Bible 04 §14 (Tagus per

@@ -15,6 +15,10 @@ by anyone with standing, and held against you.
   there), or reply with `FORM 14-B` on a line by itself, then your answers, each
   beginning with its number. An answer may run to several lines. The last question is
   always your signature: type your full name. Both ways file the same form.
+- **Your particulars.** Your badge number, department and supervisor are on your
+  personnel file, along with the office calendar (today's date at Station R and the hour)
+  and your biography; the hosted form starts question 1 with them filled in, and the
+  blank sent by mail lists them.
 - **What happens.** The form is filed the moment it is received and given an index
   number. You get a receipt. A copy, stamped RECEIVED with its index number, goes into
   your Case File and stays there; the office-use box on it is filled in as the office
@@ -74,4 +78,4 @@ What staff know: question 11 was added in the September 1977 reprint. Security w
 told why. Leonard Fisk assumes it is about drink or pills. Older copies of the form,
 without question 11, are still in some desk drawers.
 
-CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File.
+CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File. v1.2 puts badge number, supervisor, calendar and biography on the personnel file.
