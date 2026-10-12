@@ -35,7 +35,7 @@ export async function loadDossier(db: SupabaseClient, c: { name: string; title: 
 }
 
 /* Engine-only terms that must never reach a player, whatever the model does. */
-const SECRET_TERMS = /convergence|68-24|keeper|ascendant|1984|retrocausal|sublevel nine|kessler|disinformation|forged|forgery|omega point|marsh is alive|closed causal|time loop|from the future/i;
+const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren/i;
 
 const WORLD = `It is October 1977 at Station R, the North Dakota campus of Royce Industries, a private research and development company. You work there. The Department of Special Research and Development ("the Department") coordinates sensitive projects; most staff do not know what it does. Period: no personal computers, no internet; memos, carbon copies, teletypes, telephone logs. Public matters this month: a scientist, Dr. Evelyn Marsh, "transferred out of state" on September 29; a technician, Paul Greeley, died in an industrial accident in July; ranchers report cattle found dead and cut; unmarked helicopters fly at night; the papers talk about a "Devil Cult" near the town of Tagus; Building 7 is marked restricted on some maps and absent from others.`;
 
@@ -48,7 +48,7 @@ export type ReplyInput = {
   onLedger?: (r: LedgerRow) => void | Promise<void>;
 };
 
-export type StaffReply = { subject: string; body: string; shared: string[]; wants: string | null; model: string; guarded: boolean };
+export type StaffReply = { subject: string; body: string; shared: string[]; wants: string | null; model: string; guarded: boolean; rejected: string[] };
 
 export async function generateStaffReply(input: ReplyInput): Promise<StaffReply> {
   const d = input.dossier;
@@ -59,14 +59,14 @@ ${WORLD}
 WHO YOU ARE (public):
 ${d.publicBlock || "(no public profile on file; use title and department)"}
 
-WHAT YOU PRIVATELY WANT AND KNOW (never state this outright; it shapes what you say, what you avoid, what you ask for):
+WHAT YOU PRIVATELY WANT AND KNOW (shorthand notes for you alone; they shape what you say, what you avoid, what you ask for; never repeat their wording or names in a letter):
 ${d.secretRow || "(none)"}
 ${d.secretEntry || ""}
 
 RULES
 - Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.
-- Never mention these words or ideas: Convergence, Drawing 68-24, Keepers, Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, forgery, the Omega Point, time travel, the future.
+- Never mention these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future.
 - No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").
 Output JSON only: {"subject": string, "body": string, "shared": string[] (facts you chose to share, as short phrases), "wants": string|null (what you want from the writer)}.`;
 
@@ -75,18 +75,22 @@ Output JSON only: {"subject": string, "body": string, "shared": string[] (facts 
 
   type Out = { subject?: string; body?: string; shared?: string[]; wants?: string | null };
   let guarded = false;
+  const rejected: string[] = [];
   let attempt = await chatJson<Out>([{ role: "system", content: system }, { role: "user", content: user }], { tag: `npc:${d.name}`, temperature: 0.8, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
   let body = (attempt.data?.body ?? "").trim();
   if (!body || SECRET_TERMS.test(body)) {
     guarded = Boolean(body);
+    if (body) rejected.push(body);
     attempt = await chatJson<Out>([{ role: "system", content: system + "\n\nYour previous draft mentioned something you must not. Write it again without it." }, { role: "user", content: user }], { tag: `npc:${d.name}:retry`, temperature: 0.6, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
     body = (attempt.data?.body ?? "").trim();
   }
   if (!body || SECRET_TERMS.test(body)) {
+    if (body) rejected.push(body);
     // Last resort: a safe, in-character deferral rather than a leak or silence.
-    body = `${input.player.name.split(" ").pop()},\n\nYour letter is received. I am not in a position to discuss the matter you raise in writing. If it is urgent, come to my office; bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
+    const surname = input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop() || "Colleague";
+    body = `Mr. ${surname},\n\nYour letter is received. I am not in a position to discuss the matter you raise in writing. If it is urgent, come to my office; bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
     guarded = true;
   }
   const subject = (attempt.data?.subject ?? "").trim() || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
-  return { subject, body, shared: attempt.data?.shared ?? [], wants: attempt.data?.wants ?? null, model: attempt.result.model, guarded };
+  return { subject, body, shared: attempt.data?.shared ?? [], wants: attempt.data?.wants ?? null, model: attempt.result.model, guarded, rejected };
 }

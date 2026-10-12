@@ -296,7 +296,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: row, error } = await db.from("correspondence").insert({
       campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
       from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
-      raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id },
+      raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, rejected: reply.rejected, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id },
     }).select("id").single();
     if (error) throw new Error(error.message);
     await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
