@@ -77,12 +77,21 @@ Output JSON only: {"subject": string, "body": string, "shared": string[] (facts 
   let guarded = false;
   const rejected: string[] = [];
   let attempt = await chatJson<Out>([{ role: "system", content: system }, { role: "user", content: user }], { tag: `npc:${d.name}`, temperature: 0.8, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
+  // The 35B sometimes answers in prose despite the JSON instruction; the
+  // prose is the letter. Take it, minus any subject line it put on top.
+  const fromText = (t: string) => t.replace(/^\s*(?:subject|re)\s*:[^\n]*\n+/i, "").replace(/^```[a-z]*\n?|```$/g, "").trim();
+  const subjectFromText = (t: string) => t.match(/^\s*(?:subject|re)\s*:\s*([^\n]+)/i)?.[1]?.trim() ?? null;
+  let textSubject: string | null = null;
   let body = (attempt.data?.body ?? "").trim();
+  if (!body && attempt.result.text && !attempt.result.text.trim().startsWith("{")) { body = fromText(attempt.result.text); textSubject = subjectFromText(attempt.result.text); }
+  if (!body) rejected.push(`[unparsed] ${attempt.result.text.slice(0, 1500)}`);
   if (!body || SECRET_TERMS.test(body)) {
     guarded = Boolean(body);
     if (body) rejected.push(body);
     attempt = await chatJson<Out>([{ role: "system", content: system + "\n\nYour previous draft mentioned something you must not. Write it again without it." }, { role: "user", content: user }], { tag: `npc:${d.name}:retry`, temperature: 0.6, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
     body = (attempt.data?.body ?? "").trim();
+    if (!body && attempt.result.text && !attempt.result.text.trim().startsWith("{")) { body = fromText(attempt.result.text); textSubject = subjectFromText(attempt.result.text); }
+    if (!body) rejected.push(`[unparsed] ${attempt.result.text.slice(0, 1500)}`);
   }
   if (!body || SECRET_TERMS.test(body)) {
     if (body) rejected.push(body);
@@ -91,6 +100,6 @@ Output JSON only: {"subject": string, "body": string, "shared": string[] (facts 
     body = `Mr. ${surname},\n\nYour letter is received. I am not in a position to discuss the matter you raise in writing. If it is urgent, come to my office; bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
     guarded = true;
   }
-  const subject = (attempt.data?.subject ?? "").trim() || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
+  const subject = (attempt.data?.subject ?? "").trim() || textSubject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
   return { subject, body, shared: attempt.data?.shared ?? [], wants: attempt.data?.wants ?? null, model: attempt.result.model, guarded, rejected };
 }
