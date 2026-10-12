@@ -14,7 +14,7 @@ import { gameMailbox, sendMail } from "@/lib/email/resend";
 import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } from "@/lib/email/letter";
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
-import { fetchReceived, parseGrammar, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
+import { fetchReceived, parseGrammar, replyMode, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
 import { menuFor, renderReceipt, replyAddress, textToHtml } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
@@ -92,13 +92,15 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
 
     const menu = await menuFor(db, round.id, c.from_character);
     const recorded: string[] = [];
+    const ignored: string[] = [];
     const orderRows: { verb: string; args: Record<string, unknown>; label: string }[] = [];
     let hold = false;
+    const mode = replyMode(c.body_text as string);
     for (const a of acts) {
       if (a.kind === "select") {
         const opt = menu.find((o) => o.code === a.code);
         if (a.code === "X") continue; // X is the free-form prompt, not an option
-        if (!opt) { recorded.push(`${a.code}. — not on tonight's list, ignored`); continue; }
+        if (!opt) { ignored.push(`${a.code} — not on tonight's list`); continue; }
         orderRows.push({ verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` });
       } else if (a.kind === "order") {
         orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform" }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — cost ruled in the morning` });
@@ -106,7 +108,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       else if (a.kind === "vote") {
         const { data: m } = await db.from("motions").select("id, status, number").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
         if (m?.status === "open") { await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" }); recorded.push(`VOTE ${m.number}: ${a.choice.toUpperCase()}`); }
-        else recorded.push(`VOTE ${a.motion} — no open ballot by that number, ignored`);
+        else ignored.push(`VOTE ${a.motion} — no open ballot by that number`);
       } else if (a.kind === "accept" || a.kind === "reject") {
         const { data: ag } = await db.from("agreements").select("id, accepted_by, parties, status").eq("campaign_id", c.campaign_id).eq("title", a.agreement).maybeSingle();
         if (ag && ag.status === "proposed" && ag.parties.includes(c.from_character)) {
@@ -119,26 +121,40 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
 
-    // The latest reply replaces the previous packet for this round.
+    // A reply that says "also" adds to the packet; any other reply replaces it.
+    const nothingFound = !orderRows.length && !hold && !recorded.length && !ignored.length;
+    let replaced = false; const added: string[] = [];
     if (orderRows.length || hold) {
       const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !orderRows.length ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
       if (packet) {
-        await db.from("orders").delete().eq("packet_id", packet.id).eq("status", "pending");
-        if (orderRows.length) await db.from("orders").insert(orderRows.map((r, i) => ({ packet_id: packet.id, seq: i + 1, verb: r.verb, args: r.args })));
-        if (hold) recorded.push(orderRows.length ? "HOLD — noted, but orders were given, so they take precedence" : "HOLD — conserving; standing orders continue (+5 AU in the morning)");
-        recorded.unshift(...orderRows.map((r) => r.label));
+        const { data: existing } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", packet.id).eq("status", "pending").order("seq");
+        const keep = mode === "append" ? (existing ?? []) : [];
+        if (mode !== "append" && (existing ?? []).length) { await db.from("orders").delete().eq("packet_id", packet.id).eq("status", "pending"); replaced = true; }
+        const fresh = orderRows.filter((r) => !keep.some((k) => (k.args as { code?: string }).code && (k.args as { code?: string }).code === (r.args as { code?: string }).code));
+        if (fresh.length) await db.from("orders").insert(fresh.map((r, i) => ({ packet_id: packet.id, seq: keep.length + i + 1, verb: r.verb, args: r.args })));
+        if (mode === "append") added.push(...fresh.map((r) => r.label));
+        if (hold) recorded.push(orderRows.length || keep.length ? "HOLD — noted, but orders are on file, so they take precedence" : "HOLD — conserving; standing orders continue (+5 AU in the morning)");
       }
     }
-    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "grammar.recorded", payload: { acts, recorded }, idempotency_key: key, visible_to: [c.from_character] });
+    // The full list now on file, labelled from the menu where possible.
+    const { data: pk } = await db.from("order_packets").select("id, mode").eq("round_id", round.id).eq("character_id", c.from_character).maybeSingle();
+    const { data: rows } = pk ? await db.from("orders").select("verb, args").eq("packet_id", pk.id).eq("status", "pending").order("seq") : { data: [] };
+    const onFile = (rows ?? []).map((r) => {
+      const a = r.args as { code?: string; text?: string; freeform?: boolean; cost?: number };
+      const opt = a.code ? menu.find((o) => o.code === a.code) : null;
+      return opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — cost ruled in the morning` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
+    });
+    if (pk?.mode === "hold" && !onFile.length) onFile.push("HOLD — conserving");
+    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "grammar.recorded", payload: { acts, mode, added, replaced, ignored, onFile, recorded }, idempotency_key: key, visible_to: [c.from_character] });
 
     // The receipt. Count the lines that were not acts as notes.
-    const noteLines = (c.body_text as string).split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith(">") && !/^(?:ORDER\b|HOLD\b|H\.?$|VOTE\b|ACCEPT\b|REJECT\b|TRANSFER\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i.test(l) && !/^(?:—|--|on .* wrote:)/i.test(l)).length;
+    const noteLines = (c.body_text as string).split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith(">") && parseGrammar(l).length === 0 && !/^(?:—|--|on .* wrote:)/i.test(l)).length;
     const { data: ch } = await db.from("characters").select("name, players(email, mail_token, display_name)").eq("id", c.from_character).single();
     const player = (ch as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
     if (player?.email) {
       const first = (player.display_name || ch?.name || "there").split(" ")[0];
       const lockAt = new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
-      const text = renderReceipt({ first, round: round.number, recorded, notes: noteLines, lockAt });
+      const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound });
       await sendMail({ to: player.email, from: replyAddress(player.mail_token), replyTo: replyAddress(player.mail_token), subject: /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
     }
   },

@@ -73,19 +73,22 @@ export function renderDispatch(p: { first: string; date: string; round: number; 
   ].join("\n");
 }
 
-export function renderReceipt(p: { first: string; round: number; recorded: string[]; notes: number; lockAt: string }) {
-  const lines = p.recorded.length ? p.recorded.map((r, i) => `  ${i + 1}. ${r}`) : ["  (nothing — no order lines were found in your reply)"];
-  return [
-    `Received, ${p.first}.`,
-    ``,
-    `On file for Round ${p.round}:`,
-    ...lines,
-    ``,
-    p.notes ? `Your ${p.notes === 1 ? "note was" : "notes were"} read and filed; ${p.notes === 1 ? "it is" : "they are"} not orders.` : ``,
-    `These lock at ${p.lockAt}. Reply again before then to change them; your latest reply replaces this one.`,
-    ``,
-    `— The Department`,
-  ].filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
+export function renderReceipt(p: { first: string; round: number; onFile: string[]; added: string[]; replaced: boolean; ignored: string[]; notes: number; lockAt: string; nothingFound: boolean }) {
+  const out: string[] = [`Received, ${p.first}.`, ``];
+  if (p.nothingFound) {
+    out.push(`No orders were found in your reply, so nothing changed.`, ``,
+      `To choose from tonight's list, put the letter on its own line (A), or say it`,
+      `plainly ("let's do A and C"). For anything else, start a line with ORDER:.`, ``);
+  } else if (p.added.length) {
+    out.push(`Added to what was on file:`, ...p.added.map((r) => `  + ${r}`), ``);
+  } else if (p.replaced) {
+    out.push(`Your earlier orders for tonight were replaced.`, ``);
+  }
+  if (p.ignored.length) out.push(`Not acted on:`, ...p.ignored.map((r) => `  · ${r}`), ``);
+  out.push(`On file for Round ${p.round}:`, ...(p.onFile.length ? p.onFile.map((r, i) => `  ${i + 1}. ${r}`) : [`  (nothing yet)`]), ``);
+  if (p.notes) out.push(`Your ${p.notes === 1 ? "note was" : "notes were"} read and filed; ${p.notes === 1 ? "it is" : "they are"} not orders.`);
+  out.push(`These lock at ${p.lockAt}. Reply again before then to change them. Say "also" to add; otherwise a new reply replaces the list.`, ``, `— The Department`);
+  return out.join("\n");
 }
 
 export function textToHtml(text: string) {

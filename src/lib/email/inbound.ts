@@ -39,12 +39,32 @@ export type GrammarAct =
   | { kind: "reject"; agreement: string }
   | { kind: "transfer"; amount: number; resource: string; to: string };
 
+/* "also", "add", "plus" mean: keep what is on file and add these. Anything
+   else means the reply replaces the earlier packet. */
+export function replyMode(text: string): "append" | "replace" {
+  return /\b(also|add|adding|plus|in addition|as well|too)\b/i.test(text) ? "append" : "replace";
+}
+
+const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go with|go for|select|want|like|try|then|plus|and|instead|switch to|change to|also|letter)\b/i;
+
 export function parseGrammar(text: string): GrammarAct[] {
   const acts: GrammarAct[] = [];
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (line.startsWith(">")) continue; // quoted
     let m: RegExpMatchArray | null;
+    // Prose with a choice in it: "I'd also like to do D", "let's go with A and C".
+    // A capital letter standing alone, not at the start of the line, in a short
+    // line that has a cue word. Lowercase a/i never count (articles, pronouns).
+    const soft = (): boolean => {
+      if (line.split(/\s+/).length > 20 || !CUE.test(line)) return false;
+      // "B instead of C", "not C", "drop C": the letter after the negation is excluded.
+      const excluded = new Set([...line.matchAll(/\b(?:instead of|rather than|not|drop|remove|cancel|without|scratch)\s+(?:option\s+)?([A-GX])(?![A-Za-z0-9])/gi)].map((x) => x[1].toUpperCase()));
+      const found = [...line.matchAll(/(?<![A-Za-z0-9'"])([A-GX])(?![A-Za-z0-9])/g)].filter((x) => x.index! > 0).map((x) => x[1]).filter((c) => !excluded.has(c));
+      if (!found.length || found.length > 4) return excluded.size > 0;
+      for (const c of [...new Set(found)]) acts.push({ kind: "select", code: c });
+      return true;
+    };
     // A line that is only a letter, or letters separated by commas/spaces
     // ("A", "A, C", "ORDER B"), picks options from the morning menu.
     if ((m = line.match(/^(?:ORDER\s*:?\s*)?([A-GX](?:\s*[,/ ]\s*[A-GX])*)\.?$/i))) {
@@ -64,6 +84,7 @@ export function parseGrammar(text: string): GrammarAct[] {
     else if ((m = line.match(/^ACCEPT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "accept", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^REJECT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "reject", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^TRANSFER\s+(\d+)\s+([A-Z_]+)\s+TO\s+([a-z0-9._-]+)/i))) acts.push({ kind: "transfer", amount: Number(m[1]), resource: m[2].toLowerCase(), to: m[3].toLowerCase() });
+    else soft();
   }
   return acts;
 }
