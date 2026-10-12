@@ -15,10 +15,22 @@ import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } f
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
-import { generateStaffReply, loadDossier } from "@/lib/engine/npc";
+import { generateStaffReply, loadDossier, type Memory } from "@/lib/engine/npc";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderDirectory, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
+
+/* Short stable key for a remembered sentence (djb2), so re-runs do not duplicate. */
+function hashKey(text: string): string {
+  let h = 5381; const t = text.toLowerCase().replace(/\s+/g, " ").trim();
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+async function roundNumber(db: SupabaseClient, roundId: string | null): Promise<number | null> {
+  if (!roundId) return null;
+  const { data } = await db.from("rounds").select("number").eq("id", roundId).maybeSingle();
+  return (data?.number as number | undefined) ?? null;
+}
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
 
@@ -259,7 +271,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
 
   async extract(db, p) {
     const id = p.correspondence_id as string;
-    const { data: c } = await db.from("correspondence").select("id, subject, body_text, from_character, to_characters").eq("id", id).single();
+    const { data: c } = await db.from("correspondence").select("id, subject, body_text, from_character, to_characters, round_id").eq("id", id).single();
     if (!c) return;
     const { count } = await db.from("correspondence_events").select("id", { count: "exact", head: true }).eq("correspondence_id", id);
     if (count) return; // already extracted
@@ -268,6 +280,18 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const events = (data?.events ?? []).filter((e) => e && e.kind && typeof e.confidence === "number");
     if (!events.length) return;
     await db.from("correspondence_events").insert(events.map((e) => ({ correspondence_id: id, kind: e.kind, payload: e.payload ?? {}, confidence: Math.max(0, Math.min(1, e.confidence)), span: e.span ?? null, provenance: { model: result.model, usage: result.usage }, requires_confirmation: e.kind === "vote_intent" || e.kind === "order_intent" })));
+    // What the recipients were told, so a staff character remembers it next time.
+    const told = events.filter((e) => ["claim", "info_share", "promise", "offer", "threat", "proposal"].includes(e.kind));
+    const recipients = (c.to_characters as string[] | null) ?? [];
+    if (c.from_character && told.length && recipients.length) {
+      const roundNo = await roundNumber(db, c.round_id as string | null);
+      const { data: from } = await db.from("characters").select("slug, name").eq("id", c.from_character).single();
+      const rows = recipients.flatMap((rid) => told.map((e) => {
+        const text = e.span || JSON.stringify(e.payload);
+        return { character_id: rid, fact_key: `told:${from?.slug ?? "unknown"}:${hashKey(text)}`, value: { kind: e.kind, text, from: c.from_character, from_name: from?.name ?? null, round: roundNo }, confidence: Math.max(0, Math.min(1, e.confidence)), source_kind: "told", source_ref: id, learned_round: roundNo };
+      }));
+      await db.from("knowledge").insert(rows);
+    }
   },
 
   async npc_reply(db, p) {
@@ -278,7 +302,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: c } = await db.from("correspondence").select("campaign_id, thread_id, round_id, from_character, from_address, subject, body_text, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed");
     const { data: npc } = await db.from("characters").select("id, slug, name, title, divisions(name)").eq("id", npcId).single();
-    const { data: pc } = await db.from("characters").select("id, name, title, divisions(name), players(email)").eq("id", c.from_character).single();
+    const { data: pc } = await db.from("characters").select("id, slug, name, title, divisions(name), players(email)").eq("id", c.from_character).single();
     if (!npc || !pc) throw new Error("character missing");
     const dept = (x: { divisions?: { name: string } | { name: string }[] | null }) => Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null;
     const playerEmail = (pc as { players?: { email: string } | { email: string }[] | null }).players;
@@ -292,7 +316,15 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const thread = (prior ?? []).map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
     const salute = parseSalutation(c.body_text as string);
     const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc) });
-    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo) }, thread, round: roundNo, onLedger: ledger(db) });
+    // What this character remembers: said (to whom) and heard (from this writer).
+    const { data: known } = await db.from("knowledge").select("source_kind, value").eq("character_id", npcId).in("source_kind", ["stated", "told"]).order("created_at").limit(60);
+    type KV = { kind?: string; text: string; to?: string; to_name?: string; from?: string };
+    const memory: Memory = { saidToThisPerson: [], saidToOthers: [], heardFromThisPerson: [] };
+    for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
+      if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
+      else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
+    }
+    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo) }, thread, round: roundNo, memory, onLedger: ledger(db) });
     const { data: row, error } = await db.from("correspondence").insert({
       campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
       from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
@@ -300,6 +332,14 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }).select("id").single();
     if (error) throw new Error(error.message);
     await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
+    // Memory: the character remembers what they said and asked; the player's character now knows what they were told.
+    const said = [...reply.shared.map((text) => ({ kind: "shared", text })), ...(reply.wants ? [{ kind: "asked", text: reply.wants }] : [])];
+    if (said.length) {
+      await db.from("knowledge").insert([
+        ...said.map((s) => ({ character_id: npcId, fact_key: `stated:${pc.slug}:${hashKey(s.text)}`, value: { ...s, to: pc.id, to_name: pc.name, round: roundNo }, confidence: 1, source_kind: "stated", source_ref: row.id, learned_round: roundNo })),
+        ...reply.shared.map((text) => ({ character_id: pc.id, fact_key: `told:${npc.slug}:${hashKey(text)}`, value: { kind: "info_share", text, from: npcId, from_name: npc.name, round: roundNo }, confidence: 0.6, source_kind: "told", source_ref: row.id, learned_round: roundNo })),
+      ]);
+    }
     await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "npc.replied", payload: { to: id, reply: row.id, npc: npc.slug, model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants }, idempotency_key: key, visible_to: [c.from_character] });
   },
 
