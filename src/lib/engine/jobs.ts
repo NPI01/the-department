@@ -16,7 +16,8 @@ import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
 import { generateStaffReply, loadDossier, type Memory } from "@/lib/engine/npc";
-import { FORMS, formIsKnown, parseFormSubmission, renderBlankForm, renderFormReceipt, summarizeSubmission } from "@/lib/engine/forms";
+import { FORMS, formIsKnown, parseFormSubmission } from "@/lib/engine/forms";
+import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderDirectory, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -139,32 +140,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
     if (dup) return;
     const { data: routed } = await db.from("correspondence").select("to_characters").eq("id", id).single();
-    const { data: ch0 } = await db.from("characters").select("name, slug, players(email, mail_token, display_name)").eq("id", c.from_character).single();
-    const player0 = (ch0 as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
-    const first0 = (player0?.display_name || ch0?.name || "there").split(" ")[0];
+    const { data: ch0 } = await db.from("characters").select("name, title, players(email, mail_token, file_token, display_name)").eq("id", c.from_character).single();
+    const player0 = (ch0 as { players?: { email: string; mail_token: string; file_token: string | null; display_name: string | null } | null } | null)?.players;
 
-    // A filled-in form: file it deterministically, tell the office that owns it, receipt.
+    // A filled-in form: file it deterministically; the office that owns it is told; receipt.
     const form = c.body_text ? parseFormSubmission(c.body_text as string) : null;
     if (form && Object.keys(form.answers).length && formIsKnown(form.form)) {
-      const def = FORMS[form.form];
-      const fkey = `form:${id}`;
-      const { data: fdup } = await db.from("events").select("id").eq("idempotency_key", fkey).maybeSingle();
-      if (!fdup) {
-        const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("campaign_id", c.campaign_id).eq("kind", "form.filed");
-        const index = `S-77-${String((count ?? 0) + 1).padStart(3, "0")}`;
-        await db.from("correspondence_events").insert({ correspondence_id: id, kind: "form_submission", payload: { form: form.form, index, answers: form.answers, signed: form.signed, missing: form.missing, round: round.number }, confidence: 1, span: null, provenance: { parser: "deterministic" } });
-        // The office that owns the form remembers what was written on it, as do any named addressees.
-        const { data: owners } = await db.from("characters").select("id, divisions!inner(name)").eq("campaign_id", c.campaign_id).is("player_id", null).eq("divisions.name", def.owner);
-        const readers = new Set<string>([...((routed?.to_characters as string[] | null) ?? []), ...(owners ?? []).map((o) => o.id)]);
-        const summary = summarizeSubmission(form, index);
-        if (readers.size) await db.from("knowledge").insert([...readers].map((rid) => ({ character_id: rid, fact_key: `told:${ch0?.slug ?? "unknown"}:form:${form.form}:${index}`, value: { kind: "form", text: summary, from: c.from_character, from_name: ch0?.name ?? null, round: round.number, form: form.form, index }, confidence: 1, source_kind: "told", source_ref: id, learned_round: round.number })));
-        await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "form.filed", payload: { correspondence_id: id, form: form.form, index, missing: form.missing, signed: form.signed, character: c.from_character }, idempotency_key: fkey, visible_to: [c.from_character] });
-        if (player0?.email) {
-          const from = replyAddress(player0.mail_token);
-          const text = renderFormReceipt({ first: first0, form: form.form, index, round: round.number, missing: form.missing, signed: form.signed, owner: def.owner }) + "\n\n" + renderFooter();
-          await sendMail({ to: player0.email, from, replyTo: from, subject: `Form ${form.form} filed · ${index}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
-        }
-      }
+      await fileForm(db, { campaignId: c.campaign_id, characterId: c.from_character, submission: form, correspondenceId: id, source: "email", toCharacters: (routed?.to_characters as string[] | null) ?? [] });
       if (!acts.length) return; // the form was the letter
     }
     // A letter to a person that carries no order lines is correspondence, not
@@ -275,10 +257,14 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       for (const cmd of commands) {
         if (!cmd.startsWith("form:")) continue;
         const fid = cmd.slice(5);
-        const text = fid === "unknown"
-          ? `${first},\n\nNo form by that number is in use. The forms currently in use are: ${Object.values(FORMS).map((f) => `Form ${f.id} (${f.owner})`).join("; ")}. Reply FORM and the number to receive a blank.\n\n— The Department\n\n${renderFooter()}`
-          : `${renderBlankForm(fid, first)}\n\n${renderFooter()}`;
-        await sendMail({ to: player.email, from, replyTo: from, subject: fid === "unknown" ? "No such form" : `Form ${fid} · ${FORMS[fid].title}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+        if (fid === "unknown") {
+          const text = `${first},\n\nNo form by that number is in use. The forms currently in use are: ${Object.values(FORMS).map((f) => `Form ${f.id} (${f.owner})`).join("; ")}. Reply FORM and the number to receive a blank.\n\n— The Department\n\n${renderFooter()}`;
+          await sendMail({ to: player.email, from, replyTo: from, subject: "No such form", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+          continue;
+        }
+        const letter = blankFormLetter(fid, { to: { name: ch?.name ?? first, title: (ch0 as { title?: string | null } | null)?.title ?? null }, date: gameDate(round.number), fileToken: player0?.file_token ?? null, links: letterLinks(player0?.file_token) });
+        const { html, text } = renderLetter(letter);
+        await sendMail({ to: player.email, from, replyTo: from, subject: letter.subject, text, html, inReplyTo: c.message_id ?? undefined });
       }
       if (commands.has("resign")) {
         await db.from("characters").update({ status: "retired" }).eq("id", c.from_character);

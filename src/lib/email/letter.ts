@@ -11,7 +11,7 @@
    - MSO conditionals hold the width in Outlook for Windows
    - a plain-text part with the same structure and links */
 
-export type LetterKind = "letter" | "memo" | "dispatch" | "notice";
+export type LetterKind = "letter" | "memo" | "dispatch" | "notice" | "form";
 
 export type Letter = {
   kind: LetterKind;
@@ -26,6 +26,7 @@ export type Letter = {
   body: string;                             // plain text; blank lines separate paragraphs
   sections?: { heading: string; body: string }[];
   signature?: { name: string; title?: string | null } | null;
+  cta?: { href: string; label: string } | null;   // one button under the body, e.g. "Fill in Form 14-B"
   links: LetterLinks;
 };
 
@@ -64,6 +65,7 @@ const KIND_LABEL: Record<LetterKind, string> = {
   memo: "Memorandum",
   dispatch: "Daily Dispatch",
   notice: "Personnel Notice",
+  form: "Company Form",
 };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -97,7 +99,7 @@ function link(href: string, label: string) {
 
 export function renderLetter(l: Letter): { html: string; text: string } {
   const label = l.label ?? (l.kind === "dispatch" && l.round ? `${KIND_LABEL.dispatch} · Round ${String(l.round.number).padStart(2, "0")}` : KIND_LABEL[l.kind]);
-  const classification = l.classification ?? (l.kind === "dispatch" ? "Personal & Confidential" : l.kind === "notice" ? "Internal" : null);
+  const classification = l.classification ?? (l.kind === "dispatch" ? "Personal & Confidential" : l.kind === "notice" || l.kind === "form" ? "Internal" : null);
   const dateLine = l.date ?? (l.round ? gameDate(l.round.number) : null);
   const preheader = l.preheader ?? l.body.replace(/\s+/g, " ").slice(0, 110);
 
@@ -121,6 +123,10 @@ export function renderLetter(l: Letter): { html: string; text: string } {
 
   const signature = l.signature ? `
     <p style="margin:24px 0 0 0;font-family:${TYPE};font-size:15px;line-height:1.5;color:${C.ink};">${esc(l.signature.name)}${l.signature.title ? `<br><span style="font-size:13px;color:${C.ink2};">${esc(l.signature.title)}</span>` : ""}</p>` : "";
+
+  const cta = l.cta ? `
+    <p style="margin:26px 0 4px 0;"><a href="${esc(l.cta.href)}" style="display:inline-block;padding:13px 22px;background-color:${C.red};color:${C.paper};font-family:${DISPLAY};font-size:13px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;text-decoration:none;">${esc(l.cta.label)} &rarr;</a></p>
+    <p style="margin:0 0 8px 0;font-family:${MONO};font-size:11px;line-height:1.6;color:${C.ink2};">${esc(l.cta.href)}</p>` : "";
 
   // A recipient with a personnel file is a player; anyone else (an applicant) gets the plain footer.
   const playing = Boolean(l.links.file);
@@ -186,10 +192,11 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     ${paragraphs(l.body)}
     ${sections ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${sections}</table>` : ""}
     ${signature}
+    ${cta}
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">
-    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : "7"} &middot; Retain for your records</p>
+    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : l.kind === "form" ? "0" : "7"} &middot; Retain for your records</p>
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">
@@ -228,6 +235,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     l.body.trim(),
     ...(l.sections ?? []).flatMap((s) => ["", s.heading.toUpperCase(), "~".repeat(Math.min(s.heading.length, 60)), s.body.trim()]),
     l.signature ? `\n${l.signature.name}${l.signature.title ? `\n${l.signature.title}` : ""}` : null,
+    l.cta ? `\n${l.cta.label.toUpperCase()}: ${l.cta.href}` : null,
     "",
     rule,
     "OUT OF CHARACTER · The Department, a play-by-mail game from Weird.Delivery",

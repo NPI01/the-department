@@ -8,7 +8,8 @@
 
 export type FormDef = {
   id: string;                 // "14-B"
-  title: string;
+  title: string;              // as printed on the form, upper case
+  shortTitle: string;         // for subjects and the Case File
   owner: string;              // department that owns the form
   revision: string;
   instructions: string[];
@@ -21,6 +22,7 @@ export const FORMS: Record<string, FormDef> = {
   "14-B": {
     id: "14-B",
     title: "REPORT OF UNUSUAL OBSERVATION",
+    shortTitle: "Report of Unusual Observation",
     owner: "Corporate Security",
     revision: "Rev. 9/77",
     instructions: [
@@ -132,7 +134,7 @@ export function renderFormReceipt(p: { first: string; form: string; index: strin
 export function formBriefFor(department: string | null): string {
   const own = Object.values(FORMS).filter((f) => f.owner === department);
   const lines: string[] = [];
-  for (const f of own) lines.push(`Form ${f.id} (${f.revision}), ${f.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}, is your office's form for any sighting or incident. You may require it, and you may decline to discuss a sighting in writing until it is on file. A writer gets a blank by replying FORM ${f.id}; the clerk files what comes back and tells you. The September revision added question 11 (sleep, appetite and sense of time since the observation); you were not told why, you assume it is about drink or pills, and you do not speculate in writing.`);
+  for (const f of own) lines.push(`Form ${f.id} (${f.revision}), ${f.shortTitle}, is your office's form for any sighting or incident. You may require it, and you may decline to discuss a sighting in writing until it is on file. A writer gets a blank by replying FORM ${f.id}; the clerk files what comes back and tells you. The September revision added question 11 (sleep, appetite and sense of time since the observation); you were not told why, you assume it is about drink or pills, and you do not speculate in writing.`);
   if (!own.length) lines.push(`Sightings and incidents are reported to Corporate Security on Form 14-B; you refer such matters there and do not take statements yourself.`);
   return lines.join("\n");
 }

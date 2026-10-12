@@ -106,7 +106,8 @@ export async function loadCaseFile(db: SupabaseClient, character: { id: string; 
     for (const r of (rounds ?? []) as { number: number; opens_at: string }[]) if (r.opens_at <= iso) n = r.number;
     return n;
   };
-  const letters = (letterRows ?? []) as LetterRow[];
+  // A form filed from the hosted page is a document (its own Case File item), not a letter.
+  const letters = ((letterRows ?? []) as LetterRow[]).filter((l) => l.raw?.letter_kind !== "form");
   const people = new Set(letters.flatMap((l) => [l.from_character, ...l.to_characters]));
   const { data: chars } = people.size ? await db.from("characters").select("id, name, title").in("id", [...people]) : { data: [] };
   const who = new Map(((chars ?? []) as { id: string; name: string; title: string | null }[]).map((c) => [c.id, c.id === me ? "You" : c.title ? `${c.name}, ${c.title}` : c.name]));

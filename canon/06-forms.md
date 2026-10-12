@@ -9,14 +9,18 @@ statement on the record, under your name, and it can be cited in proceedings, re
 by anyone with standing, and held against you.
 
 - **Getting one.** Reply to any Department mail with the form's number on a line by
-  itself: `FORM 14-B`. The blank comes back at once.
-- **Filing one.** Reply with `FORM 14-B` on a line by itself, then your answers, each
+  itself: `FORM 14-B`. The blank comes back at once as a letter from the office that
+  owns it, with a button to the form on your personnel file.
+- **Filing one.** Fill it in on your personnel file (every question must be answered
+  there), or reply with `FORM 14-B` on a line by itself, then your answers, each
   beginning with its number. An answer may run to several lines. The last question is
-  always your signature: type your full name.
+  always your signature: type your full name. Both ways file the same form.
 - **What happens.** The form is filed the moment it is received and given an index
-  number. You get a receipt. The office that owns the form is told, and its staff
-  remember what you wrote. Incomplete forms are noted and may be returned; reply with
-  the form number and the missing answers to complete one.
+  number. You get a receipt. A copy, stamped RECEIVED with its index number, goes into
+  your Case File and stays there; the office-use box on it is filled in as the office
+  acts. The office that owns the form is told, and its staff remember what you wrote.
+  Incomplete forms are noted and may be returned; reply with the form number and the
+  missing answers to complete one.
 - **What it means.** Everything on a filed form is something your character has asserted
   in writing. Staff read it. Lie on a form and the lie is on file.
 
@@ -70,4 +74,4 @@ What staff know: question 11 was added in the September 1977 reprint. Security w
 told why. Leonard Fisk assumes it is about drink or pills. Older copies of the form,
 without question 11, are still in some desk drawers.
 
-CHANGELOG: v1 adds the forms mechanic and Form 14-B.
+CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File.
