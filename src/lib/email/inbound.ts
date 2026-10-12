@@ -31,6 +31,7 @@ export function parseGameAddress(address: string, domain: string): { slug: strin
 /* The deterministic grammar for consequential acts. These lines, at the start
    of a line, are parsed without any model. Everything else is prose. */
 export type GrammarAct =
+  | { kind: "select"; code: string }
   | { kind: "vote"; motion: string; choice: "for" | "against" | "abstain" }
   | { kind: "hold" }
   | { kind: "order"; verb: string; args: string }
@@ -44,6 +45,12 @@ export function parseGrammar(text: string): GrammarAct[] {
     const line = raw.trim();
     if (line.startsWith(">")) continue; // quoted
     let m: RegExpMatchArray | null;
+    // A line that is only a letter, or letters separated by commas/spaces
+    // ("A", "A, C", "ORDER B"), picks options from the morning menu.
+    if ((m = line.match(/^(?:ORDER\s*:?\s*)?([A-GX](?:\s*[,/ ]\s*[A-GX])*)\.?$/i))) {
+      for (const c of m[1].toUpperCase().split(/[^A-GX]+/).filter(Boolean)) acts.push({ kind: "select", code: c });
+      continue;
+    }
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {
       const c = m[2].toUpperCase(); acts.push({ kind: "vote", motion: m[1].toUpperCase(), choice: c === "FOR" || c === "REMOVE" ? "for" : c === "ABSTAIN" ? "abstain" : "against" });
     } else if (/^HOLD\s*(POSITION)?\s*$/i.test(line)) acts.push({ kind: "hold" });

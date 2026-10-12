@@ -15,6 +15,7 @@ import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } f
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
+import { menuFor, renderReceipt, replyAddress, textToHtml } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
 type Job = { id: number; kind: string; payload: Record<string, unknown>; attempts: number };
@@ -81,36 +82,64 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (!p.trusted) return; // untrusted senders' acts wait for web confirmation
     const id = p.correspondence_id as string;
     const acts = (p.acts as GrammarAct[]) ?? [];
-    if (!acts.length) return;
-    const { data: c } = await db.from("correspondence").select("campaign_id, from_character, round_id").eq("id", id).single();
+    const { data: c } = await db.from("correspondence").select("campaign_id, from_character, from_address, body_text, subject, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed"); // retry after route
-    const { data: round } = await db.from("rounds").select("id, number").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
+    const { data: round } = await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
     if (!round) return; // no open round: acts are ignored, dispatch will say so
-    for (const [i, a] of acts.entries()) {
-      const key = `grammar:${id}:${i}`;
-      const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
-      if (dup) continue;
-      if (a.kind === "vote") {
-        const { data: m } = await db.from("motions").select("id, status").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
-        if (m?.status === "open") await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" });
-      } else if (a.kind === "hold" || a.kind === "order") {
-        const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: a.kind === "hold" ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
-        if (a.kind === "order" && packet) {
-          const { count } = await db.from("orders").select("id", { count: "exact", head: true }).eq("packet_id", packet.id);
-          await db.from("orders").insert({ packet_id: packet.id, seq: (count ?? 0) + 1, verb: a.verb, args: { text: a.args } });
-        }
+    const key = `grammar:${id}`;
+    const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
+    if (dup) return;
+
+    const menu = await menuFor(db, round.id, c.from_character);
+    const recorded: string[] = [];
+    const orderRows: { verb: string; args: Record<string, unknown>; label: string }[] = [];
+    let hold = false;
+    for (const a of acts) {
+      if (a.kind === "select") {
+        const opt = menu.find((o) => o.code === a.code);
+        if (a.code === "X") continue; // X is the free-form prompt, not an option
+        if (!opt) { recorded.push(`${a.code}. — not on tonight's list, ignored`); continue; }
+        orderRows.push({ verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` });
+      } else if (a.kind === "order") {
+        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: true }, label: `ORDER: ${a.verb}${a.args ? " " + a.args : ""} — cost ruled in the morning` });
+      } else if (a.kind === "hold") hold = true;
+      else if (a.kind === "vote") {
+        const { data: m } = await db.from("motions").select("id, status, number").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
+        if (m?.status === "open") { await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" }); recorded.push(`VOTE ${m.number}: ${a.choice.toUpperCase()}`); }
+        else recorded.push(`VOTE ${a.motion} — no open ballot by that number, ignored`);
       } else if (a.kind === "accept" || a.kind === "reject") {
         const { data: ag } = await db.from("agreements").select("id, accepted_by, parties, status").eq("campaign_id", c.campaign_id).eq("title", a.agreement).maybeSingle();
         if (ag && ag.status === "proposed" && ag.parties.includes(c.from_character)) {
           if (a.kind === "reject") await db.from("agreements").update({ status: "withdrawn" }).eq("id", ag.id);
           else { const accepted = [...new Set([...ag.accepted_by, c.from_character])]; await db.from("agreements").update({ accepted_by: accepted, status: accepted.length >= ag.parties.length ? "active" : "proposed" }).eq("id", ag.id); }
+          recorded.push(`${a.kind.toUpperCase()} AGREEMENT ${a.agreement}`);
         }
       } else if (a.kind === "transfer") {
-        // Transfers are consequential: recorded as a pending order the validate phase executes.
-        const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
-        if (packet) { const { count } = await db.from("orders").select("id", { count: "exact", head: true }).eq("packet_id", packet.id); await db.from("orders").insert({ packet_id: packet.id, seq: (count ?? 0) + 1, verb: "transfer", args: a }); }
+        orderRows.push({ verb: "transfer", args: a as unknown as Record<string, unknown>, label: `TRANSFER ${a.amount} ${a.resource} to ${a.to}` });
       }
-      await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: `grammar.${a.kind}`, payload: a as unknown as Record<string, unknown>, idempotency_key: key, visible_to: [c.from_character] });
+    }
+
+    // The latest reply replaces the previous packet for this round.
+    if (orderRows.length || hold) {
+      const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !orderRows.length ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
+      if (packet) {
+        await db.from("orders").delete().eq("packet_id", packet.id).eq("status", "pending");
+        if (orderRows.length) await db.from("orders").insert(orderRows.map((r, i) => ({ packet_id: packet.id, seq: i + 1, verb: r.verb, args: r.args })));
+        if (hold) recorded.push(orderRows.length ? "HOLD — noted, but orders were given, so they take precedence" : "HOLD — conserving; standing orders continue (+5 AU in the morning)");
+        recorded.unshift(...orderRows.map((r) => r.label));
+      }
+    }
+    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "grammar.recorded", payload: { acts, recorded }, idempotency_key: key, visible_to: [c.from_character] });
+
+    // The receipt. Count the lines that were not acts as notes.
+    const noteLines = (c.body_text as string).split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith(">") && !/^(?:ORDER\b|HOLD\b|H\.?$|VOTE\b|ACCEPT\b|REJECT\b|TRANSFER\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i.test(l) && !/^(?:—|--|on .* wrote:)/i.test(l)).length;
+    const { data: ch } = await db.from("characters").select("name, players(email, mail_token, display_name)").eq("id", c.from_character).single();
+    const player = (ch as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
+    if (player?.email) {
+      const first = (player.display_name || ch?.name || "there").split(" ")[0];
+      const lockAt = new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
+      const text = renderReceipt({ first, round: round.number, recorded, notes: noteLines, lockAt });
+      await sendMail({ to: player.email, from: replyAddress(player.mail_token), replyTo: replyAddress(player.mail_token), subject: `Re: ${c.subject ?? `Orders — Round ${round.number}`}`, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
     }
   },
 

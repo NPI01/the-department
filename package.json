@@ -16,7 +16,8 @@
     "admin:add": "tsx scripts/admin-add.ts",
     "seed:sandbox": "tsx scripts/seed-sandbox.ts",
     "canon:sync": "tsx scripts/canon-sync.ts",
-    "canon:decisions": "tsx scripts/canon-decisions.ts"
+    "canon:decisions": "tsx scripts/canon-decisions.ts",
+    "dispatch:test": "tsx scripts/send-test-dispatch.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
