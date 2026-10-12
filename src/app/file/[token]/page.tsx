@@ -8,6 +8,7 @@ import { gameMailbox } from "@/lib/email/resend";
 import { PublicShell } from "../../_public-shell";
 import { BIO_FIELDS, bioFrom, particulars } from "@/lib/game/personnel";
 import { OfficeCalendar } from "./calendar";
+import { GOALS } from "@/lib/game/creation";
 import { saveBio } from "./actions";
 
 /* A player's personnel file, reached by the private link in every letter the
@@ -24,7 +25,7 @@ export default function FilePage({ params, searchParams }: PageProps<"/file/[tok
   );
 }
 
-type Char = { id: string; campaign_id: string; slug: string; name: string; title: string | null; division_id: string | null; clearance: number; specialization: string | null; status: string; public_profile: string | null; sheet: { bio?: string | null; profile?: Record<string, string> } | null; supervisor_id: string | null; created_at: string };
+type Char = { id: string; campaign_id: string; slug: string; name: string; title: string | null; division_id: string | null; clearance: number; specialization: string | null; status: string; public_profile: string | null; sheet: { bio?: string | null; profile?: Record<string, string> } | null; supervisor_id: string | null; created_at: string; goal_key: string | null };
 
 async function File({ params, searchParams }: { params: PageProps<"/file/[token]">["params"]; searchParams: PageProps<"/file/[token]">["searchParams"] }) {
   await connection();
@@ -35,7 +36,7 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
   const { data: player } = await db.from("players").select("id, display_name, created_at").eq("file_token", token).maybeSingle();
   if (!player) notFound();
 
-  const { data: chars } = await db.from("characters").select("id, campaign_id, slug, name, title, division_id, clearance, specialization, status, public_profile, sheet, supervisor_id, created_at").eq("player_id", player.id).order("created_at", { ascending: false }).limit(1);
+  const { data: chars } = await db.from("characters").select("id, campaign_id, slug, name, title, division_id, clearance, specialization, status, public_profile, sheet, supervisor_id, created_at, goal_key").eq("player_id", player.id).order("created_at", { ascending: false }).limit(1);
   const me = ((chars ?? []) as Char[])[0];
 
   if (!me) {
@@ -83,6 +84,17 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
         {row("Action Units", au ? `${au.balance}${au.cap ? ` of ${au.cap}` : ""}` : "issued when your cohort convenes")}
         {row("Committees", ((memberships ?? []) as unknown as { role: string | null; organizations: { name: string } | null }[]).map((m) => `${m.organizations?.name}${m.role ? ` (${m.role})` : ""}`).join("; ") || "—")}
       </section>
+
+      {me.goal_key && GOALS[me.goal_key] && (
+        <section className="mt-10 border-2 border-red bg-paper-2 p-5 shadow-[6px_6px_0_0_var(--ink)]">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-red">Personal Goal · Confidential</p>
+            <span className="inline-block -rotate-2 border-2 border-red px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red">Open</span>
+          </div>
+          <p className="type mt-3 text-xl leading-snug">{GOALS[me.goal_key].text}</p>
+          <p className="mt-3 text-sm text-ink-2">Due {GOALS[me.goal_key].deadline}. Set by {p.supervisor ? p.supervisor.name : "your supervisor"} in your first memo. This is what you are being measured on; how you get there is up to you. More goals may come your way as the season goes on.</p>
+        </section>
+      )}
 
       <section className="mt-12">
         <OfficeCalendar startRound={p.startRound} currentRound={p.currentRound} roundOpenedAt={p.roundOpenedAt} timezone={p.timezone} />
