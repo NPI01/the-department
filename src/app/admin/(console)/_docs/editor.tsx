@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/lib/canon/render";
 import { joinSections, splitSections } from "@/lib/public/sections";
-import { DOC_META, type PublicDocKey } from "@/lib/public/docs";
+import { DOC_META, type PublicDocKey } from "@/lib/public/doc-meta";
 import { saveDoc } from "./actions";
 
 /* Section by section: rename, rewrite, add, remove and reorder the "## "
