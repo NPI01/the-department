@@ -95,13 +95,13 @@ function Message({ b, latest }: { b: Beat; latest: boolean }) {
     );
   }
   if (b.kind === "out") return (
-    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-l-4 border-red bg-paper-2 px-4 py-3 text-ink sm:ml-12`}>
+    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-3 border-l-4 border-red bg-paper-2 px-3 py-3 text-ink sm:ml-12 sm:px-4`}>
       <div className="flex justify-between text-[10px] tracking-[0.18em] uppercase text-ink-2"><span>You → {b.to}</span><span>{b.time}</span></div>
       <p className="type mt-1 text-[13.5px] leading-snug">{typedOut}{latest && typedOut.length < b.text.length && <span className="caret" />}</p>
     </div>
   );
   if (b.kind === "order") return (
-    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-6 border-2 border-dashed border-ink bg-paper-2 px-4 py-3 text-ink sm:ml-12`}>
+    <div className={`demo-msg ${latest ? "demo-msg-new" : ""} ml-3 border-2 border-dashed border-ink bg-paper-2 px-3 py-3 text-ink sm:ml-12 sm:px-4`}>
       <div className="flex justify-between text-[10px] tracking-[0.18em] uppercase text-ink-2"><span>Your order packet</span><span>{b.time}</span></div>
       {b.lines.map((l, i) => <p key={l} className="mt-1 text-[13px]" style={{ animation: latest ? `riseIn .5s ${i * 0.5}s both` : undefined }}><span className="text-red">▸</span> {l}</p>)}
       <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-ink-2">Binding at 8:00 PM. Everything else you wrote today was conversation.</p>
@@ -149,26 +149,32 @@ export function RoundsDemo({ fill = false }: { fill?: boolean } = {}) {
       {/* frame */}
       <div className={fill ? "flex min-h-0 flex-1 flex-col bg-ink text-paper" : "border-2 border-ink bg-ink text-paper shadow-[14px_14px_0_var(--red)]"}>
         {/* title bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper/20 px-4 py-2 text-[11px] tracking-[0.22em] uppercase">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 border-b border-paper/20 px-3 py-2 text-[11px] tracking-[0.18em] uppercase sm:px-4 sm:tracking-[0.22em]">
+          <div className="flex min-w-0 items-center gap-3">
             <span className="display text-base tracking-[0.3em]">Weird<span className="text-red">.</span>Delivery</span>
-            <span className="text-paper/60">· Correspondence · thedepartment@weird.delivery</span>
+            <span className="hidden text-paper/60 lg:inline">· Correspondence · thedepartment@weird.delivery</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span>Episode I · Round <span className="text-red">{round}</span> / 14</span>
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+            <span><span className="hidden sm:inline">Episode I · </span>Round <span className="text-red">{round}</span>/14</span>
             <span className={`display text-lg tabular-nums ${locked ? "text-red" : ""}`}>{clock}</span>
           </div>
+        </div>
+        {/* compact dossier for phones; the side panel covers wider screens */}
+        <div className="flex items-center gap-x-3 overflow-x-auto whitespace-nowrap border-b border-paper/20 px-3 py-1.5 text-[10px] tracking-[0.16em] uppercase text-paper/70 md:hidden [scrollbar-width:none]">
+          <span className="text-paper">A new hire</span><span>· IS · Clearance 1</span>
+          {round >= 2 && <span>· knows Dr. Ely</span>}
+          {i >= SCRIPT.findIndex((b) => b.round === 3 && b.kind === "dispatch") && <span className="text-red">· holds: HARVEST dock manifest</span>}
         </div>
 
         <div className={`grid md:grid-cols-[1fr_15rem] ${fill ? "min-h-0 flex-1" : "min-h-[520px]"}`}>
           {/* feed */}
-          <div ref={feedRef} className={`relative space-y-3 overflow-y-auto bg-ink p-4 [scrollbar-width:thin] ${fill ? "h-full max-h-[calc(100dvh-6.5rem)]" : "max-h-[560px]"}`}>
+          <div ref={feedRef} className={`relative space-y-3 overflow-y-auto bg-ink p-4 [scrollbar-width:thin] ${fill ? "h-full max-h-[calc(100dvh-8.5rem)] md:max-h-[calc(100dvh-6.5rem)]" : "max-h-[60dvh] sm:max-h-[560px]"}`}>
             {i < 0 && <p className="type p-6 text-center text-paper/60">Scroll here to begin. Three rounds, about two minutes.</p>}
             {visible.map((b, k) => <Message key={`${b.round}-${k}`} b={b} latest={b === beat} />)}
             {locked && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/70">
                 {beat?.kind === "lock" ? (
-                  <div className="stamp text-3xl sm:text-5xl" style={{ animation: "stamp .6s cubic-bezier(.2,.9,.3,1.4) both", color: "var(--red)", borderColor: "var(--red)" }}>8:00 PM · Orders locked</div>
+                  <div className="stamp text-xl sm:text-3xl md:text-5xl" style={{ animation: "stamp .6s cubic-bezier(.2,.9,.3,1.4) both", color: "var(--red)", borderColor: "var(--red)" }}>8:00 PM · Orders locked</div>
                 ) : (
                   <Overnight key={round} />
                 )}
@@ -176,7 +182,7 @@ export function RoundsDemo({ fill = false }: { fill?: boolean } = {}) {
             )}
             {beat?.kind === "end" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink/85 p-6 text-center">
-                <p className="display text-3xl sm:text-5xl">Fourteen rounds<br />make an episode.</p>
+                <p className="display text-2xl sm:text-5xl">Fourteen rounds<br />make an episode.</p>
                 <p className="type text-paper/80">Twelve episodes make a season. Nobody has told us how it ends.</p>
                 <a href="#apply" className="display mt-2 border-2 border-red bg-red px-6 py-2 text-lg text-paper hover:bg-transparent hover:text-red">Apply for employment</a>
               </div>
@@ -209,7 +215,7 @@ export function RoundsDemo({ fill = false }: { fill?: boolean } = {}) {
           <button onClick={() => { if (!started) { setStarted(true); setI(0); } setPlaying((p) => !p); }} className="border border-paper/60 px-3 py-1 hover:border-red hover:text-red">{playing ? "Pause" : "Play"}</button>
           <button onClick={() => { setPlaying(false); setStarted(true); setI((x) => Math.min(x + 1, SCRIPT.length - 1)); }} className="border border-paper/60 px-3 py-1 hover:border-red hover:text-red">Next</button>
           <button onClick={() => { setI(0); setPlaying(true); setStarted(true); }} className="border border-paper/60 px-3 py-1 hover:border-red hover:text-red">Restart</button>
-          <div className="ml-auto h-1 w-40 bg-paper/20"><div className="h-1 bg-red transition-[width] duration-500" style={{ width: `${progress * 100}%` }} /></div>
+          <div className="ml-auto h-1 w-24 bg-paper/20 sm:w-40"><div className="h-1 bg-red transition-[width] duration-500" style={{ width: `${progress * 100}%` }} /></div>
         </div>
       </div>
     </div>

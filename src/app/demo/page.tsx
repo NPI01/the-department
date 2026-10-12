@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function DemoPage() {
   return (
     <main className="flex h-dvh flex-col bg-ink text-paper">
-      <header className="flex items-center justify-between border-b border-paper/20 px-4 py-2 text-[11px] tracking-[0.25em] uppercase">
+      <header className="flex items-center justify-between border-b border-paper/20 px-3 py-2 text-[11px] tracking-[0.25em] uppercase sm:px-4">
         <Link href="/" className="display text-sm tracking-[0.35em]">Weird<span className="text-red">.</span>Delivery</Link>
         <span className="hidden text-paper/60 sm:inline">The Department · three rounds, about two minutes</span>
         <Link href="/#apply" className="border border-current px-3 py-1 hover:border-red hover:text-red">Apply</Link>
