@@ -85,6 +85,14 @@ async function must<T = unknown>(p: PromiseLike<{ data: unknown; error: { messag
     ["mercer", "Daniel Mercer", "Technical Liaison (federal)", null, 0, "active"],
     ["fisk", "Leonard Fisk", "Security Analyst", "corporate-security", 2, "active"],
     ["sayer", "Martin Sayer", "Correspondent, Yonkers NY", null, 0, "active"],
+    // Department heads from canon/02 (the supervisors new hires report to).
+    ["ely", "Dr. Sarah Ely", "Director, Biological Sciences", "biological-sciences", 4, "active"],
+    ["baines", "Col. (Ret.) Frank Baines", "Director, Aerospace Systems", "aerospace-systems", 4, "active"],
+    ["jthorne", "Julian Thorne", "Director, Information Systems", "information-systems", 4, "active"],
+    ["armitage", "Dorothy Armitage", "Director, Personnel & Administration", "personnel-administration", 4, "active"],
+    ["voss", "Gerald Voss", "Director, Procurement & Logistics", "procurement-logistics", 4, "active"],
+    ["ethorne", "Dr. Elias Thorne", "Director, Advanced Materials", "advanced-materials", 4, "active"],
+    ["kovic", "Dr. Aris Kovic", "Director, Applied Physics", "applied-physics", 4, "active"],
   ];
   await must(db.from("characters").upsert(cast.map(([slug, name, title, d, clearance, status]) => ({ campaign_id: cid, slug, name, title, division_id: d ? div[d] : null, clearance, status, public_profile: null })), { onConflict: "campaign_id,slug" }).select("id"), "characters");
 

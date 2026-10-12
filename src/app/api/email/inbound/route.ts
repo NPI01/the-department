@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { verifySvix, parseGameAddress, parseGrammar, stripQuoted, fetchReceived } from "@/lib/email/inbound";
-import { emailDomain } from "@/lib/email/resend";
+import { verifySvix, parseGameAddress, parseGrammar, parseToLines, stripQuoted, fetchReceived } from "@/lib/email/inbound";
+import { emailDomain, gameMailbox } from "@/lib/email/resend";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 
 
@@ -29,10 +29,18 @@ export async function POST(req: NextRequest) {
 
   const toList = ([] as string[]).concat((d.to as string[] | string) ?? []);
   const ccList = ([] as string[]).concat((d.cc as string[] | string) ?? []);
-  const recipients = [...toList, ...ccList].map((a) => parseGameAddress(a, domain)).filter(Boolean) as { slug: string; token: string | null }[];
-  const token = recipients.find((r) => r.token)?.token ?? null;
+  const parsedTo = [...toList, ...ccList].map((a) => parseGameAddress(a, domain)).filter(Boolean) as { slug: string; token: string | null }[];
+  const token = parsedTo.find((r) => r.token)?.token ?? null;
   const fromAddress = String(d.from ?? "").replace(/^.*<([^>]+)>.*$/, "$1").toLowerCase();
-  const bodyText = stripQuoted(String(d.text ?? ""));
+  // In-game recipients: TO: lines in the body (the game has one mailbox), or a
+  // legacy per-character address; a bare reply is routed by its thread.
+  const { names, body: unaddressed } = parseToLines(String(d.text ?? ""));
+  const bodyText = stripQuoted(unaddressed);
+  const mailbox = gameMailbox().local;
+  const recipients: { slug?: string; name?: string }[] = [
+    ...parsedTo.filter((r) => r.slug !== mailbox).map((r) => ({ slug: r.slug })),
+    ...names.map((name) => ({ name })),
+  ];
   const acts = parseGrammar(bodyText);
 
   if (!supabaseConfigured()) {

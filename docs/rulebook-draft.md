@@ -272,24 +272,28 @@ drawn from a recorded seed. Every ruling in your dispatch says what happened and
 
 ## 7. Correspondence: how to reach people
 
-**7.1 Mailboxes.** Every character in the directory has a mailbox at the game's mail
-domain, and so do you. When you write to a colleague, they receive a letter from your
-character's mailbox. Your real address is never shown to anyone.
+**7.1 One mailbox.** All in-game mail passes through the company mail room at a single
+address, `thedepartment@weird.delivery`. Every letter you receive comes from that
+address; who wrote it, and to whom, is printed in the letter itself.
 
-**7.2 Your address book and seal.** Each dispatch includes an address book. Every address
-in it carries your personal seal, a short code after a `+`, for example
-`ely+k7f2@weird.delivery`. Always write from the email account you registered with, and
-to the sealed addresses. The seal is how the game knows a letter is really from you.
+**7.2 Your seal.** Letters the game sends you are addressed so that a reply carries your
+personal seal, a short code after a `+` in the reply address. Always write from the
+email account you registered with. A letter with your seal is trusted and can carry
+orders and votes; one without it is delivered as correspondence, but cannot commit you
+to anything until you confirm it. Never share a reply address: anyone holding it could
+write as you.
 
-- A letter **with** your seal is trusted: it can carry orders and votes.
-- A letter **without** it is delivered as correspondence, but cannot commit you to
-  anything until you confirm it.
-- Never share your sealed addresses. Anyone holding them could write as you.
+**7.3 Whom you can write to.** To answer a letter, reply to it. To write to anyone in the
+Personnel Directory, or anyone who has written to you, send a new message to the mail
+room with their name on the first line:
 
-**7.3 Whom you can write to.** Anyone in the Personnel Directory; anyone who has written
-to you; anyone you have reached with `CONTACT`. A letter to an address that does not
-exist comes back with a polite note from the mail room. [PROPOSED] Player letters are
-delivered within minutes. Staff and outsiders answer when they would: often the same
+```
+TO: Dr. Sarah Ely
+```
+
+A name the directory does not know comes back with a note from the mail room. Reaching
+an outsider who has not written to you takes `CONTACT` (§6.3). [PROPOSED] Player letters
+are delivered within minutes. Staff and outsiders answer when they would: often the same
 day, sometimes in the next dispatch, sometimes never.
 
 **7.4 Groups.** Address or copy several people on one letter and everyone on it receives
@@ -463,7 +467,7 @@ Command lines (start of a line, any email to the game):
 
 Clock: dispatch 9:00 AM ET · lock 8:00 PM ET · 14 rounds an episode
 AU:    +20 a round · cap 60 · start 10 · hold +5 · standing order 2/round
-Write: to the sealed addresses in your dispatch, from your registered account
+Write: reply to a letter, or TO: <name> on the first line of a new message to the mail room
 Help:  showrunner@weird.delivery (out of character)                [PROPOSED]
 ```
 

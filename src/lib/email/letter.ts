@@ -46,6 +46,13 @@ export function gameDate(round: number) {
   return d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" });
 }
 
+/* A body whose "## Heading" lines start sections, split the way the letterhead
+   wants them. Templates and stored correspondence both use this form. */
+export function splitSections(text: string): { body: string; sections: { heading: string; body: string }[] } {
+  const [intro, ...rest] = text.split(/^## /m);
+  return { body: intro.trim(), sections: rest.map((chunk) => { const [heading, ...body] = chunk.split("\n"); return { heading: heading.trim(), body: body.join("\n").trim() }; }) };
+}
+
 // ---------- palette and type ----------
 const C = { desk: "#d8ceb6", paper: "#efe6d4", paper2: "#e6dcc6", ink: "#141210", ink2: "#4b453c", red: "#b8241a", rule: "#c9bea4" };
 const TYPE = `'Special Elite', 'Courier New', Courier, monospace`;
@@ -193,7 +200,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     <p style="margin:0 0 12px 0;font-family:${MONO};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:${C.ink2};">&#9986; Out of character &middot; The Department, a play-by-mail game from Weird.Delivery</p>
     <p style="margin:0 0 14px 0;line-height:2.2;">${links.join(`<span style="color:${C.rule};">&nbsp;&nbsp;&#9632;&nbsp;&nbsp;</span>`)}</p>
     <p style="margin:0 0 6px 0;font-family:${MONO};font-size:12px;line-height:1.6;color:${C.ink2};">${playing
-      ? `Reply to this message to write back. To act, start a line with <b style="color:${C.ink};">ORDER:</b>, <b style="color:${C.ink};">HOLD</b> or <b style="color:${C.ink};">VOTE</b>. Orders lock at 8:00 PM Eastern.`
+      ? `Reply to this message to answer its writer. To write to anyone else, send a new message to the same address with <b style="color:${C.ink};">TO: their name</b> on the first line. To act, start a line with <b style="color:${C.ink};">ORDER:</b>, <b style="color:${C.ink};">HOLD</b> or <b style="color:${C.ink};">VOTE</b>. Orders lock at 8:00 PM Eastern.`
       : "Questions about the game? Reply to this message."}</p>
     <p style="margin:0;font-family:${MONO};font-size:11px;line-height:1.6;color:${C.ink2};">Mail you send to the game is read by software, including AI models, to run the simulation. It is never shown to other players except as the rules allow.</p>
   </td></tr>
@@ -229,7 +236,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     `Field guide:         ${l.links.guide}`,
     "",
     ...(playing
-      ? ["Reply to this message to write back. To act, start a line with ORDER:, HOLD or VOTE.", "Orders lock at 8:00 PM Eastern."]
+      ? ["Reply to this message to answer its writer. To write to anyone else, send a new message", "to the same address with TO: their name on the first line.", "To act, start a line with ORDER:, HOLD or VOTE. Orders lock at 8:00 PM Eastern."]
       : ["Questions about the game? Reply to this message."]),
     "Mail you send to the game is read by software, including AI models, to run the",
     "simulation. It is never shown to other players except as the rules allow.",

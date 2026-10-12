@@ -55,6 +55,18 @@ export function parseGrammar(text: string): GrammarAct[] {
   return acts;
 }
 
+/* "TO: <name>" lines at the top of a letter sent to the game mailbox name the
+   in-game recipients. Returns the names and the body without those lines. */
+export function parseToLines(text: string): { names: string[]; body: string } {
+  const lines = text.split(/\r?\n/); const names: string[] = []; let i = 0;
+  while (i < lines.length && (!lines[i].trim() || /^(TO|CC)\s*:/i.test(lines[i]))) {
+    const m = lines[i].match(/^(?:TO|CC)\s*:\s*(.+)$/i);
+    if (m) names.push(...m[1].split(/[,;]/).map((x) => x.replace(/<[^>]*>/g, "").trim()).filter(Boolean));
+    i++;
+  }
+  return { names, body: names.length ? lines.slice(i).join("\n").trim() : text };
+}
+
 /* Strip quoted replies and signatures before anything reads the body. */
 export function stripQuoted(text: string): string {
   const lines = text.split(/\r?\n/);

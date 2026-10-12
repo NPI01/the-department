@@ -29,11 +29,12 @@ async function Content() {
         <Stat label="Quiet 3+ days" value={quiet} tone={quiet ? "warn" : undefined} hint="cast, no letters sent lately" />
       </div>
       {!players.length ? <Empty>No players have been admitted yet. Applicants sit in the <code>applicants</code> table until a cohort convenes.</Empty> : (
-        <Table head={["Player", "Character", "Subscription", "Renews", "Last letter", "Joined"]}>
+        <Table head={["Player", "Character", "Application", "Subscription", "Renews", "Last letter", "Joined"]}>
           {players.map((p) => (
             <tr key={p.id}>
               <td><A href={`/admin/players/${p.id}`}>{p.display_name ?? p.email}</A>{p.display_name && <p className="text-xs text-ink-2">{p.email}</p>}</td>
               <td>{p.character ? <><A href={`/admin/casting/${p.character.id}`}>{p.character.name}</A> {p.character.status !== "active" && <Badge tone={statusTone(p.character.status)}>{p.character.status}</Badge>}</> : <span className="text-ink-2">not cast</span>}</td>
+              <td>{p.application ? <Badge tone={statusTone(p.application.status === "submitted" ? "pending" : p.application.status === "approved" ? "active" : "failed")}>{p.application.status}</Badge> : <span className="text-ink-2">—</span>}</td>
               <td>{p.subscription ? <><Badge tone={statusTone(p.subscription.status)}>{p.subscription.status}</Badge> <span className="text-xs">{p.subscription.plan}</span></> : <span className="text-ink-2">none</span>}</td>
               <td className="whitespace-nowrap text-ink-2">{p.subscription?.current_period_end ? fmtDate(p.subscription.current_period_end) : "—"}</td>
               <td className="whitespace-nowrap">{p.character ? ago(p.lastActive, now) : "—"}</td>

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
-import { emailDomain } from "@/lib/email/resend";
+import { gameMailbox } from "@/lib/email/resend";
 import { PublicShell } from "../../_public-shell";
 
 /* A player's personnel file, reached by the private link in every letter the
@@ -55,7 +55,7 @@ async function File({ params }: { params: PageProps<"/file/[token]">["params"] }
   const au = ((resources ?? []) as { kind: string; balance: number; cap: number | null }[]).find((r) => r.kind === "au");
   const directory = ((staff ?? []) as { id: string; slug: string; name: string; title: string | null; division_id: string }[]);
   const byDept = [...new Set(directory.map((s) => div.get(s.division_id) ?? "Other"))].sort();
-  const domain = emailDomain();
+  const mailbox = gameMailbox().address;
 
   const row = (k: string, v: React.ReactNode) => (
     <div className="grid grid-cols-[9.5rem_1fr] gap-x-4 border-b border-rule py-1.5 text-sm">
@@ -71,7 +71,7 @@ async function File({ params }: { params: PageProps<"/file/[token]">["params"] }
         {row("Clearance", `Level ${me.clearance}`)}
         {row("Specialization", me.specialization ? <span><span className="capitalize">{me.specialization}</span> <Link href="/rules" className="text-xs text-red underline">what this means</Link></span> : "—")}
         {row("Status", <span className="capitalize">{me.status === "active" ? "active" : "on leave"}</span>)}
-        {row("Mailbox", <code>{me.slug}@{domain}</code>)}
+        {row("Mail", <span>All correspondence goes through <code>{mailbox}</code></span>)}
         {row("Action Units", au ? `${au.balance}${au.cap ? ` of ${au.cap}` : ""}` : "issued when your cohort convenes")}
         {row("Committees", ((memberships ?? []) as unknown as { role: string | null; organizations: { name: string } | null }[]).map((m) => `${m.organizations?.name}${m.role ? ` (${m.role})` : ""}`).join("; ") || "—")}
       </section>
@@ -91,7 +91,7 @@ async function File({ params }: { params: PageProps<"/file/[token]">["params"] }
       ) : <p className="mt-3 text-sm text-ink-2">Nothing on file yet.</p>}
 
       <h2 className="display mt-12 text-2xl">Staff directory</h2>
-      <p className="mt-2 text-sm text-ink-2">Write to anyone here. Use the sealed addresses in your morning dispatch: a letter sent to a plain address is delivered, but cannot carry orders or votes.</p>
+      <p className="mt-2 text-sm text-ink-2">To answer a letter, reply to it. To write to anyone here, send a new message to <code>{mailbox}</code> with <code>TO: their name</code> as the first line. Always write from the address your letters arrive at.</p>
       <div className="mt-4 space-y-6">
         {byDept.map((d) => (
           <div key={d}>
@@ -100,7 +100,7 @@ async function File({ params }: { params: PageProps<"/file/[token]">["params"] }
               {directory.filter((s) => (div.get(s.division_id) ?? "Other") === d).map((s) => (
                 <li key={s.id} className="grid gap-x-4 sm:grid-cols-[1fr_1fr]">
                   <span>{s.name}{s.id === me.id && <span className="text-xs text-red"> (you)</span>}<span className="text-ink-2">{s.title ? `, ${s.title}` : ""}</span></span>
-                  <code className="text-xs text-ink-2">{s.slug}@{domain}</code>
+                  <code className="text-xs text-ink-2">TO: {s.name}</code>
                 </li>
               ))}
             </ul>

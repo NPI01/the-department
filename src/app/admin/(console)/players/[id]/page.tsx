@@ -5,6 +5,7 @@ import { ago, fmtDate, fmtDateTime, money, payloadLine, pct } from "@/lib/admin/
 import { requestBrief } from "../../actions";
 import { AutoRefresh } from "../../auto-refresh";
 import { A, Badge, Empty, KV, Loading, PageHeader, Panel, Stat, Table, statusTone } from "../../ui";
+import { DEJA_VU, IDENTITIES, KNOWLEDGE, SKILLS, SPECIALIZATIONS } from "@/lib/game/creation";
 
 // The brief is written after the response; give it room on Vercel.
 export const maxDuration = 300;
@@ -22,7 +23,7 @@ async function Content({ params }: { params: PageProps<"/admin/players/[id]">["p
   const { season } = await getSeasons();
   const d = await getPlayer(id, season?.id ?? null);
   if (!d) notFound();
-  const { player, character, activity: a, subscriptions, briefs } = d;
+  const { player, character, activity: a, subscriptions, briefs, application: app } = d;
   const sub = subscriptions[0] ?? null;
   const tz = season?.timezone;
   const brief = briefs[0] ?? null;
@@ -70,6 +71,25 @@ async function Content({ params }: { params: PageProps<"/admin/players/[id]">["p
           )}
         </Panel>
       </div>
+
+      {app && (
+        <Panel title="Employment application" className="mt-4">
+          <KV rows={[
+            ["Status", <span key="s"><Badge tone={statusTone(app.status === "submitted" ? "pending" : app.status === "approved" ? "active" : "failed")}>{app.status}</Badge> filed {fmtDateTime(app.submitted_at, tz)}{app.decided_at ? `, decided ${fmtDateTime(app.decided_at, tz)}` : ""}</span>],
+            ["Identity", `${IDENTITIES.find((i) => i.key === app.identity)?.name ?? app.identity} · ${SPECIALIZATIONS.find((x) => x.key === app.specialization)?.name ?? app.specialization} · ${app.points_spent} of ${app.points_total} points`],
+            ["Departments", app.dept_prefs.map((d, i) => `${i + 1}. ${d}`).join(" · ")],
+            ["Skills", app.skills.map((k) => SKILLS.find((x) => x.key === k)?.name ?? k).join(", ") || "—"],
+            ["Knowledge", app.knowledge.map((k) => KNOWLEDGE.find((x) => x.key === k)?.name ?? k).join(", ") || "—"],
+            ["Favorite trait", app.trait_favorite ?? "—"],
+            ["Hated trait", app.trait_hated ?? "—"],
+            ["Unexplained", app.unexplained ? app.unexplained_text ?? "yes" : "no"],
+            ["Near death", app.near_death ? app.near_death_text ?? "yes" : "no"],
+            ["Déjà vu", DEJA_VU.find((x) => x.key === app.deja_vu)?.label ?? app.deja_vu ?? "—"],
+            ["Time zone", app.timezone ?? "—"],
+          ]} />
+          {app.bio && <p className="mt-3 whitespace-pre-line text-sm">{app.bio}</p>}
+        </Panel>
+      )}
 
       {a && (
         <>

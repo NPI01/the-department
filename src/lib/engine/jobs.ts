@@ -6,12 +6,14 @@
      extract     ask the model for non-binding structured events; store with provenance
      tick_phase  one resolution phase of a locked round (deterministic; stubs grow into rules)
      send        deliver an outbound correspondence row via Resend
-     player_brief  the console's model-written note on a player (src/lib/admin/brief.ts) */
+     player_brief  the console's model-written note on a player (src/lib/admin/brief.ts)
+     approve_application / first_memo  onboarding (./onboarding.ts) */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
-import { emailDomain, sendMail } from "@/lib/email/resend";
-import { gameDate, letterLinks, renderLetter, type LetterKind } from "@/lib/email/letter";
+import { gameMailbox, sendMail } from "@/lib/email/resend";
+import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } from "@/lib/email/letter";
 import { renderTemplate } from "@/lib/email/template-store";
+import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, stripQuoted, type GrammarAct } from "@/lib/email/inbound";
 import { writeBrief } from "@/lib/admin/brief";
 
@@ -44,20 +46,34 @@ const ledger = (db: SupabaseClient) => async (r: LedgerRow) => { await db.from("
 const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) => Promise<void>> = {
   async route(db, p) {
     const id = p.correspondence_id as string;
-    const recipients = (p.recipients as { slug: string }[]) ?? [];
-    const { data: c } = await db.from("correspondence").select("id, campaign_id, from_address, to_characters").eq("id", id).single();
+    const recipients = (p.recipients as { slug?: string; name?: string }[]) ?? [];
+    const { data: c } = await db.from("correspondence").select("id, campaign_id, from_address, to_characters, in_reply_to").eq("id", id).single();
     if (!c || c.to_characters?.length) return; // already routed
     const campaign = c.campaign_id ?? process.env.CAMPAIGN_ID;
-    const slugs = recipients.map((r) => r.slug);
-    const { data: chars } = await db.from("characters").select("id, slug").eq("campaign_id", campaign).in("slug", slugs);
-    const { data: aliases } = await db.from("aliases").select("character_id, mailbox").eq("campaign_id", campaign).in("mailbox", slugs);
-    const to = [...(chars ?? []).map((x) => x.id), ...(aliases ?? []).map((x) => x.character_id)];
+    const to = new Set<string>();
+    // Addressed by name (TO: lines) or by legacy per-character mailbox.
+    const slugs = recipients.map((r) => r.slug).filter(Boolean) as string[];
+    if (slugs.length) {
+      const { data: chars } = await db.from("characters").select("id").eq("campaign_id", campaign).in("slug", slugs);
+      const { data: aliases } = await db.from("aliases").select("character_id").eq("campaign_id", campaign).in("mailbox", slugs);
+      for (const x of chars ?? []) to.add(x.id); for (const x of aliases ?? []) to.add(x.character_id);
+    }
+    for (const name of recipients.map((r) => r.name).filter(Boolean) as string[]) {
+      const { data: hit } = await db.from("characters").select("id").eq("campaign_id", campaign).ilike("name", `%${name.replace(/[%_]/g, "")}%`).limit(1).maybeSingle();
+      if (hit) to.add(hit.id);
+    }
+    // A reply to a letter goes to whoever wrote it.
+    if (!to.size && c.in_reply_to) {
+      const { data: parent } = await db.from("correspondence").select("from_character").eq("message_id", c.in_reply_to).maybeSingle();
+      if (parent?.from_character) to.add(parent.from_character);
+    }
     const { data: sender } = await db.from("players").select("id").eq("email", c.from_address).maybeSingle();
     let from: string | null = null;
     if (sender) { const { data: pc } = await db.from("characters").select("id").eq("campaign_id", campaign).eq("player_id", sender.id).maybeSingle(); from = pc?.id ?? null; }
-    await db.from("correspondence").update({ to_characters: to, from_character: from, campaign_id: campaign }).eq("id", id);
+    await db.from("correspondence").update({ to_characters: [...to], from_character: from, campaign_id: campaign }).eq("id", id);
+    if (!to.size) { await db.from("events").insert({ campaign_id: campaign, kind: "mail.unrouted", payload: { correspondence_id: id }, idempotency_key: `unrouted:${id}` }); return; }
     // NPC recipients get a reply job; the model answers in the next dispatch window.
-    const { data: npcs } = await db.from("characters").select("id").in("id", to).is("player_id", null);
+    const { data: npcs } = await db.from("characters").select("id").in("id", [...to]).is("player_id", null);
     for (const n of npcs ?? []) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: id, character_id: n.id }, run_after: new Date(Date.now() + 15 * 60_000).toISOString() });
   },
 
@@ -172,14 +188,15 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
      the game's letterhead with that player's own file link, and a reply address
      carrying their own seal so their answer is trusted. Progress is recorded per
      recipient, so a retry never mails anyone twice. */
+  async approve_application(db, p) { await approveApplication(db, p.application_id as string); },
+  async first_memo(db, p) { await firstMemo(db, p.application_id as string); },
+
   async send(db, p) {
     const id = p.correspondence_id as string;
     const { data: c } = await db.from("correspondence").select("*").eq("id", id).single();
     if (!c || c.direction !== "outbound" || c.raw?.sent) return;
     const sentTo: string[] = c.raw?.sent_to ?? [];
     const resendIds: string[] = c.raw?.resend_ids ?? [];
-    const domain = emailDomain();
-
     const { data: from } = c.from_character
       ? await db.from("characters").select("slug, name, title, divisions(name)").eq("id", c.from_character).maybeSingle()
       : { data: null };
@@ -213,15 +230,16 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
               subject: c.subject ?? "(no subject)",
               from: sender ? { name: sender.name, title: sender.title, department: sender.divisions?.name } : { name: "Personnel & Administration", department: "Royce Industries" },
               classification: (c.raw?.classification as string | undefined) ?? null,
-              body: c.body_text,
+              ...splitSections(c.body_text as string),
               signature: sender ? { name: sender.name, title: sender.title } : null,
               ...common,
             });
       const first = !sentTo.length;
+      // One mailbox for the whole game: the in-game sender is in the letterhead; the
+      // reply address carries the player's seal so their answer is trusted.
       const res = await sendMail({
         to: addr,
-        from: sender ? `${sender.name} <${sender.slug}@${domain}>` : undefined,
-        replyTo: sender && pl ? `${sender.slug}+${pl.mail_token}@${domain}` : undefined,
+        replyTo: pl ? gameMailbox().reply(pl.mail_token) : undefined,
         subject: c.subject ?? "(no subject)",
         text, html,
         messageId: first ? c.message_id ?? undefined : undefined,

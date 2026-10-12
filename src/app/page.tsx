@@ -3,6 +3,7 @@ import { EnlistForm } from "./enlist-form";
 import { Reveal } from "./_landing/Reveal";
 import { Typewriter } from "./_landing/Typewriter";
 import { Parallax } from "./_landing/Parallax";
+import { RoundsDemo } from "./_landing/RoundsDemo";
 
 const IRREGULARITIES = [
   "A requisition for a specimen that cannot be located.",
@@ -42,12 +43,13 @@ export default function Home() {
         <a href="#top" className="display text-sm tracking-[0.35em]">Weird<span className="text-red">.</span>Delivery</a>
         <nav className="hidden gap-6 text-[11px] tracking-[0.25em] uppercase sm:flex">
           <a href="#how" className="hover:text-red">How it plays</a>
+          <a href="#demo" className="hover:text-red">Three rounds</a>
           <a href="#company" className="hover:text-red">The company</a>
           <a href="#social" className="hover:text-red">The secret game</a>
           <a href="#season" className="hover:text-red">Season one</a>
           <a href="/about" className="hover:text-red">About</a>
         </nav>
-        <a href="#apply" className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Apply</a>
+        <a href="/subscribe" className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Apply</a>
       </header>
 
       {/* ---------- hero ---------- */}
@@ -69,7 +71,7 @@ export default function Home() {
             <Typewriter className="type mt-6 max-w-xl text-lg text-paper/90 sm:text-xl" lines={["October 1977. North Dakota.", "You've just accepted a position with Royce Industries.", "Nobody will tell you what the company makes."]} />
           </Reveal>
           <Reveal className="reveal delay-4 mt-10 flex flex-wrap items-center gap-4">
-            <a href="#apply" className="display inline-block border-2 border-red bg-red px-7 py-3 text-xl tracking-wider text-paper transition hover:bg-transparent hover:text-red">Apply for employment</a>
+            <a href="/subscribe" className="display inline-block border-2 border-red bg-red px-7 py-3 text-xl tracking-wider text-paper transition hover:bg-transparent hover:text-red">Apply for employment</a>
             <a href="#how" className="text-[11px] tracking-[0.3em] uppercase text-paper/70 hover:text-paper">One letter a day ↓</a>
           </Reveal>
         </div>
@@ -106,6 +108,16 @@ export default function Home() {
         <Reveal className="reveal mt-14 flex flex-wrap items-center gap-x-8 gap-y-3 text-[12px] tracking-[0.2em] uppercase text-ink-2">
           <span>No app</span><span className="text-red">·</span><span>No login</span><span className="text-red">·</span><span>Your mail client is the board</span><span className="text-red">·</span><span>Roots in play-by-mail, 1970s postal games</span>
         </Reveal>
+      </section>
+
+      {/* ---------- three rounds, live ---------- */}
+      <section id="demo" className="mx-auto max-w-6xl px-5 py-24 sm:py-32">
+        <Reveal className="reveal max-w-2xl">
+          <p className="text-[11px] tracking-[0.4em] uppercase text-red">Three rounds</p>
+          <h2 className="display mt-2 text-5xl sm:text-7xl">Watch it play.</h2>
+          <p className="type mt-6 text-[17px] leading-relaxed text-ink-2">A new hire's first three days, compressed. Dispatches arrive. Another player writes. You answer. At eight o'clock your orders lock and the world resolves overnight. In the morning, consequences. Everything in it is what the game actually does.</p>
+        </Reveal>
+        <div className="mt-12"><RoundsDemo /></div>
       </section>
 
       {/* ---------- the company ---------- */}

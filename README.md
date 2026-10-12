@@ -61,6 +61,22 @@ In Supabase Auth → URL Configuration, the deployed site's `/auth/confirm` must
 allowed redirect URL. The built-in mailer sends only a few links an hour; set custom SMTP
 before staff other than the project owner sign in.
 
+## Joining the game
+`/subscribe` → Stripe Checkout ($2.99/month) → `/apply/<token>`, the Employment
+Application (name, bio, Identity Matrix, specialization, ranked departments, interview,
+skills and knowledge bought with points; content in `src/lib/game/creation.ts` and
+`docs/character-creation-draft.md`). Filing queues `approve_application` for two hours
+later: it balances departments across the cohort, creates the character under the
+department head, hands out an Episode 1 goal, mails the employment file and queues
+`first_memo` for six hours on (never 10 PM–8 AM local), which the supervisor sends as a
+memo with the Personal Goal. Delays are `APPROVAL_DELAY_MINUTES` and
+`FIRST_MEMO_DELAY_MINUTES`. Stripe needs `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` and a
+webhook at `/api/stripe/webhook` with `STRIPE_WEBHOOK_SECRET`.
+
+All in-game mail uses one mailbox (`EMAIL_FROM`). The in-game From/To are in the
+letter; a reply routes by thread, a new message by `TO: <name>` on its first line; the
+player's seal rides in the reply address's plus-part.
+
 ## Principles the code enforces
 1. Original correspondence is immutable. Model interpretations are separate rows with
    confidence and provenance.

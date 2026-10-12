@@ -15,6 +15,11 @@ export type Character = {
   clearance: number; specialization: string | null; public_profile: string | null; npc_state: Record<string, unknown> | null; status: string; created_at: string;
 };
 export type Player = { id: string; user_id: string | null; email: string; display_name: string | null; consent_ai_processing_at: string | null; created_at: string };
+export type Application = {
+  id: string; status: string; name: string; bio: string | null; identity: string; specialization: string; dept_prefs: string[];
+  trait_favorite: string | null; trait_hated: string | null; unexplained: boolean; unexplained_text: string | null; near_death: boolean; near_death_text: string | null; deja_vu: string | null;
+  skills: string[]; knowledge: string[]; points_total: number; points_spent: number; timezone: string | null; submitted_at: string; decided_at: string | null; decision_note: string | null; character_id: string | null;
+};
 export type Subscription = {
   id: string; player_id: string; provider: string; plan: string; status: string; amount_cents: number | null; currency: string | null;
   started_at: string; current_period_end: string | null; cancel_at: string | null; canceled_at: string | null; notes: string | null; provider_customer_id: string | null;
@@ -195,10 +200,12 @@ export async function getPlayers(campaignId: string | null) {
   const list = (players ?? []) as Player[];
   const ids = list.map((p) => p.id);
   if (!ids.length) return [];
-  const [{ data: subs }, { data: chars }] = await Promise.all([
+  const [{ data: subs }, { data: chars }, { data: apps }] = await Promise.all([
     db.from("subscriptions").select("*").in("player_id", ids).order("started_at", { ascending: false }),
     campaignId ? db.from("characters").select("id, name, player_id, status").eq("campaign_id", campaignId).in("player_id", ids) : Promise.resolve({ data: [] }),
+    campaignId ? db.from("applications").select("player_id, status").eq("campaign_id", campaignId).in("player_id", ids) : Promise.resolve({ data: [] }),
   ]);
+  const appByPlayer = new Map(((apps ?? []) as { player_id: string; status: string }[]).map((a) => [a.player_id, a]));
   const charByPlayer = new Map(((chars ?? []) as { id: string; name: string; player_id: string; status: string }[]).map((c) => [c.player_id, c]));
   const charIds = [...charByPlayer.values()].map((c) => c.id);
   const { data: lastMail } = charIds.length
@@ -209,7 +216,7 @@ export async function getPlayers(campaignId: string | null) {
   return list.map((p) => {
     const sub = ((subs ?? []) as Subscription[]).find((s) => s.player_id === p.id) ?? null;
     const character = charByPlayer.get(p.id) ?? null;
-    return { ...p, subscription: sub, character, lastActive: character ? last.get(character.id) ?? null : null };
+    return { ...p, subscription: sub, character, application: appByPlayer.get(p.id) ?? null, lastActive: character ? last.get(character.id) ?? null : null };
   });
 }
 
@@ -218,9 +225,10 @@ export async function getPlayer(id: string, campaignId: string | null) {
   const { data: p } = await db.from("players").select("*").eq("id", id).maybeSingle();
   if (!p) return null;
   const player = p as Player;
-  const [{ data: subs }, { data: chars }, { data: briefs }] = await Promise.all([
+  const [{ data: subs }, { data: chars }, { data: briefs }, { data: application }] = await Promise.all([
     db.from("subscriptions").select("*").eq("player_id", id).order("started_at", { ascending: false }),
     db.from("characters").select("*").eq("player_id", id),
+    campaignId ? db.from("applications").select("*").eq("player_id", id).eq("campaign_id", campaignId).maybeSingle() : Promise.resolve({ data: null }),
     db.from("player_briefs").select("*").eq("player_id", id).order("created_at", { ascending: false }).limit(5),
   ]);
   const characters = (chars ?? []) as Character[];
@@ -232,6 +240,7 @@ export async function getPlayer(id: string, campaignId: string | null) {
     character,
     activity,
     briefs: (briefs ?? []) as { id: string; status: string; body: string | null; model: string | null; through_round: number | null; error: string | null; created_at: string; finished_at: string | null }[],
+    application: application as Application | null,
   };
 }
 
