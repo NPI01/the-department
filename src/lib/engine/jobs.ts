@@ -140,7 +140,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         if (mode !== "append" && (existing ?? []).length) { await db.from("orders").delete().eq("packet_id", packet.id).eq("status", "pending"); replaced = true; }
         const fresh = orderRows.filter((r) => !keep.some((k) => (k.args as { code?: string }).code && (k.args as { code?: string }).code === (r.args as { code?: string }).code));
         if (fresh.length) await db.from("orders").insert(fresh.map((r, i) => ({ packet_id: packet.id, seq: keep.length + i + 1, verb: r.verb, args: r.args })));
-        if (mode === "append") added.push(...fresh.map((r) => r.label));
+        if (mode === "append") {
+          added.push(...fresh.map((r) => r.label));
+          for (const r of orderRows.filter((r) => !fresh.includes(r))) ignored.push(`${r.label} — already on file`);
+        }
         if (hold) recorded.push(orderRows.length || keep.length ? "HOLD — noted, but orders are on file, so they take precedence" : "HOLD — conserving; standing orders continue (+5 AU in the morning)");
       }
     }
