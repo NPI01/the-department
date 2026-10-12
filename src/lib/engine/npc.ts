@@ -89,6 +89,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     // If the model put a subject line on top of the letter instead, peel it.
     const m = body.match(/^\s*(?:subject|re)\s*:\s*([^\n]+)\n+/i);
     if (m) { subject = subject ?? m[1].trim(); body = body.slice(m[0].length).trim(); }
+    if (subject) subject = subject.replace(/[\s:.]+$/, "").trim() || null;
     const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS");
     const shared = sharedRaw && !/^none\b/i.test(sharedRaw) ? sharedRaw.split(/;\s*/).map((x) => x.trim()).filter(Boolean) : [];
     const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
