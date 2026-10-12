@@ -51,3 +51,4 @@ public/images-src/
 ._*
 !.env.example
 docs/review-decisions.md
+public/_preview/
