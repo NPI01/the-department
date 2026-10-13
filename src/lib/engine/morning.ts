@@ -74,6 +74,7 @@ export async function composeDispatch(f: Facts, onLedger?: (r: LedgerRow) => voi
 
 RULES
 - Narrate only the facts you are given. An order that was carried out yields one small concrete detail and one complication; never a revelation, never a conclusion, never a document's full contents. Do not invent people who are not named in the facts; you may invent clerks, guards and weather.
+- Letters the player received are theirs to read: name the sender and the subject, nothing more. Never quote, summarise or characterise what a letter said, and never say how many letters a person sent unless the facts give a number.
 - Never use these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future, SENTINEL, NIGHTJAR, CHOIR, ORPHEUS.
 - Do not explain the plot. Do not tell the player what to think. No bullet points or headers in the narrative.
 
@@ -123,7 +124,7 @@ export function beatsFor(md: string, round: number): string[] {
     const lo = Number(m[1]), hi = Number(m[2] ?? m[1]);
     if (round < lo || round > hi) continue;
     // The engine's notes to itself (how a tier is mitigated, open TBDs) are not for the player.
-    const text = beat.replace(/`[^`]*`/g, "").replace(/\b(Mitigated by|TBD:?)[^.]*\.?/g, "").replace(/\s+/g, " ").trim();
+    const text = beat.replace(/`[^`]*`/g, "").replace(/^Tier \d+:\s*/i, "").replace(/\b(Mitigated by|TBD:?)[^.]*\.?/g, "").replace(/\s+/g, " ").trim();
     if (SECRET_TERMS.test(text)) continue;
     out.push(`${kind}: ${text}`);
   }
@@ -160,8 +161,14 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   // What arrived since the previous round opened: staff letters, filed forms, closed ballots.
   const since = prev?.opens_at ?? new Date(Date.now() - 86400_000).toISOString();
   const arrived: string[] = [];
-  const { data: letters } = await db.from("correspondence").select("subject, from_character, characters!correspondence_from_character_fkey(name)").eq("direction", "outbound").contains("to_characters", [ch.id]).not("from_character", "is", null).gte("received_at", since).limit(8);
-  for (const l of letters ?? []) { const who = (Array.isArray(l.characters) ? l.characters[0] : l.characters) as { name: string } | null; arrived.push(`a letter from ${who?.name ?? "a colleague"}: "${l.subject ?? "(no subject)"}"`); }
+  const { data: letters } = await db.from("correspondence").select("subject, from_character, raw, characters!correspondence_from_character_fkey(name)").eq("direction", "outbound").contains("to_characters", [ch.id]).not("from_character", "is", null).gte("received_at", since).order("received_at").limit(20);
+  const bySender = new Map<string, { n: number; subject: string | null }>();
+  for (const l of letters ?? []) {
+    if ((l.raw as { superseded?: boolean } | null)?.superseded) continue;
+    const who = ((Array.isArray(l.characters) ? l.characters[0] : l.characters) as { name: string } | null)?.name ?? "a colleague";
+    const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
+  }
+  for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
   const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed"]).limit(8);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; passed?: boolean }; if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`a ballot closed (${v.passed ? "carried" : "failed"})`); }
   const { data: beatDoc } = await db.from("canon_docs").select("content").eq("path", "canon/secret/09-episode-01-beats.md").maybeSingle();
