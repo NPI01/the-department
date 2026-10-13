@@ -114,7 +114,7 @@ const SOFT_TERMS = /\b(surveillance|sensors?|logs?|cameras?|cctv|footage|radar|i
 
 /* "the badge log shows you were", "our manifests list no aircraft", "sensors detected nothing":
    a record named and then read from. A refusal names the record without reading it. */
-const FINDING = /\b(logs?|footage|sensors?|records?|manifests?|cameras?|radar|surveillance|files?|data|register|tapes?)\b[^.;:\n]{0,50}?\b(show(s|ed|ing)?|indicat\w+|confirm(s|ed)?|reveal\w*|detect\w+|recorded|found|list(s|ed)?|place[sd]?|puts?|contradict\w*|consistent|inconsistent)\b|\b(no|our|the)\s+(records?|logs?|manifests?|files?)\s+(of|show|list|indicate|place)\b|\bcross-referenc\w*\b/i;
+const FINDING = /\b(logs?|footage|sensors?|records?|manifests?|cameras?|radar|surveillance|files?|data|register|tapes?)\b[^.;:\n]{0,50}?\b(show(s|ed|ing)?|indicat\w+|confirm(s|ed)?|reveal\w*|detect\w+|recorded|found|list(s|ed)?|place[sd]?|puts?|contradict\w*|consistent|inconsistent)\b|\b(our|the)\s+(records?|logs?|manifests?|files?)\s+(show|list|indicate|place)\b|\bcross-referenc\w*\b/i;
 
 export function findings(draft: string): string | null {
   const m = draft.match(FINDING);
@@ -149,7 +149,7 @@ THE RULE FOR THIS ROUND
 ${pacing(input.round)}
 
 FAIL the draft only for one of these:
-1. It offers a theory about what an event really was or who is behind it, or connects separate events (a sighting and a disappearance, a rumor and a department). Being suspicious of the writer, or telling them to keep quiet, is not a theory.
+1. It offers a theory about what a specific event really was or who is behind it, or connects separate events (a sighting and a disappearance, a rumor and a department). Being suspicious of the writer, telling them to keep quiet, or a general opinion about people or the company ("the company men fly where they please") is not a theory.
 2. It names, accuses or casts suspicion on a specific colleague before the rule above allows it.
 3. In the first week, it reports findings: what logs, sensors, cameras or files showed, or what Security or Research has concluded.
 4. It uses technology that did not exist in 1977 (computers on desks, email, mobile phones, video recording as routine).
@@ -277,7 +277,10 @@ WANTS: <what you want from the writer, in one line, or "none">`;
   if (!out) {
     // Last resort: a safe, in-character deferral rather than a leak or silence.
     const surname = input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop() || "Colleague";
-    out = { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand" };
+    const sign = d.sheet?.voice?.signoff ? `— ${d.sheet.voice.signoff.replace(/^[—-]\s*/, "")}` : `— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
+    out = d.outsider
+      ? { body: `Mr. ${surname},\n\nI got your letter. I don't put things like this down on paper for people I haven't met. If you want to talk, you know where to find me; come on your own time, not the company's.\n\n${sign}`, subject: null, shared: [], wants: "A visit in person, on the writer's own time" }
+      : { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n${sign}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand" };
     guarded = true;
   }
   const subject = out.subject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
