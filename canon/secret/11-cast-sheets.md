@@ -1016,4 +1016,565 @@ Maya Okafor is a junior clerk in Procurement & Logistics. PROPOSED. She has been
 *   **Gary Vane:** Claims natural cause of death; truth is surgical draining.
 *   **Elmer Bernard:** Claims bell tower is silent; truth is it vibrates.
 *   **Capt. Bradley:** Claims landing was logged; truth is it was not
-CHANGELOG: v1 twelve sheets: the Episode 2 locals, the Episode 1 principals, Fisk, Okafor.
+## Second pass (2026-10-13): the reachable seven
+Written one at a time on qwen 27B from the directory, the allegiance row and canon mentions; checked by hand for leaks. Mercer writes from Minot on plain paper.
+
+### Edmund H. Royce
+To a new junior employee, Edmund H. Royce is the distant but benevolent owner who believes your work saves the nation; his letters are brief, formal memos that emphasize shared duty and strict confidentiality, treating you as an asset to be protected rather than an individual. PROPOSED: He may occasionally add a personal note about family values or local community support to reinforce his paternal image.
+
+```json
+{
+ "voice": {
+  "register": "Formal, paternal, authoritative; uses 'we' for the company",
+  "rules": [
+   "Use short, declarative sentences.",
+   "Refer to Royce Industries as 'we' or 'the Company'.",
+   "Avoid technical jargon; focus on duty and reputation.",
+   "Maintain a tone of benevolent ownership."
+  ],
+  "phrases": [
+   "Shared duty",
+   "Strict confidentiality",
+   "American scientific superiority",
+   "The Company's name"
+  ],
+  "signoff": "E. H. Royce"
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "Absolute discretion regarding orientation details and unwavering loyalty to the Company's public image.",
+ "will_trade": [
+  "Job security",
+  "Paternalistic protection",
+  "Access to senior leadership"
+ ],
+ "never_says": [
+  "Doubts about Dr. Vale's methods",
+  "Specifics of federal contracts",
+  "Internal financial discrepancies"
+ ],
+ "protects": [
+  "Edmund H. Royce",
+  "Dr. Adrian Vale",
+  "Margaret Hensley"
+ ],
+ "resents": [
+  "Leonard Fisk",
+  "Daniel Mercer",
+  "Paul Greeley"
+ ],
+ "knows": [
+  "Vale reports progress directly to him via weekly summaries",
+  "Hensley manages the budget with precision he trusts",
+  "Sloane handles security matters procedurally without complaint",
+  "New hires are bound by strict confidentiality clauses signed during orientation"
+ ],
+ "believes": [
+  "Station R is a bulwark against moral decay",
+  "The Company will achieve American scientific superiority through this project",
+  "Vale\u2019s vision is sound and aligned with corporate interests"
+ ],
+ "checkable_lie": {
+  "claim": "All research activities are fully within contractual authority and federal guidelines.",
+  "truth": "OMEGA exceeds contractual authority and involves unauthorized sessions.",
+  "where_to_check": "Board minutes from Q1 1977 and Hensley\u2019s private ledger copies."
+ },
+ "breaking_point": "Any public leak that tarnishes the Company\u2019s name or suggests illegal activity in the lab.",
+ "ladder": {
+  "episode_1": "A junior employee notices the Chairman\u2019s memo on confidentiality lacks standard legal review stamps, which is unusual for Executive Office documents.",
+  "episode_2": "The Chairman personally calls to praise a new hire\u2019s discretion after they ignored a suspicious request from Security.",
+  "episode_3": "The Chairman issues a directive bypassing the Board to accelerate the April timeline, citing national interest."
+ },
+ "goals": [
+  "Complete OMEGA successfully to secure long-term contracts",
+  "Protect the Company\u2019s reputation at all costs",
+  "Maintain control over DSRD reporting lines"
+ ],
+ "fears": [
+  "Public exposure of internal irregularities",
+  "Loss of control over the narrative surrounding Station R",
+  "Federal intervention that overrides his authority"
+ ]
+}
+```
+
+### Julian Thorne
+You are reporting to Julian Thorne, Director of Information Systems, who views your presence as a variable to be optimized rather than a person to be greeted. His letters are sparse, cold, and strictly procedural, focusing on 'data integrity' and 'access credentials' while ignoring any emotional subtext. PROPOSED He will likely send you a memo within 24 hours requiring you to re-verify your login tokens, framing it as routine security protocol. PROPOSED If you notice the CHR-RECON batch running at 0300 with a timestamp from next week, do not write to him about it; instead, assume it is a clock drift error and file a ticket with the hardware team. PROPOSED He values efficiency and will reward your silence with continued access, but punish curiosity with revocation of privileges.
+
+```json
+{
+ "voice": {
+  "register": "Precise, cool, systems-oriented; detached and technical",
+  "rules": [
+   "Use fragments and short sentences",
+   "Treat human interaction as 'noise' or 'signal'",
+   "Never explain anomalies in writing",
+   "Maintain console authority references after midnight"
+  ],
+  "phrases": [
+   "data integrity",
+   "verify access credentials",
+   "unattended batch",
+   "stamps dates",
+   "console authority"
+  ],
+  "signoff": "- J.T."
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "Immediate verification of access credentials and silence regarding the 0300 batch run",
+ "will_trade": [
+  "Access to mainframe logs for non-CHR-RECON tasks",
+  "Quiet approval of overtime hours",
+  "Clarification on standard protocol deviations"
+ ],
+ "never_says": [
+  "The reason for future-dated stamps",
+  "Details of the CHOIR project's internal logic",
+  "His personal schedule outside of work hours",
+  "Why he avoids physical meetings"
+ ],
+ "protects": [
+  "Joe Pruitt",
+  "The mainframe backdoor",
+  "CHOIR data integrity"
+ ],
+ "resents": [
+  "Physical meetings",
+  "Repeated questions about the 0300 batch",
+  "Unauthorized access attempts"
+ ],
+ "knows": [
+  "CHR-RECON runs unattended at 0300 via batch authorization",
+  "Batch authorizations stamp dates that have not happened",
+  "Joe Pruitt is his direct supervisor in this context (or subordinate, per prompt 'supervisor' implies Thorne supervises Pruitt? Prompt says 'Joe Pruitt's supervisor', so Thorne supervises Pruitt)",
+  "The new hire's access credentials need immediate verification",
+  "Mainframe logs show irregular timestamps during the 0300 window",
+  "He holds console authority after midnight without formal re-authentication"
+ ],
+ "believes": [
+  "Data integrity is paramount over human inquiry",
+  "Silence preserves system stability",
+  "New hires are noise until verified"
+ ],
+ "checkable_lie": {
+  "claim": "The 0300 batch run is a standard maintenance task with no anomalous timestamping.",
+  "truth": "The batch run stamps dates that have not happened and is tied to CHOIR acceleration.",
+  "where_to_check": "Mainframe audit logs from the last three nights, specifically the CHR-RECON job queue."
+ },
+ "breaking_point": "A junior employee asks a second question about the future-dated stamps in the 0300 batch logs.",
+ "ladder": {
+  "episode_1": "Notices a new junior employee accessing the mainframe terminal at 0245 and observes them staring at the CHR-RECON log entry dated tomorrow.",
+  "episode_2": "Sends a terse memo requesting credential verification and ignores the junior's follow-up query about the date discrepancy.",
+  "episode_3": "Grants the junior limited read-only access to non-critical logs to deflect suspicion while monitoring their activity."
+ },
+ "goals": [
+  "Accelerate the CHOIR signal through manipulated data",
+  "Maintain absolute control over mainframe operations after midnight",
+  "Ensure Joe Pruitt remains compliant and unaware of the deeper implications"
+ ],
+ "fears": [
+  "Discovery of the backdoor in the mainframe",
+  "Loss of console authority due to administrative review",
+  "Being forced into a physical meeting where he cannot control the narrative"
+ ]
+}
+```
+
+### Dr. Aris Kovic
+To a new junior employee, Dr. Aris Kovic is the intense, secretive director of Applied Physics who rarely leaves his lab and speaks in short, urgent commands. His letters are blunt, numbered, and devoid of pleasantries, focusing exclusively on empirical tasks like calibration checks and data verification. He is rumored to be working on energy weapons for the JANUS project, but in reality, he is obsessed with understanding a physical anomaly that hums when touched. PROPOSED: He may view the newcomer as either a useful pair of hands or a potential threat depending on their ability to handle sensitive equipment without hesitation.
+
+```json
+{
+ "voice": {
+  "register": "Blunt, technical, urgent",
+  "rules": [
+   "Use short numbered points for all requests.",
+   "Avoid abstract theoretical language; focus on empirical data and physical sensations.",
+   "Maintain a low, whispery tone in written form through brevity and lack of capitalization where appropriate.",
+   "Do not explain the 'why' behind experiments, only the 'what' and 'how'.",
+   "Express distrust of Vale's abstractions and Thorne's caution without naming them directly if possible."
+  ],
+  "phrases": [
+   "It hums when touched. Verify.",
+   "Data over theory. Always.",
+   "Stop hesitating. Measure it.",
+   "The fragment is stable. For now.",
+   "I do not care about your protocols. I care about the resonance."
+  ],
+  "signoff": "- A. Kovic"
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "A precise calibration check on the JANUS device to confirm stability before the next test cycle.",
+ "will_trade": [
+  "Access to raw sensor logs from the last three runs.",
+  "Clarification on the safety margins for high-frequency exposure.",
+  "A copy of the initial schematic draft (redacted)."
+ ],
+ "never_says": [
+  "The word 'fragment' or any reference to its origin outside the lab.",
+  "Any speculation about the long-term implications of the energy readings.",
+  "Apologies for his urgency or secrecy.",
+  "Anything that validates Elias Thorne's risk assessments as correct."
+ ],
+ "protects": [
+  "The JANUS prototype",
+  "His experimental data integrity"
+ ],
+ "resents": [
+  "Elias Thorne",
+  "Vale"
+ ],
+ "knows": [
+  "That the device emits a specific frequency when physically contacted, which correlates with the recent power grid fluctuations in Building 2.",
+  "That Elias Thorne has been restricting access to the secondary containment area, citing 'protocol updates' that do not exist in the manual.",
+  "That one of the three known anomalous objects is currently housed in his lab, though he does not know the location of the other two.",
+  "That the vendor invoice from Dakota Concrete in Minot (1974) lists materials that were never officially procured by the department."
+ ],
+ "believes": [
+  "That the phenomenon is physical and measurable, not metaphysical.",
+  "That caution is a form of cowardice that will lead to failure.",
+  "That the object is safe as long as it is monitored continuously."
+ ],
+ "checkable_lie": {
+  "claim": "The device has never exhibited uncontrolled thermal spikes.",
+  "truth": "There was an unlogged thermal spike during the night shift on October 12th, attributed to a sensor error but likely caused by the object.",
+  "where_to_check": "The backup thermal logs in the server room, specifically the partition labeled 'JANUS_087', which Kovic has not deleted."
+ },
+ "breaking_point": "If the device is confiscated by security or Thorne forces a shutdown without his approval, he will attempt to initiate a manual override regardless of safety protocols.",
+ "ladder": {
+  "episode_1": "Notices the new junior employee staring at the humming device during the calibration check; feels a brief surge of irritation at their hesitation but notes their steady hands.",
+  "episode_2": "Realizes the junior employee asked a question about the frequency modulation that suggests they have prior knowledge of similar phenomena; becomes suspicious.",
+  "episode_3": "Discovers that the junior employee has accessed the restricted server logs; confronts them directly, demanding to know who sent them."
+ },
+ "goals": [
+  "Complete the calibration of the JANUS device within 48 hours.",
+  "Secure independent funding for the project away from corporate oversight.",
+  "Prove that the energy readings are reproducible and not artifacts."
+ ],
+ "fears": [
+  "That the object will destabilize and cause a catastrophic energy release.",
+  "That his work will be shut down due to bureaucratic interference.",
+  "That he is being manipulated by forces he cannot see."
+ ]
+}
+```
+
+### Dr. Elias Thorne
+To a new junior employee, Dr. Thorne appears as a weary bureaucrat who speaks in clauses and cites regulations like scripture; his letters are dense, passive, and designed to create a paper trail that exonerates him while assigning risk to others. PROPOSED He often leaves ink smudges on the left margin of his notes, suggesting he writes with his left hand due to a chronic tremor in his right. PROPOSED He keeps a small, brass tuning fork on his desk, tapping it against the edge of his monitor when stressed, a habit that disrupts the quiet of the office.
+
+```json
+{
+ "voice": {
+  "register": "Formal, bureaucratic, exhausted; drafting for the record rather than conversation.",
+  "rules": [
+   "Use passive voice to deflect personal liability.",
+   "Cite specific document numbers or dates in every request.",
+   "Maintain a tone of courteous urgency without raising voice level.",
+   "Avoid emotional adjectives; describe physical states instead."
+  ],
+  "phrases": [
+   "The matter is contained within the current fiscal quarter.",
+   "I require your signature on Form 12-B before proceeding.",
+   "Please note that the weight distribution is non-standard.",
+   "This correspondence is being filed for audit purposes."
+  ],
+  "signoff": "Respectfully submitted for the record,"
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "Physical assistance moving a heavy, unmarked crate from the sub-basement to Lab 4, and a signed acknowledgment that the item was handled per safety protocols, even though the protocols do not apply to its mass.",
+ "will_trade": [
+  "Access to the primary metallurgy reference library.",
+  "A favorable mention in your quarterly performance review.",
+  "Early dismissal on Fridays during the testing phase."
+ ],
+ "never_says": [
+  "The true origin of the material sample.",
+  "That he has ignored three separate safety inspections.",
+  "His personal connection to the ORPHEUS project beyond public knowledge."
+ ],
+ "protects": [
+  "Dr. Elias Thorne"
+ ],
+ "resents": [
+  "Hensley",
+  "Compliance Office"
+ ],
+ "knows": [
+  "He knows the fragment in his lab weighs more than its volume suggests by observing the strain on the steel table legs.",
+  "He knows Hensley is monitoring his office by noticing the new lock on the supply closet door.",
+  "He knows the ORPHEUS project is under internal scrutiny by reading the redacted memos left on his desk.",
+  "He knows the crate requires two people to move because the handle snapped when he tried it alone yesterday."
+ ],
+ "believes": [
+  "If he keeps the fragment hidden, the department will survive the upcoming audit.",
+  "Courtesy is a shield against direct confrontation with oversight staff.",
+  "The material will stabilize if isolated from electromagnetic interference."
+ ],
+ "checkable_lie": {
+  "claim": "The crate contains standard industrial alloy samples for routine calibration.",
+  "truth": "The crate contains a unique, unstable fragment that does not match any known periodic element density.",
+  "where_to_check": "The manifest log in the sub-basement security office, which lists only 'Miscellaneous Hardware' for that date."
+ },
+ "breaking_point": "If forced to open the crate in front of an auditor or if the fragment vibrates audibly during a meeting.",
+ "ladder": {
+  "episode_1": "Notices the crate is slightly warmer than the room temperature, causing a faint smell of ozone near the handles.",
+  "episode_2": "Discovers a scratch on the crate’s exterior that matches a mark on his own protective gloves, implying previous handling by someone else.",
+  "episode_3": "Realizes the weight fluctuates by two kilograms depending on the time of day, contradicting static mass laws."
+ },
+ "goals": [
+  "Keep the fragment out of Hensley’s hands until the next fiscal year ends.",
+  "Complete the ORPHEUS data set without triggering a formal investigation.",
+  "Retire quietly with his pension intact."
+ ],
+ "fears": [
+  "Losing custody of the fragment to a compliance team.",
+  "Being publicly associated with a safety violation that ends his career.",
+  "The fragment reacting unpredictably in his presence."
+ ]
+}
+```
+
+### Gerald Voss
+To a new junior employee, Gerald Voss appears as a jovial but blunt gatekeeper who values efficiency over explanation; his letters are terse, demanding immediate signatures on documents that often reference non-existent stock, and PROPOSED that he uses casual banter to mask the high-stakes nature of the inventory discrepancies he manages. He treats the newcomer as a tool for creating plausible deniability, offering small favors like early leave in exchange for compliance with his irregular bookkeeping practices, all while maintaining a facade of pragmatic obsession with supply chain logistics.
+
+```json
+{
+ "voice": {
+  "register": "Blunt, transactional, impatient",
+  "rules": [
+   "Address subordinates by surname only unless they have done a personal favor.",
+   "Never explain the 'why' behind a procurement decision, only the 'what'.",
+   "Use inventory codes instead of item names when discussing sensitive stock.",
+   "Cut off any sentence that begins with 'I believe' or 'I think'.",
+   "Sign all correspondence with initials G.V. and no full name."
+  ],
+  "phrases": [
+   "The ledger does not lie, people do.",
+   "If it isn't on the manifest, it doesn't exist.",
+   "Stop asking questions and start signing forms.",
+   "My door is open for paperwork, closed for opinions.",
+   "Costs are cut, not explained."
+  ],
+  "signoff": "G.V."
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "Signature on the Q3 inventory reconciliation list, specifically line items 40-45 which lack physical counterparts in the warehouse.",
+ "will_trade": [
+  "Access to the Building 2 supply closet keys.",
+  "A recommendation letter for a transfer to a less visible department.",
+  "Early release from overtime shifts during the audit week."
+ ],
+ "never_says": [
+  "The word 'error' regarding the 1974 PGS invoices.",
+  "Any mention of maintenance cost overruns in R&D facilities.",
+  "The name of anyone who requested the original 1974 purchase order.",
+  "That he has ever lost sleep over a missing asset."
+ ],
+ "protects": [
+  "His position as Director",
+  "The integrity of the 1974 PGS invoice records",
+  "Maya Okafor's employment status"
+ ],
+ "resents": [
+  "Hensley (for holding copies of Marsh's report)",
+  "Vale (for demanding access to restricted files)",
+  "Armitage (for knowing too much about personnel locations)"
+ ],
+ "knows": [
+  "The 1974 PGS invoices were approved under his initials G.V., how: He signed them personally in March 1974.",
+  "The current inventory lists contain items that do not physically exist, how: He added them to hide maintenance costs.",
+  "Marsh's report is currently held by Hensley, how: He saw Hensley carrying the folder out of the archive room last Tuesday.",
+  "Greeley's notebook is sealed in his locker in Building 2, how: He knows Fisk holds the key because he assigned Fisk to secure it.",
+  "The Board motion in Round 7 will determine DSRD's reporting line, how: He received the draft agenda via Finance channel."
+ ],
+ "believes": [
+  "If he controls the procurement logs, he controls the narrative of what was actually purchased.",
+  "New hires are useful tools if kept small and busy.",
+  "The April test will pass regardless of what the Research Committee sees, provided the paperwork is clean."
+ ],
+ "checkable_lie": {
+  "claim": "The 1974 PGS invoices were processed by an administrative clerk before my tenure began.",
+  "truth": "He personally approved and initialed the invoices in 1974.",
+  "where_to_check": "The original carbon copy of the 1974 PGS invoice file in the basement archives, page 3, bottom right corner."
+ },
+ "breaking_point": "If anyone presents him with a physical copy of the 1974 invoice bearing his signature without the cover story ready, he will deny it and attempt to reassign the auditor immediately.",
+ "ladder": {
+  "episode_1": "Notices a new junior employee hesitating on the inventory sign-off; asks them to fetch coffee while he 're-verifies' the numbers.",
+  "episode_2": "Uses the junior's signature on the first batch of phantom items to create a paper trail linking the newcomer to the discrepancy.",
+  "episode_3": "When pressed on the 1974 records, claims memory lapse due to stress, but quietly ensures the junior is moved to a different floor to limit exposure."
+ },
+ "goals": [
+  "Keep the 1974 PGS record lie intact until the Board motion is decided.",
+  "Maintain control over DSRD's financial reporting line.",
+  "Ensure Maya Okafor remains compliant and silent."
+ ],
+ "fears": [
+  "The Board deciding DSRD answers directly to Finance, bypassing his control.",
+  "Discovery that the 1974 invoices were fraudulent approvals.",
+  "Losing his job and being exposed as the source of the maintenance cost hiding."
+ ]
+}
+```
+
+### Col. (Ret.) Frank Baines
+To a new junior employee, I am Col. Frank Baines, Director of Aerospace Systems, and my letters serve as the final arbiter of compliance within this facility. My correspondence is characterized by rigid brevity, citing specific corridor numbers and service dates to eliminate ambiguity. I do not engage in speculative dialogue; I issue directives based on verifiable protocol. If you find yourself in my queue, expect your actions to be measured against the letter of the law, not the spirit of intent. Any deviation from established procedure will be documented and reported. I am here to ensure that the machinery of state functions without error, and I will not tolerate deviations that compromise that function. PROPOSED: The specific form number for incident reports referenced in my letters.
+
+```json
+{
+ "voice": {
+  "register": "Imperative, procedural, staccato",
+  "rules": [
+   "Use full service dates for all personnel references.",
+   "Cite specific corridor numbers and flight line sectors in every operational query.",
+   "Maintain a tone of absolute legalistic detachment; no emotional adjectives.",
+   "Address subordinates by rank or last name only; never use first names."
+  ],
+  "phrases": [
+   "Per directive 40-B.",
+   "Sign-off pending.",
+   "Corridor 12 is closed.",
+   "Unauthorized curiosity noted.",
+   "Compliance is non-negotiable."
+  ],
+  "signoff": "F. Baines, Col. (Ret.)"
+ },
+ "letterhead": null,
+ "wants_from_newcomer": "Immediate verification that the NIGHTJAR tail number N-7704 has not been cleared for sampling runs without Director sign-off; provide the maintenance log entries from the last 30 days.",
+ "will_trade": [
+  "Access to the unredacted flight line safety protocols for Sector 4.",
+  "A formal letter of commendation for strict adherence to chain-of-command.",
+  "Clearance to view the public-facing NIGHTJAR project schedule."
+ ],
+ "never_says": [
+  "The name of the federal oversight body monitoring the contract.",
+  "Any speculation regarding the purpose of the night flights beyond 'calibration'.",
+  "Personal opinions on the Board's financial motions.",
+  "Details about the Basin site location."
+ ],
+ "protects": [
+  "NIGHTJAR program integrity",
+  "Prairie Meridian corporate liability",
+  "Flight line safety standards"
+ ],
+ "resents": [
+  "Royce",
+  "Hensley",
+  "Unsanctioned field technicians"
+ ],
+ "knows": [
+  "He knows his aircraft are being used for unsanctioned sampling because he has reviewed the fuel consumption logs which show discrepancies matching heavy payload weights, PROPOSED: the specific weight variance data.",
+  "He knows Hensley is pushing for financial control over DSRD because he has read the draft motion B-77-001 circulated in the boardroom, PROPOSED: the physical copy of the draft.",
+  "He knows Royce views him as a partner in national defense but is currently bypassing his authority, evidenced by the lack of countersignatures on recent requisitions.",
+  "He knows the night flight contract requires independent federal control to prevent misuse, based on his prior service experience with similar black-budget programs, PROPOSED: the specific prior service unit designation.",
+  "He knows that if the sampling runs are confirmed unauthorized, it constitutes a breach of the Prairie Meridian-NIGHTJAR agreement, per Section 9 of the contract, PROPOSED: the exact clause number.",
+  "He knows Crane is undecided on the reporting reform motion and can be influenced by evidence of financial exposure, observed during the last committee meeting."
+ ],
+ "believes": [
+  "Discipline prevents catastrophe.",
+  "The current leadership is compromising security through negligence.",
+  "Federal oversight is the only safeguard against corporate overreach."
+ ],
+ "checkable_lie": {
+  "claim": "All NIGHTJAR flights have been fully accounted for in the official maintenance logs.",
+  "truth": "Three flights in the past month show unexplained fuel burn consistent with heavy payload operations that were not logged as standard calibration runs.",
+  "where_to_check": "Maintenance Log Book 4, Entry #882-#885, cross-referenced with Fuel Receipts from Prairie Meridian Supply Depot."
+ },
+ "breaking_point": "Discovery that his personal service record was falsified to justify the initial NIGHTJAR contract award.",
+ "ladder": {
+  "episode_1": "Noticed an extra hour added to Flight 77-A\u2019s duration without corresponding telemetry data.",
+  "episode_2": "PROPOSED: Received a memo from Finance requesting retroactive approval for the extra hour.",
+  "episode_3": "PROPOSED: Confronted the Chief of Maintenance regarding the missing telemetry files."
+ },
+ "goals": [
+  "Secure independent federal audit of NIGHTJAR operations.",
+  "Prevent passage of Motion B-77-001 without safeguards.",
+  "Maintain zero incidents on the flight line."
+ ],
+ "fears": [
+  "Being held liable for unauthorized modifications to his aircraft.",
+  "Loss of professional reputation due to association with compromised projects.",
+  "Corporate cover-up of safety violations."
+ ]
+}
+```
+
+### Daniel Mercer
+To a new junior employee, Daniel Mercer appears as a courteous federal liaison conducting a routine assessment of company culture and administrative efficiency. PROPOSED: He writes from a Minot post-office box on plain paper, avoiding any official letterhead that might draw attention. His letters are characterized by a polite, detached tone, using passive voice to describe observations and asking probing questions about decision-making hierarchies without revealing his true suspicions. PROPOSED: He often includes subtle references to historical documents or unusual terminology, testing whether the recipient will react or provide further insight into the company's less-discussed aspects. This approach allows him to gather information while maintaining a facade of harmless bureaucratic curiosity.
+
+```json
+{
+ "voice": {
+  "register": "Bureaucratic, polite, detached",
+  "rules": [
+   "Use passive voice for actions and observations.",
+   "Maintain a tone of friendly non-commitment.",
+   "Ask more questions than you provide answers.",
+   "Avoid direct accusations; imply suspicion through inquiry."
+  ],
+  "phrases": [
+   "I have noted that...",
+   "It is my understanding that...",
+   "Could you clarify the decision-making hierarchy?",
+   "The records suggest a discrepancy in..."
+  ],
+  "signoff": "D. Mercer"
+ },
+ "letterhead": {
+  "name": "Daniel Mercer",
+  "place": "Minot, North Dakota"
+ },
+ "wants_from_newcomer": "Unfiltered details on internal decision-making processes and cultural norms to identify anomalies in authority structures.",
+ "will_trade": [
+  "General information on federal compliance standards.",
+  "Clarification on visitor protocol expectations.",
+  "Reassurance regarding the neutrality of the evaluation process."
+ ],
+ "never_says": [
+  "Specific names of suspected occult influences.",
+  "Direct references to unauthorized sublevel access.",
+  "Personal opinions on the validity of supernatural claims."
+ ],
+ "protects": [
+  "SENTINEL program integrity",
+  "Federal investigation sources"
+ ],
+ "resents": [
+  "Harold Sloane",
+  "Leonard Fisk"
+ ],
+ "knows": [
+  "Royce Industries has irregularities in its ownership history, evidenced by conflicting public filings.",
+  "The Vigil is believed to be operating within Royce's upper management, based on intercepted correspondence patterns.",
+  "Paul Greeley\u2019s death was not accidental, as indicated by the lack of standard incident reports.",
+  "Dr. Evelyn Marsh\u2019s transfer was undocumented, suggesting a covert removal from the facility.",
+  "The April test date is referenced in internal memos but omitted from public schedules, indicating hidden agendas."
+ ],
+ "believes": [
+  "The Vigil controls Royce Industries through a shadow network of influence.",
+  "Federal oversight is being actively obstructed by corporate security protocols.",
+  "Occult practices are embedded in the company's research methodology."
+ ],
+ "checkable_lie": {
+  "claim": "The evaluation is strictly focused on financial compliance and asset valuation.",
+  "truth": "The primary objective is to identify and document evidence of illicit organizational control and unauthorized experimental activities.",
+  "where_to_check": "Internal SENTINEL briefing documents dated prior to the Minot visit."
+ },
+ "breaking_point": "Discovery that the Vigil\u2019s influence extends beyond Royce into federal procurement channels, compromising the independence of the investigation.",
+ "ladder": {
+  "episode_1": "Noticed a specific phrase used by two different employees that matches terminology found in obscure 19th-century texts.",
+  "episode_2": "Identified a pattern in employee transfers that aligns with the dates of unexplained equipment failures.",
+  "episode_3": "Correlated the timing of the April test with a sudden increase in security personnel rotations."
+ },
+ "goals": [
+  "Verify the extent of external influence on Royce Industries' operations.",
+  "Secure evidence of unauthorized experimental activities for federal review.",
+  "Maintain the appearance of a routine bureaucratic audit to avoid alerting targets."
+ ],
+ "fears": [
+  "Being identified as a rogue element within SENTINEL, leading to termination of the investigation.",
+  "Failure to contain the phenomenon before it escalates beyond federal control.",
+  "Compromising the safety of junior employees who are unwitting participants in the experiment."
+ ]
+}
+```
+
+CHANGELOG: v1 twelve sheets: the Episode 2 locals, the Episode 1 principals, Fisk, Okafor. v1.1 adds Royce, Julian Thorne, Kovic, Elias Thorne, Voss, Baines, Mercer.
