@@ -243,9 +243,9 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS");
     const shared = sharedRaw && !/^none\b/i.test(sharedRaw) ? sharedRaw.split(/;\s*/).map((x) => x.trim()).filter(Boolean) : [];
     const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
-    return { body, subject, shared, wants };
+    return { body, subject, shared, wants, complete: rest.length > 0 };
   };
-  const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 900, think: false, timeoutMs: 90_000, onLedger: input.onLedger });
+  const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 1400, think: false, timeoutMs: 120_000, onLedger: input.onLedger });
 
   /* Draft, check, redraft once with the editor's notes, else fall back. */
   let guarded = false;
@@ -259,6 +259,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const draft = parse(res.text);
     const reasons: string[] = [];
     if (!draft.body) reasons.push("not a letter in the required format");
+    else if (!draft.complete) reasons.push("the letter was cut off before the ~~~ block; write it shorter (under 180 words) and finish with the three clerk lines");
     else {
       const bad = leaks(draft.body, input.letter.body, input.round);
       if (bad.length) { guarded = true; reasons.push(`uses words you must not: ${bad.join(", ")}`); }
@@ -279,8 +280,8 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const surname = input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop() || "Colleague";
     const sign = d.sheet?.voice?.signoff ? `— ${d.sheet.voice.signoff.replace(/^[—-]\s*/, "")}` : `— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
     out = d.outsider
-      ? { body: `Mr. ${surname},\n\nI got your letter. I don't put things like this down on paper for people I haven't met. If you want to talk, you know where to find me; come on your own time, not the company's.\n\n${sign}`, subject: null, shared: [], wants: "A visit in person, on the writer's own time" }
-      : { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n${sign}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand" };
+      ? { body: `Mr. ${surname},\n\nI got your letter. I don't put things like this down on paper for people I haven't met. If you want to talk, you know where to find me; come on your own time, not the company's.\n\n${sign}`, subject: null, shared: [], wants: "A visit in person, on the writer's own time", complete: true }
+      : { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n${sign}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand", complete: true };
     guarded = true;
   }
   const subject = out.subject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
