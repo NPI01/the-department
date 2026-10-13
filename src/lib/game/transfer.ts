@@ -24,7 +24,7 @@ export async function sendDocumentCopy(db: SupabaseClient, p: { campaignId: stri
   }
   // The cover letter, on the sender's paper, delivered like any letter; staff remember what they were handed.
   const toEmail = (Array.isArray(to.players) ? to.players[0]?.email : (to.players as { email: string } | null)?.email) ?? null;
-  const body = `${to.name.split(" ")[0] === to.name ? to.name : `Mr. ${to.name.split(" ").pop()}`},\n\n${p.note?.trim() ? `${p.note.trim()}\n\n` : ""}Enclosed: a copy of "${item.title}".${to.player_id ? " It is in your Case File." : ""}\n\n— ${from.name}`;
+  const body = `${to.name},\n\n${p.note?.trim() ? `${p.note.trim()}\n\n` : ""}Enclosed: a copy of "${item.title}".${to.player_id ? " It is in your Case File." : ""}\n\n— ${from.name}`;
   const { data: row } = await db.from("correspondence").insert({ campaign_id: p.campaignId, direction: "outbound", message_id: newMessageId(), from_character: from.id, to_characters: [to.id], to_addresses: toEmail ? [toEmail] : [], subject: `Enclosed: ${item.title}`, body_text: body, raw: { letter_kind: "letter", enclosure: copySlug, source: "transfer" } }).select("id").single();
   if (row && toEmail) await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
   if (!to.player_id) await db.from("knowledge").insert({ character_id: to.id, fact_key: `told:${from.slug}:doc:${item.slug}`, value: { kind: "document", text: `${from.name} handed over a copy of "${item.title}"`, from: from.id, from_name: from.name, round: p.round }, confidence: 1, source_kind: "told", source_ref: row?.id ?? null, learned_round: p.round });
