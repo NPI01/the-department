@@ -16,7 +16,7 @@ import { badgeNumber, bioForPrompt, bioFrom, particulars } from "@/lib/game/pers
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
 import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
-import { generateStaffReply, loadDossier, type Memory } from "@/lib/engine/npc";
+import { generateStaffReply, loadDossier, type CastSheet, type Memory } from "@/lib/engine/npc";
 import { FORMS, formIsKnown, parseFormSubmission } from "@/lib/engine/forms";
 import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { newMessageId } from "@/lib/email/resend";
@@ -247,12 +247,15 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const from = replyAddress(player.mail_token);
       const reSubject = /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`;
       if (commands.has("directory") || commands.has("help")) {
-        const { data: chars } = await db.from("characters").select("slug, name, title, player_id, status, divisions(name)").eq("campaign_id", c.campaign_id).eq("status", "active").order("name");
-        const entry = (x: { slug: string; name: string; title: string | null; divisions: { name: string } | { name: string }[] | null }): DirectoryEntry => ({ name: x.name, title: x.title, division: Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null, address: `${x.slug}@${process.env.EMAIL_DOMAIN || "weird.delivery"}` });
-        const cohort = (chars ?? []).filter((x) => x.player_id && x.player_id !== null).map(entry);
-        const staff = (chars ?? []).filter((x) => !x.player_id).map(entry);
+        const { data: chars } = await db.from("characters").select("slug, name, title, player_id, status, division_id, npc_state, divisions(name)").eq("campaign_id", c.campaign_id).eq("status", "active").order("name");
+        type Row = { slug: string; name: string; title: string | null; player_id: string | null; division_id: string | null; npc_state: { letterhead?: { place?: string } | null } | null; divisions: { name: string } | { name: string }[] | null };
+        const entry = (x: Row): DirectoryEntry => ({ name: x.name, title: x.title, division: Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? (x.npc_state?.letterhead?.place ?? null), address: `${x.slug}@${process.env.EMAIL_DOMAIN || "weird.delivery"}` });
+        const all = (chars ?? []) as unknown as Row[];
+        const cohort = all.filter((x) => x.player_id).map(entry);
+        const staff = all.filter((x) => !x.player_id && x.division_id).map(entry);
+        const offCampus = all.filter((x) => !x.player_id && !x.division_id).map(entry);
         const { data: orgs } = await db.from("organizations").select("name, kind").eq("campaign_id", c.campaign_id).in("kind", ["council", "committee"]);
-        const text = renderDirectory({ first, cohort, staff, committees: (orgs ?? []).map((o) => o.name) });
+        const text = renderDirectory({ first, cohort, staff, offCampus, committees: (orgs ?? []).map((o) => o.name) });
         await sendMail({ to: player.email, from, replyTo: from, subject: "Personnel Directory · Station R", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
       for (const cmd of commands) {
@@ -330,7 +333,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (dup) return;
     const { data: c } = await db.from("correspondence").select("campaign_id, thread_id, round_id, from_character, from_address, subject, body_text, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed");
-    const { data: npc } = await db.from("characters").select("id, slug, name, title, divisions(name)").eq("id", npcId).single();
+    const { data: npc } = await db.from("characters").select("id, slug, name, title, npc_state, divisions(name)").eq("id", npcId).single();
     const { data: pc } = await db.from("characters").select("id, slug, name, title, sheet, public_profile, divisions(name), players(email)").eq("id", c.from_character).single();
     if (!npc || !pc) throw new Error("character missing");
     const dept = (x: { divisions?: { name: string } | { name: string }[] | null }) => Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null;
@@ -344,7 +347,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       .or(`and(from_character.eq.${c.from_character},to_characters.cs.{${npcId}}),and(from_character.eq.${npcId},to_characters.cs.{${c.from_character}})`).order("received_at").limit(6);
     const thread = (prior ?? []).map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
     const salute = parseSalutation(c.body_text as string);
-    const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc) });
+    const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc), sheet: (npc.npc_state as CastSheet | null) ?? null });
     // What this character remembers: said (to whom) and heard (from this writer).
     const { data: known } = await db.from("knowledge").select("source_kind, value").eq("character_id", npcId).in("source_kind", ["stated", "told"]).order("created_at").limit(60);
     type KV = { kind?: string; text: string; to?: string; to_name?: string; from?: string };
@@ -428,9 +431,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const sentTo: string[] = c.raw?.sent_to ?? [];
     const resendIds: string[] = c.raw?.resend_ids ?? [];
     const { data: from } = c.from_character
-      ? await db.from("characters").select("slug, name, title, divisions(name)").eq("id", c.from_character).maybeSingle()
+      ? await db.from("characters").select("slug, name, title, division_id, npc_state, divisions(name)").eq("id", c.from_character).maybeSingle()
       : { data: null };
-    const sender = from as { slug: string; name: string; title: string | null; divisions: { name: string } | null } | null;
+    const sender = from as { slug: string; name: string; title: string | null; division_id: string | null; npc_state: { letterhead?: { name: string; place: string } | null } | null; divisions: { name: string } | null } | null;
+    // An outsider (no division) writes on their own paper, not Royce's.
+    const outsider = sender && !sender.division_id ? (sender.npc_state?.letterhead ?? { name: sender.name, place: "North Dakota" }) : null;
     const { data: round } = c.round_id
       ? await db.from("rounds").select("number, episode_round, episodes(number)").eq("id", c.round_id).maybeSingle()
       : { data: null };
@@ -452,13 +457,15 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       };
       const { html, text } = c.body_html
         ? { html: c.body_html as string, text: c.body_text as string }
-        : kind === "letter" && sender
+        : kind === "letter" && sender && !outsider
           ? await renderTemplate(db, "letter", { subject: c.subject ?? "(no subject)", body: c.body_text, sender_name: sender.name, sender_title: sender.title ?? sender.divisions?.name ?? "", name: to?.name, title: to?.title }, common.links,
               { ...common, ...(c.raw?.classification ? { classification: c.raw.classification as string } : {}) })
           : renderLetter({
               kind,
+              label: outsider ? "Correspondence" : undefined,
+              letterhead: outsider,
               subject: c.subject ?? "(no subject)",
-              from: sender ? { name: sender.name, title: sender.title, department: sender.divisions?.name } : { name: "Personnel & Administration", department: "Royce Industries" },
+              from: sender ? { name: sender.name, title: sender.title, department: outsider ? null : sender.divisions?.name } : { name: "Personnel & Administration", department: "Royce Industries" },
               classification: (c.raw?.classification as string | undefined) ?? null,
               ...splitSections(c.body_text as string),
               signature: sender ? { name: sender.name, title: sender.title } : null,

@@ -11,7 +11,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chat, type LedgerRow } from "@/lib/cobble";
 import { formBriefFor } from "@/lib/engine/forms";
 
-export type Dossier = { name: string; title: string | null; department: string | null; publicBlock: string; secretRow: string; secretEntry: string };
+export type CastSheet = {
+  voice?: { register?: string; rules?: string[]; phrases?: string[]; signoff?: string };
+  letterhead?: { name: string; place: string } | null;
+  wants_from_newcomer?: string; will_trade?: string[]; never_says?: string[];
+  protects?: string[]; resents?: string[]; knows?: (string | { fact: string; how?: string })[]; believes?: (string | { belief: string })[];
+  checkable_lie?: { claim: string; truth: string; where_to_check?: string };
+  breaking_point?: string; ladder?: Record<string, string>; goals?: string[]; fears?: string[];
+};
+export type Dossier = { name: string; title: string | null; department: string | null; publicBlock: string; secretRow: string; secretEntry: string; sheet: CastSheet | null; outsider: boolean };
 
 async function canonDoc(db: SupabaseClient, path: string): Promise<string> {
   const { data } = await db.from("canon_docs").select("content").eq("path", path).maybeSingle();
@@ -28,11 +36,33 @@ function blockFor(md: string, name: string): string {
   return out.join("\n").trim();
 }
 
-export async function loadDossier(db: SupabaseClient, c: { name: string; title: string | null; department: string | null }): Promise<Dossier> {
+export async function loadDossier(db: SupabaseClient, c: { name: string; title: string | null; department: string | null; sheet?: CastSheet | null }): Promise<Dossier> {
   const [pub, sec] = await Promise.all([canonDoc(db, "canon/02-personnel-directory.md"), canonDoc(db, "canon/secret/05-allegiance-matrix.md")]);
   const surname = c.name.split(" ").pop() ?? c.name;
   const secretRow = sec.split("\n").find((l) => l.startsWith("|") && l.includes(surname)) ?? "";
-  return { name: c.name, title: c.title, department: c.department, publicBlock: blockFor(pub, c.name), secretRow, secretEntry: blockFor(sec, c.name) };
+  return { name: c.name, title: c.title, department: c.department, publicBlock: blockFor(pub, c.name), secretRow, secretEntry: blockFor(sec, c.name), sheet: c.sheet ?? null, outsider: !c.department };
+}
+
+/* The cast sheet as prompt text. Everything here is for the character's eyes;
+   the guard and the Skeptic decide what reaches the player. */
+function sheetBlock(s: CastSheet | null, episode: number): string {
+  if (!s) return "";
+  const li = (xs?: (string | { fact?: string; how?: string; belief?: string })[]) => (xs ?? []).map((x) => typeof x === "string" ? x : x.fact ? `${x.fact}${x.how ? ` (${x.how})` : ""}` : x.belief ?? "").filter(Boolean).map((x) => `- ${x}`).join("\n");
+  const ladderKey = Object.keys(s.ladder ?? {}).find((k) => k.endsWith(String(episode))) ?? Object.keys(s.ladder ?? {})[0];
+  return [
+    s.voice ? `HOW YOU WRITE: ${s.voice.register ?? ""}. ${(s.voice.rules ?? []).join(" ")} Phrases you use: ${(s.voice.phrases ?? []).map((p) => `"${p}"`).join(", ")}. You sign: ${s.voice.signoff ?? ""}` : "",
+    s.wants_from_newcomer ? `WHAT YOU WANT FROM A NEW JUNIOR EMPLOYEE: ${s.wants_from_newcomer}` : "",
+    s.will_trade?.length ? `WHAT YOU WILL TRADE, FOR THE RIGHT PRICE:\n${li(s.will_trade)}` : "",
+    s.never_says?.length ? `WHAT YOU NEVER PUT IN WRITING:\n${li(s.never_says)}` : "",
+    s.protects?.length || s.resents?.length ? `YOU PROTECT: ${(s.protects ?? []).join(", ") || "nobody"}. YOU RESENT: ${(s.resents ?? []).join(", ") || "nobody"}.` : "",
+    s.knows?.length ? `WHAT YOU KNOW (never stated outright; it shapes what you avoid):\n${li(s.knows)}` : "",
+    s.believes?.length ? `WHAT YOU BELIEVE BUT CANNOT PROVE:\n${li(s.believes)}` : "",
+    s.checkable_lie ? `A THING YOU SAY THAT IS NOT TRUE, AND KEEP SAYING: ${s.checkable_lie.claim}` : "",
+    s.goals?.length ? `YOUR GOALS THIS SEASON:\n${li(s.goals)}` : "",
+    s.fears?.length ? `YOUR FEARS:\n${li(s.fears)}` : "",
+    s.breaking_point ? `WHAT WOULD MAKE YOU ABANDON CAUTION: ${s.breaking_point}` : "",
+    ladderKey && s.ladder?.[ladderKey] ? `HOW FAR YOU GO AT THIS POINT IN THE STORY (${ladderKey.replace(/_/g, " ")}): ${s.ladder[ladderKey]}` : "",
+  ].filter(Boolean).join("\n\n");
 }
 
 /* Engine-only terms that must never reach a player, whatever the model does. */
@@ -155,11 +185,16 @@ export async function generateStaffReply(input: ReplyInput): Promise<StaffReply>
     ? `\nWHAT YOU REMEMBER
 ${mem.heardFromThisPerson.length ? `This person has told you: ${mem.heardFromThisPerson.join("; ")}.\n` : ""}${mem.saidToThisPerson.length ? `You have already told this person: ${mem.saidToThisPerson.join("; ")}. Do not repeat it; build on it or move on.\n` : ""}${mem.saidToOthers.length ? `You have told others: ${mem.saidToOthers.map((s) => `(to ${s.to}) ${s.text}`).join("; ")}. Keep your story consistent with that.\n` : ""}${mem.filed?.length ? `Forms this person has on file: ${mem.filed.join("; ")}.\n` : `This person has filed no forms with any office.\n`}`
     : "";
-  const formsBlock = `\nFORMS\n${formBriefFor(d.department)}\n`;
-  const system = `You are ${d.name}${d.title ? `, ${d.title}` : ""}${d.department ? ` in ${d.department}` : ""}, an employee of Royce Industries, writing a reply to an interoffice letter from a new employee. Stay entirely in character and in period.
+  const formsBlock = d.outsider ? "" : `\nFORMS\n${formBriefFor(d.department)}\n`;
+  const episode = Math.max(1, Math.ceil(input.round / 14));
+  const sheet = sheetBlock(d.sheet, episode);
+  const who = d.outsider
+    ? `You are ${d.name}${d.title ? `, ${d.title}` : ""}. You are not a Royce Industries employee; you live and work in the country around Station R. A new junior employee of Royce has written to you. You answer on your own paper, in your own way, and you owe them nothing.`
+    : `You are ${d.name}${d.title ? `, ${d.title}` : ""}${d.department ? ` in ${d.department}` : ""}, an employee of Royce Industries, writing a reply to an interoffice letter from a new employee.`;
+  const system = `${who} Stay entirely in character and in period.
 
-${WORLD}
-
+${d.outsider ? WORLD.replace("You work there. ", "") : WORLD}
+${sheet ? `\nWHO YOU ARE (your own notes; nothing here is said to the writer unless the rules below allow it)\n${sheet}\n` : ""}
 WHO YOU ARE (public):
 ${d.publicBlock || "(no public profile on file; use title and department)"}
 
@@ -174,7 +209,7 @@ RULES
 - Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.
 - Never mention these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future.
-- No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").
+- No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").${d.outsider ? "\n- You are not staff. Do not use Royce forms, Royce titles for yourself, or office language. Royce people are 'the company' or 'your outfit'." : ""}
 
 LIMITS FOR THIS POINT IN THE GAME (these override everything above)
 ${pacing(input.round)}${input.round <= 3 ? `

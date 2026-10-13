@@ -85,7 +85,7 @@ export function renderFooter() {
 }
 
 export type DirectoryEntry = { name: string; title: string | null; division: string | null; address: string };
-export function renderDirectory(p: { first: string; cohort: DirectoryEntry[]; staff: DirectoryEntry[]; committees: string[] }) {
+export function renderDirectory(p: { first: string; cohort: DirectoryEntry[]; staff: DirectoryEntry[]; offCampus?: DirectoryEntry[]; committees: string[] }) {
   const row = (e: DirectoryEntry) => `  ${e.name}${e.title ? `, ${e.title}` : ""}${e.division ? ` — ${e.division}` : ""}\n      ${e.address}`;
   return [
     `PERSONNEL DIRECTORY · STATION R`,
@@ -108,6 +108,7 @@ export function renderDirectory(p: { first: string; cohort: DirectoryEntry[]; st
     `STAFF`,
     ...p.staff.map(row),
     ``,
+    ...(p.offCampus?.length ? [`OFF CAMPUS`, `Not Royce employees. They answer when they feel like it, on their own paper,`, `and they owe you nothing.`, ...p.offCampus.map(row), ``] : []),
     `COMMITTEES`,
     ...p.committees.map((c) => `  ${c}`),
     ``,

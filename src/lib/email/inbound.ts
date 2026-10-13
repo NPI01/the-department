@@ -159,7 +159,7 @@ export function parseSalutation(text: string): { names: string[]; subject: strin
     let m: RegExpMatchArray | null;
     if ((m = l.match(/^(?:re|subject|subj)\s*:\s*(.+)$/i))) { subject = m[1].trim(); continue; }
     if ((m = l.match(/^(?:attn|attention|for)\s*:?\s*(.+?)[,:.]?$/i))) { names.push(m[1]); continue; }
-    if ((m = l.match(/^(?:dear\s+)?((?:mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|director|professor|prof)\.?\s+[A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s*[,:—-]?\s*$/i))) { names.push(m[1]); continue; }
+    if ((m = l.match(/^(?:dear\s+)?((?:mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|deputy|sergeant|sgt|tech\.?\s*sgt|airman|reverend|rev|pastor|director|professor|prof)\.?\s+[A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s*[,:—-]?\s*$/i))) { names.push(m[1]); continue; }
     if ((m = l.match(/^dear\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s*[,:]?\s*$/i))) { names.push(m[1]); continue; }
   }
   return { names, subject };
@@ -167,7 +167,7 @@ export function parseSalutation(text: string): { names: string[]; subject: strin
 
 /* "Mr. Fisk" → "fisk"; "Dr. Sarah Ely" → "ely"; "fisk@weird.delivery" → "fisk". */
 export function surnameKey(name: string): string {
-  const clean = name.replace(/<[^>]*>/g, "").replace(/@.*$/, "").replace(/\b(mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|director|professor|prof)\.?\s*/gi, "").replace(/[,.]/g, " ").trim();
+  const clean = name.replace(/<[^>]*>/g, "").replace(/@.*$/, "").replace(/\b(mr|mrs|ms|miss|dr|col|colonel|captain|capt|sheriff|deputy|sergeant|sgt|tech|airman|reverend|rev|pastor|director|professor|prof)\.?\s*/gi, "").replace(/[,.]/g, " ").trim();
   const parts = clean.split(/\s+/).filter(Boolean);
   return (parts[parts.length - 1] || "").toLowerCase();
 }

@@ -27,6 +27,7 @@ export type Letter = {
   sections?: { heading: string; body: string }[];
   signature?: { name: string; title?: string | null } | null;
   cta?: { href: string; label: string } | null;   // one button under the body, e.g. "Fill in Form 14-B"
+  letterhead?: { name: string; place: string } | null;  // an outsider's own paper instead of Royce's
   links: LetterLinks;
 };
 
@@ -169,8 +170,8 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
       <tr>
         <td class="stack" valign="top" style="font-family:${DISPLAY};">
-          <p style="margin:0;font-family:${DISPLAY};font-size:28px;line-height:1;font-weight:bold;letter-spacing:5px;text-transform:uppercase;color:${C.ink};">Royce Industries</p>
-          <p style="margin:6px 0 0 0;font-family:${MONO};font-size:11px;letter-spacing:3px;text-transform:uppercase;color:${C.ink2};">Station R &middot; North Dakota</p>
+          <p style="margin:0;font-family:${DISPLAY};font-size:${l.letterhead ? 22 : 28}px;line-height:1.05;font-weight:bold;letter-spacing:${l.letterhead ? 3 : 5}px;text-transform:uppercase;color:${C.ink};">${esc(l.letterhead?.name ?? "Royce Industries")}</p>
+          <p style="margin:6px 0 0 0;font-family:${MONO};font-size:11px;letter-spacing:3px;text-transform:uppercase;color:${C.ink2};">${esc(l.letterhead?.place ?? "Station R · North Dakota")}</p>
         </td>
         <td class="stack stamp" valign="top" align="right" style="text-align:right;">
           <span style="display:inline-block;padding:5px 9px;border:2px solid ${C.red};font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:${C.red};transform:rotate(-3deg);">${esc(label)}</span>
@@ -196,7 +197,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">
-    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : l.kind === "form" ? "0" : "7"} &middot; Retain for your records</p>
+    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">${l.letterhead ? "Received by the Station R mail room &middot; Retain for your records" : `Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : l.kind === "form" ? "0" : "7"} &middot; Retain for your records`}</p>
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">
@@ -221,7 +222,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
   // ---------- plain text ----------
   const rule = "-".repeat(60);
   const text = [
-    "ROYCE INDUSTRIES · STATION R, NORTH DAKOTA",
+    l.letterhead ? `${l.letterhead.name.toUpperCase()} · ${l.letterhead.place.toUpperCase()}` : "ROYCE INDUSTRIES · STATION R, NORTH DAKOTA",
     label.toUpperCase(),
     rule,
     `FROM:     ${[l.from.name, l.from.title, l.from.department].filter(Boolean).join(", ")}`,
