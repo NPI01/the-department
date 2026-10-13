@@ -89,7 +89,10 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
     max_tokens: opts.maxTokens ?? 2000,
     chat_template_kwargs: { enable_thinking: think },
   };
-  if (opts.json) body.response_format = { type: "json_object" };
+  // The 27B pool refuses response_format (constrained output); the others accept it.
+  // Ask for it, and on that refusal retry the same model without it; the prompt still
+  // asks for JSON and extractJson does the rest.
+  let jsonFmt = Boolean(opts.json);
   // Streamed by default: Cobble's hosts sit behind Cloudflare, which closes a
   // connection that has sent nothing for ~2 minutes (524 → gateway 503). A
   // non-streamed reply sends nothing until generation ends, so any long
@@ -117,7 +120,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
         const res = await fetch(`${cfg.base}/chat/completions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.key}` },
-          body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall }, ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
+          body: JSON.stringify({ ...body, model, chat_template_kwargs: { enable_thinking: thinkThisCall }, ...(jsonFmt ? { response_format: { type: "json_object" } } : {}), ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
           signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(deadline)]) : AbortSignal.timeout(deadline),
         });
         status = res.status;
@@ -126,6 +129,7 @@ export async function chat(messages: Msg[], opts: ChatOpts = {}): Promise<ChatRe
           const retryAfter = parseRetryAfter(res.status, raw, res.headers);
           lastErr = new CobbleError(`${model} answered ${res.status}`, res.status, raw.slice(0, 500), retryAfter);
           await opts.onLedger?.({ tag: opts.tag ?? "untagged", model, ok: false, status, ms: Date.now() - t0, usage: null, error: lastErr.message, attempt });
+          if (res.status === 400 && jsonFmt && /response_format/i.test(raw)) { jsonFmt = false; continue; }
           // 400 = bad model name or bad request for this model: never retry it
           if (res.status === 400 || res.status === 401 || res.status === 404) break;
           // No replica: the next model in the chain is the answer, not patience.
