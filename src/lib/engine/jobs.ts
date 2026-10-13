@@ -135,8 +135,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // Always parse from the stored body with the current grammar; the acts in
     // the job payload were parsed at receipt and may be stale.
     const acts: GrammarAct[] = c.body_text ? parseGrammar(c.body_text as string) : ((p.acts as GrammarAct[]) ?? []);
-    const { data: round } = await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
-    if (!round) return; // no open round: acts are ignored, dispatch will say so
+    const { data: openRound } = await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
+    // Between the lock and the next dispatch there is no open round. Commands and
+    // forms still work (the clerk never sleeps); orders wait for the morning.
+    const { data: latest } = openRound ? { data: null } : await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).order("number", { ascending: false }).limit(1).maybeSingle();
+    const round = openRound ?? latest;
+    if (!round) return;
+    const afterLock = !openRound;
     const key = `grammar:${id}`;
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
     if (dup) return;
@@ -154,7 +159,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // an order packet: no receipt, the addressee answers instead.
     if (!acts.length && (routed?.to_characters as string[] | null)?.length) return;
 
-    const menu = await menuFor(db, round.id, c.from_character);
+    const menu = afterLock ? [] : await menuFor(db, round.id, c.from_character);
     const recorded: string[] = [];
     const ignored: string[] = [];
     const orderRows: { verb: string; args: Record<string, unknown>; label: string }[] = [];
@@ -192,6 +197,12 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // A reply that says "also" adds to the packet; any other reply replaces it.
     const nothingFound = !orderRows.length && !hold && !recorded.length && !ignored.length && !commands.size;
     let replaced = false; const added: string[] = [];
+    if (afterLock && (orderRows.length || hold)) {
+      // Orders after the lock are not taken; say so once and keep the commands.
+      ignored.push(...orderRows.map((r) => `${r.label} — orders closed for Round ${round.number}; the morning dispatch opens the next`));
+      if (hold) ignored.push(`HOLD — orders closed for Round ${round.number}`);
+      orderRows.length = 0; hold = false;
+    }
     if (orderRows.length || hold) {
       const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !orderRows.length ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
       if (packet) {
@@ -243,7 +254,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const player = (ch as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
     if (player?.email) {
       const first = (player.display_name || ch?.name || "there").split(" ")[0];
-      const lockAt = new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
+      const lockAt = afterLock ? "the next lock; orders reopen with the morning dispatch at 9:00 AM Eastern" : new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
       const from = replyAddress(player.mail_token);
       const reSubject = /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`;
       if (commands.has("directory") || commands.has("help")) {
@@ -340,7 +351,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const playerEmail = (pc as { players?: { email: string } | { email: string }[] | null }).players;
     const email = Array.isArray(playerEmail) ? playerEmail[0]?.email : playerEmail?.email;
     if (!email) return; // nothing to send to
-    const { data: round } = c.round_id ? await db.from("rounds").select("number").eq("id", c.round_id).maybeSingle() : await db.from("rounds").select("number").eq("campaign_id", c.campaign_id).eq("status", "open").maybeSingle();
+    const { data: round } = c.round_id ? await db.from("rounds").select("number").eq("id", c.round_id).maybeSingle() : await db.from("rounds").select("number").eq("campaign_id", c.campaign_id).order("number", { ascending: false }).limit(1).maybeSingle();
     const roundNo = round?.number ?? 1;
     // Earlier letters between the two, oldest first.
     const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).neq("id", id)

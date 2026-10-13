@@ -69,7 +69,7 @@ export type FiledForm = { index: string; caseSlug: string; correspondenceId: str
 export async function fileForm(db: SupabaseClient, p: { campaignId: string; characterId: string; submission: FormSubmission; correspondenceId: string | null; source: "email" | "web"; toCharacters?: string[] }): Promise<FiledForm> {
   const s = p.submission; const def = FORMS[s.form];
   if (!def) throw new Error(`unknown form ${s.form}`);
-  const { data: round } = await db.from("rounds").select("id, number").eq("campaign_id", p.campaignId).eq("status", "open").maybeSingle();
+  const { data: round } = await db.from("rounds").select("id, number").eq("campaign_id", p.campaignId).order("number", { ascending: false }).limit(1).maybeSingle();
   const roundNo = round?.number ?? 1;
   const { data: ch } = await db.from("characters").select("id, slug, name, title, players(email, mail_token, file_token, display_name)").eq("id", p.characterId).single();
   const player = (ch as { players?: { email: string; mail_token: string; file_token: string | null; display_name: string | null } | null } | null)?.players ?? null;
