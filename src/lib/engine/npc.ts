@@ -131,10 +131,11 @@ function notTheirs(draft: string, playerLetter: string, re: RegExp): string[] {
   return [...out];
 }
 
-export function leaks(draft: string, playerLetter: string, round: number): string[] {
+export function leaks(draft: string, playerLetter: string, round: number, outsider = false): string[] {
   const out = new Set<string>();
   const m = draft.match(SECRET_TERMS); if (m) out.add(m[0]);
-  if (round <= 3) for (const w of notTheirs(draft, playerLetter, EARLY_TERMS)) out.add(w);
+  // The occult words are the newspapers' words; an outsider may repeat what the papers print, an employee may not.
+  if (round <= 3 && !outsider) for (const w of notTheirs(draft, playerLetter, EARLY_TERMS)) out.add(w);
   return [...out];
 }
 
@@ -247,7 +248,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
     return { body, subject, shared, wants, complete: rest.length > 0 };
   };
-  const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 1400, think: false, timeoutMs: 120_000, onLedger: input.onLedger });
+  const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 1400, think: false, timeoutMs: 120_000, model: process.env.NPC_MODEL || undefined, onLedger: input.onLedger });
 
   /* Draft, check, redraft once with the editor's notes, else fall back. */
   let guarded = false;
@@ -263,7 +264,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     if (!draft.body) reasons.push("not a letter in the required format");
     else if (!draft.complete) reasons.push("the letter was cut off before the ~~~ block; write it shorter (under 180 words) and finish with the three clerk lines");
     else {
-      const bad = leaks(draft.body, input.letter.body, input.round);
+      const bad = leaks(draft.body, input.letter.body, input.round, d.outsider);
       if (bad.length) { guarded = true; reasons.push(`uses words you must not: ${bad.join(", ")}`); }
       const found = input.round <= 3 && !d.outsider ? findings(draft.body) : null;
       if (found) reasons.push(`reports what a record showed: "${found}"; this week you only take the report`);

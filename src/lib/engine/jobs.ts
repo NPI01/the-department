@@ -20,6 +20,8 @@ import { generateStaffReply, loadDossier, type CastSheet, type Memory } from "@/
 import { FORMS, formIsKnown, parseFormSubmission } from "@/lib/engine/forms";
 import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { renderDirectoryLetter } from "@/lib/email/directory";
+import { sendMorningDispatch } from "@/lib/engine/morning";
+import { rule } from "@/lib/engine/rounds";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -41,7 +43,7 @@ type Job = { id: number; kind: string; payload: Record<string, unknown>; attempt
 /* Fast work first. A slow model call must never hold up routing, orders or
    receipts (measured 2026-10-12: one extraction claimed in a batch of five
    locked the other four for ten minutes). */
-const PRIORITY = ["route", "fetch_body", "grammar", "send", "tick_phase", "npc_reply", "extract"];
+const PRIORITY = ["route", "fetch_body", "grammar", "send", "tick_phase", "morning_dispatch", "npc_reply", "extract"];
 
 /* Claim one job: the highest-priority due job whose lock is free or stale.
    The lock is taken with a conditional update so two workers cannot both win. */
@@ -403,6 +405,36 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Missed-turn defaults: every active player character without a packet gets mode=missed.
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
       for (const ch of chars ?? []) await db.from("order_packets").upsert({ round_id: roundId, character_id: ch.id, mode: "missed", source: "default" }, { onConflict: "round_id,character_id", ignoreDuplicates: true });
+      // Funding at the lock: orders are paid for in the order given; the first that does not fit, and the rest, are skipped.
+      const holdBonus = Number(await rule(db, round.campaign_id, "au.hold_bonus", 5));
+      const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status)").eq("round_id", roundId);
+      for (const pk of packets ?? []) {
+        const { data: au } = await db.from("resources").select("balance").eq("character_id", pk.character_id).eq("kind", "au").maybeSingle();
+        let balance = Number(au?.balance ?? 0); let spent = 0;
+        const orders = ((pk.orders ?? []) as { id: string; seq: number; args: { cost?: number }; status: string }[]).filter((o) => o.status === "pending").sort((a, b) => a.seq - b.seq);
+        for (const o of orders) {
+          const cost = Number(o.args?.cost ?? 5);
+          if (spent + cost <= balance) { spent += cost; await db.from("orders").update({ status: "reserved", cost: { au: cost } }).eq("id", o.id); }
+          else await db.from("orders").update({ status: "skipped", ruling: "beyond your balance at the lock" }).eq("id", o.id);
+        }
+        if (pk.mode === "hold" && !orders.length) balance += holdBonus;
+        balance -= spent;
+        await db.from("resources").upsert({ character_id: pk.character_id, kind: "au", balance }, { onConflict: "character_id,kind" });
+      }
+    }
+    if (phase === "strategic") {
+      // Until the Rules Lawyer's verb rules land, a funded order is carried out as given and the morning narrates it.
+      const { data: packets } = await db.from("order_packets").select("id").eq("round_id", roundId);
+      for (const pk of packets ?? []) await db.from("orders").update({ status: "resolved", ruling: "carried out; see the morning dispatch" }).eq("packet_id", pk.id).eq("status", "reserved");
+    }
+    if (phase === "world") {
+      // Income: every active player character draws the round's Action Units, to the cap.
+      const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
+      const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
+      for (const ch of chars ?? []) {
+        const { data: au } = await db.from("resources").select("balance").eq("character_id", ch.id).eq("kind", "au").maybeSingle();
+        await db.from("resources").upsert({ character_id: ch.id, kind: "au", balance: Math.min(cap, Number(au?.balance ?? 0) + per), cap }, { onConflict: "character_id,kind" });
+      }
     }
     if (phase === "governance") {
       const { data: motions } = await db.from("motions").select("id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
@@ -428,6 +460,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
 
   async player_brief(db, p) {
     await writeBrief(db, p.brief_id as string);
+  },
+
+  async morning_dispatch(db, p) {
+    await sendMorningDispatch(db, { roundId: p.round_id as string, characterId: p.character_id as string }, ledger(db));
   },
 
   /* Deliver an outbound correspondence row: one message per recipient, each in

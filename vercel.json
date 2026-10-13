@@ -5,6 +5,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/dispatch",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/cron/work",
       "schedule": "* * * * *"
     }
