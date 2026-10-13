@@ -88,14 +88,18 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
     if (!plan?.briefs?.length) { console.error("Showrunner produced no briefs; see", outDir); process.exit(1); }
     console.log(`  ${plan.briefs.length} briefs, ${plan.decisions?.length ?? 0} decisions`);
   }
-  if (!resumeStamp) {
+  // On a resume, only the briefs without a usable draft are written again.
+  const have = new Set(drafts.map((d) => plan!.briefs.indexOf(d.brief)));
+  const todo = plan!.briefs.map((b, i) => [b, i] as const).filter(([, i]) => !have.has(i));
+  if (todo.length) {
+  if (resumeStamp) console.log(`  writing ${todo.length} missing brief(s)`);
 
   // Writers run two at a time: Cobble queues per model, and five parallel
   // canon-sized prompts filled them (measured 2026-10-11: a 503 after the
   // whole chain was refused). One failed brief does not sink the run.
   const CONCURRENCY = Number(process.env.AGENTS_CONCURRENCY || 2);
   const results: PromiseSettledResult<{ brief: Brief; role: RoleName; out: unknown }>[] = [];
-  const queue = plan!.briefs.map((b, i) => async () => {
+  const queue = todo.map(([b, i]) => async () => {
     const role = (["character_writer", "rules_lawyer", "correspondent", "archivist"].includes(b.role) ? b.role : "correspondent") as RoleName;
     const p = plan!;
     const user = `TASK: ${p.task_summary}\n\nCANON CONSTRAINTS:\n${(p.canon_constraints ?? []).map((c) => `- ${c}`).join("\n")}\n\nDECISIONS ALREADY MADE:\n${(p.decisions ?? []).map((d) => `- ${d.question} → ${d.recommendation}`).join("\n")}\n\nYOUR BRIEF (${b.title}):\n${b.instructions}\n\nDELIVERABLE: ${b.deliverable}`;
@@ -106,7 +110,7 @@ type Plan = { task_summary: string; canon_constraints: string[]; decisions: { qu
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
     while (queue.length) { const job = queue.shift()!; results.push(await Promise.allSettled([job()]).then((r) => r[0])); }
   }));
-  drafts = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  drafts = [...drafts, ...results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []))];
   const failed = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason?.message ?? String(r));
   if (failed.length) console.log(`  ${failed.length} brief(s) failed: ${failed.join(" | ")}`);
   }
