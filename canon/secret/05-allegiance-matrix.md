@@ -32,6 +32,7 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 | **Dr. Elias Thorne** | None (Self) | Obsessed with ORPHEUS; ignores safety for results. | None |
 | **Dr. Aris Kovic** | None (Self) | Secretive; JANUS energy research; no faction loyalty. | None |
 | **Maya Okafor** | None (Ordinary) | Junior clerk, Procurement & Logistics. No faction; knows two versions of the campus map exist because she filed both. Family in Tagus. PROPOSED. | None |
+| **Walter Crane** | Corporate / Scientific (Instrumentalist) | Outside director; receives Vale's reports first; undecided on B-77-001; moves on evidence of financial exposure or a Research seat for his nominee. PROPOSED. | None |
 | **Sheriff Dale Hollis** | None (Local) | Buried mutilation cases to protect ranchers; found metallic debris near a mutilation site and quietly filed it as ordnance; it is R-1 class material. | None |
 | **Gary Vane** | None (Local) | Has non-rotting tissue sample; thinks it's a tumor. | None |
 | **Elmer Bernard** | Keeper (Unaware) | Reluctant asset; holds 1883 survey map; thinks Keepers are "quiet men." | None |

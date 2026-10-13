@@ -127,6 +127,12 @@ messages are memos and letters, never "email".
 *   **Public Profile:** Two years at Station R, in the office that signs for everything that arrives. The one person a new hire can buy lunch for. Has seen two versions of the campus map. Family in Tagus. (PROPOSED, 2026-10-13.)
 *   **Voice:** Warm, gossipy, casual. Signs "Maya."
 
+**Walter Crane**
+*   **Title:** Outside Director, Board of Royce Industries
+*   **Department:** External (Minneapolis)
+*   **Public Profile:** The 1969 investor. Attends Board meetings from Minneapolis; reads the Chief Scientist's reports before the Board does. Asks what a thing costs and what it returns. (PROPOSED in 06; added 2026-10-13.)
+*   **Voice:** Dry, commercial, courteous. Signs "W. Crane."
+
 **Sheriff Dale Hollis**
 *   **Title:** Sheriff, Ward County Sheriff's Department
 *   **Department:** External (Law Enforcement)

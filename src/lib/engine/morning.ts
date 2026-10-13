@@ -172,6 +172,8 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
   const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed"]).limit(8);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; passed?: boolean }; if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`a ballot closed (${v.passed ? "carried" : "failed"})`); }
+  const { data: openMotions } = await db.from("motions").select("number, title, closes_round, organizations(name)").eq("campaign_id", round.campaign_id).eq("status", "open");
+  for (const m of openMotions ?? []) { const org = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string } | null; arrived.push(`a ballot is open before the ${org?.name ?? "Board"}: ${m.number} "${m.title}", closing at the lock of Round ${m.closes_round}${m.closes_round === round.number ? " (tonight)" : ""}`); }
   const { data: beatDoc } = await db.from("canon_docs").select("content").eq("path", "canon/secret/09-episode-01-beats.md").maybeSingle();
   const scheduled = ep?.number === 1 && beatDoc ? beatsFor(beatDoc.content as string, round.episode_round ?? round.number) : [];
 

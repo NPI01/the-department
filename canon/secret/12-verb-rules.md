@@ -68,12 +68,28 @@ hatch), Vane north pasture (lights, no sound), St. Olaf's (the tower hums eleven
 at 0200), the cemetery (no frost on the 1921 row), the Prairie Meridian strip (a run
 without lights), cold storage (Ely counting at 2300).
 
+## Directors' votes and lobbying (v1.1)
+Each director holds a lean on each open motion (-1..1) in `facts` under
+`motion.<number>.stance.<slug>`, seeded from 07 (B-77-001: Hensley 1, Sloane 0.6,
+Armitage 0.5, Royce -1, Vale -0.8, Baines -0.5, Crane 0). `lobby <director>` in person:
+the direction is read from the order (against / oppose / block → against; else for). If
+the director has a price and the lobbyist holds any of the knowledge keys it names, the
+lean is set outright (Crane: evidence of money leaving without return; Baines: proof the
+night flights serve sampling he never signed). Otherwise the lean moves 0.25 toward the
+lobbyist's side. The director's note the next morning carries the engine's verdict. At
+the close, every member without a cast vote votes by lean (> 0.15 for, < -0.15 against,
+else abstain); only members' votes count; quorum is half the seats. Players vote with
+`VOTE B-77-001: FOR` only if they hold a seat.
+
+## Handing documents on
+`SEND <item> TO <name>` in any reply, or "Hand a copy on" in the Case File: a copy of the
+item goes into the other cabinet with a cover letter on the sender's paper; the original
+stays. Staff who are handed a document remember it.
+
 ## Open
-- NPC seat votes on B-77-001 are not yet cast from the sheets at close; lobbying records
-  obligation and the NPC's note but does not yet move a vote.
 - attend has no calendar; approve_corridors / clear_invoices / issue_statement are
   mitigation stubs with no further effect.
 - Asset originals are not yet tracked in `assets`; the objectives' `asset_held`
   predicates read the Case File for now.
 
-CHANGELOG: v1 verb rules, costs, the Episode 01 document and place index, pressure mitigation.
+CHANGELOG: v1 verb rules, costs, the Episode 01 document and place index, pressure mitigation. v1.1 directors' leans and lobbying, document transfer, goal-context documents (IS job and operator logs, batch authorizations, personnel roster, ORPHEUS roster).

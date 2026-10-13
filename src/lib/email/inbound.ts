@@ -34,6 +34,7 @@ export function parseGameAddress(address: string, domain: string): { slug: strin
 export type GrammarAct =
   | { kind: "command"; name: "directory" | "help" | "resign" }
   | { kind: "form_request"; form: string }
+  | { kind: "send"; item: string; to: string }
   | { kind: "select"; code: string }
   | { kind: "vote"; motion: string; choice: "for" | "against" | "abstain" }
   | { kind: "hold" }
@@ -82,6 +83,7 @@ export function parseGrammar(text: string): GrammarAct[] {
       for (const c of m[1].toUpperCase().split(/[^A-GX]+/).filter(Boolean)) acts.push({ kind: "select", code: c });
       continue;
     }
+    if ((m = line.match(/^(?:SEND|GIVE|FORWARD)\s+(?:A\s+COPY\s+OF\s+)?["\u201c]?(.+?)["\u201d]?\s+TO\s+(.+?)\.?$/i))) { acts.push({ kind: "send", item: m[1].trim(), to: m[2].trim() }); continue; }
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {
       const c = m[2].toUpperCase(); acts.push({ kind: "vote", motion: m[1].toUpperCase(), choice: c === "FOR" || c === "REMOVE" ? "for" : c === "ABSTAIN" ? "abstain" : "against" });
     } else if (/^(?:H\.?|HOLD(?:\s+POSITION)?)\s*$/i.test(line)) acts.push({ kind: "hold" });

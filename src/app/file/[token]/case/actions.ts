@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { characterForToken, currentRound, letterKey, type CaseNote } from "@/lib/game/case-file";
+import { sendDocumentCopy } from "@/lib/game/transfer";
 
 /* The player's notes. The file token is the only key (as for the personnel
    file), so every action resolves it to a character and touches only that
@@ -60,4 +61,16 @@ export async function deleteNote(token: string, id: string): Promise<{ error?: s
   if (!me) return { error: "This link is not valid." };
   await db.from("case_notes").delete().eq("id", id).eq("character_id", me.id);
   return {};
+}
+
+/* Hand a copy of an item to another character. The original stays; a cover letter goes with it. */
+export async function sendCopy(token: string, itemKey: string, toSlug: string, note: string): Promise<{ ok?: true; title?: string; error?: string }> {
+  const db = supabaseAdmin();
+  const me = await characterForToken(db, token);
+  if (!me) return { error: "This link is not valid." };
+  const { data: to } = await db.from("characters").select("id").eq("campaign_id", me.campaignId).eq("slug", toSlug).eq("status", "active").maybeSingle();
+  if (!to) return { error: "No one by that name." };
+  const round = await currentRound(db, me.campaignId);
+  const r = await sendDocumentCopy(db, { campaignId: me.campaignId, fromCharacterId: me.id, toCharacterId: to.id as string, itemSlug: itemKey, round, note: note.trim().slice(0, 600) || null });
+  return r.ok ? { ok: true, title: r.title } : { error: r.error };
 }

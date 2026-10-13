@@ -23,6 +23,8 @@ import { renderDirectoryLetter } from "@/lib/email/directory";
 import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
+import { castNpcVotes } from "@/lib/engine/governance";
+import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -173,6 +175,19 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
+      if (a.kind === "send") {
+        // SEND <item> TO <person>: a copy into their cabinet, with a cover letter. Free; not an order.
+        const { data: mine } = await db.from("case_items").select("slug, title").eq("character_id", c.from_character).eq("status", "held");
+        const want = a.item.toLowerCase();
+        const item = (mine ?? []).find((i) => i.slug === want) ?? (mine ?? []).find((i) => (i.title as string).toLowerCase().includes(want));
+        const { data: roster2 } = await db.from("characters").select("id, name, slug").eq("campaign_id", c.campaign_id).eq("status", "active").neq("id", c.from_character);
+        const key2 = surnameKey(a.to);
+        const who = (roster2 ?? []).find((x) => x.slug === key2 || surnameKey(x.name) === key2 || x.name.toLowerCase().includes(key2));
+        if (!item) ignored.push(`SEND ${a.item} — nothing in your Case File by that name`);
+        else if (!who) ignored.push(`SEND ${a.item} TO ${a.to} — no one in the directory by that name`);
+        else { const r = await sendDocumentCopy(db, { campaignId: c.campaign_id, fromCharacterId: c.from_character, toCharacterId: who.id, itemSlug: item.slug, round: round.number }); recorded.push(r.ok ? `SENT "${r.title}" to ${who.name}${r.already ? " (they already held a copy)" : ""}` : `SEND ${a.item} — ${r.error}`); }
+        continue;
+      }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
       if (a.kind === "select") {
         const opt = menu.find((o) => o.code === a.code);
@@ -297,7 +312,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -463,16 +478,23 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
     if (phase === "governance") {
-      const { data: motions } = await db.from("motions").select("id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
+      const { data: motions } = await db.from("motions").select("id, number, title, campaign_id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
       for (const m of motions ?? []) {
-        const { data: votes } = await db.from("votes").select("choice, weight").eq("motion_id", m.id);
-        const { count: seats } = await db.from("memberships").select("character_id", { count: "exact", head: true }).eq("organization_id", m.organization_id);
-        const forW = (votes ?? []).filter((v) => v.choice === "for").reduce((n, v) => n + Number(v.weight), 0);
-        const againstW = (votes ?? []).filter((v) => v.choice === "against").reduce((n, v) => n + Number(v.weight), 0);
+        // Directors who have not voted vote by their lean; only members' votes count; quorum is half the seats.
+        await castNpcVotes(db, m, round.number);
+        const { data: members } = await db.from("memberships").select("character_id").eq("organization_id", m.organization_id);
+        const memberIds = new Set((members ?? []).map((x) => x.character_id as string));
+        const { data: votes } = await db.from("votes").select("character_id, choice, weight").eq("motion_id", m.id);
+        const counted = (votes ?? []).filter((v) => memberIds.has(v.character_id as string));
+        const seats = memberIds.size;
+        const forW = counted.filter((v) => v.choice === "for").reduce((n, v) => n + Number(v.weight), 0);
+        const againstW = counted.filter((v) => v.choice === "against").reduce((n, v) => n + Number(v.weight), 0);
         const t = m.threshold as { method: string; fraction?: number };
-        const passed = t.method === "majority_of_seats" ? forW > (seats ?? 0) / 2 : t.method === "supermajority" ? forW >= (t.fraction ?? 0.67) * (forW + againstW) && forW > 0 : forW > againstW;
+        const quorum = counted.length >= Math.ceil(seats / 2);
+        const passed = quorum && (t.method === "majority_of_seats" ? forW > seats / 2 : t.method === "supermajority" ? forW >= (t.fraction ?? 0.67) * (forW + againstW) && forW > 0 : forW > againstW);
         await db.from("motions").update({ status: passed ? "passed" : "failed" }).eq("id", m.id);
-        await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "motion.closed", payload: { motion_id: m.id, passed, for: forW, against: againstW, seats }, idempotency_key: `motion:${m.id}:closed` });
+        const { data: everyone } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).not("player_id", "is", null);
+        await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "motion.closed", payload: { motion_id: m.id, number: m.number, title: m.title, passed, for: forW, against: againstW, seats, quorum, abstain: counted.filter((v) => v.choice === "abstain").length }, idempotency_key: `motion:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
       }
     }
     if (phase === "send") {

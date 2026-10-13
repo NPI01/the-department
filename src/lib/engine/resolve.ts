@@ -8,6 +8,7 @@ import { DOCUMENTS, PLACES, PRESSURE } from "./world/episode-01";
 import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
+import { applyLobby } from "./governance";
 
 export type Outcome = {
   kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "ruling";
@@ -154,13 +155,24 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
       return { ...base, kind: "conversation", summary: `${ctx.character.name} asked around at ${p.name}. ${p.ask ?? p.visit}`, learned: [`asked.${p.slug}`], noticed: p.restricted };
     }
     base.target = who.slug;
+    let lobbyNote = "";
+    if (verb === "lobby" && !ctx.dry) {
+      const direction: "for" | "against" = /\b(against|oppose|block|kill|vote no|no on)\b/i.test(text) ? "against" : "for";
+      const { data: motion } = await db.from("motions").select("id, number, organization_id").eq("campaign_id", ctx.campaignId).eq("status", "open").order("closes_round").limit(1).maybeSingle();
+      if (!motion) return ruled(`There is no motion open to lobby ${who.name} on. Units returned.`);
+      const { data: seat } = await db.from("memberships").select("character_id").eq("organization_id", motion.organization_id).eq("character_id", who.id).maybeSingle();
+      if (!seat) return ruled(`${who.name} holds no seat on the body deciding ${motion.number}. Units returned.`);
+      const r = await applyLobby(db, { campaignId: ctx.campaignId, motionNumber: motion.number as string, npcSlug: who.slug, npcId: who.id, lobbyist: { id: ctx.character.id, name: ctx.character.name }, direction, round: ctx.roundNo });
+      lobbyNote = ` (${direction}; ${r.flipped ? "persuaded: " : ""}${r.because})`;
+      base.learned.push(`lobbied.${who.slug}.${direction}`);
+    }
     if (!ctx.dry) {
       // The conversation happened; the person writes the note they would send the next morning (or declines in a line).
-      const { data: row } = await db.from("correspondence").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, direction: "inbound", message_id: newMessageId(), from_character: ctx.character.id, from_address: null, to_characters: [who.id], to_addresses: [gameMailbox().address], subject: verb === "lobby" ? `In person: ${ctx.character.name} on the motion` : `In person: ${text.slice(0, 60)}`, body_text: `[In person, ${gameDate(ctx.roundNo)}.] ${ctx.character.name} came to see ${who.name}${verb === "lobby" ? " about the motion before the Board, and asked for their vote" : ` and asked about: ${text}`}.`, trusted: true, raw: { letter_kind: "interview", verb, source: "order" } }).select("id").single();
+      const { data: row } = await db.from("correspondence").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, direction: "inbound", message_id: newMessageId(), from_character: ctx.character.id, from_address: null, to_characters: [who.id], to_addresses: [gameMailbox().address], subject: verb === "lobby" ? `In person: ${ctx.character.name} on the motion` : `In person: ${text.slice(0, 60)}`, body_text: `[In person, ${gameDate(ctx.roundNo)}.] ${ctx.character.name} came to see ${who.name}${verb === "lobby" ? ` about the motion before the Board, and asked for their vote${lobbyNote}` : ` and asked about: ${text}`}.`, trusted: true, raw: { letter_kind: "interview", verb, source: "order" } }).select("id").single();
       if (row) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: row.id, character_id: who.id }, run_after: new Date(Date.now() + 60_000).toISOString() });
       await db.from("relationships").upsert({ campaign_id: ctx.campaignId, from_character: who.id, to_character: ctx.character.id, obligation: 0.1, updated_at: new Date().toISOString() }, { onConflict: "from_character,to_character", ignoreDuplicates: true });
     }
-    return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
+    return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person${lobbyNote}. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
   }
   if (["submit_manifest", "approve_overtime", "reconcile_maps", "approve_corridors", "clear_invoices", "issue_statement"].includes(verb)) {
     const tier = PRESSURE.find((t) => t.mitigation?.verbs.includes(verb) && ctx.episodeRound >= t.rounds[0] && ctx.episodeRound <= t.rounds[1]);

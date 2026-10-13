@@ -28,12 +28,14 @@ async function Content({ params }: { params: PageProps<"/file/[token]/case">["pa
   const me = await characterForToken(db, token);
   if (!me) notFound();
   const file = await loadCaseFile(db, me);
+  const { data: others } = await db.from("characters").select("id, slug, name, title, player_id").eq("campaign_id", me.campaignId).eq("status", "active").neq("id", me.id).order("name");
+  const people = ((others ?? []) as { id: string; slug: string; name: string; title: string | null; player_id: string | null }[]).map((o) => ({ slug: o.slug, name: o.name, title: o.title, player: Boolean(o.player_id) }));
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
 <FileNav token={token} active="case" />
       <p className="text-xs uppercase tracking-[0.3em] text-red">{file.campaignTitle} · {me.name}</p>
-      <CaseFileView token={token} file={file} />
+      <CaseFileView token={token} file={file} people={people} />
       <p className="mt-16 border-t border-rule pt-4 text-xs text-ink-2">Your notes are yours alone. Nobody in the game reads them, and nothing in them is acted on. Anyone with this page&apos;s link can see it, so keep the link private.</p>
     </main>
   );

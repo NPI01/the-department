@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } f
 import { parseBlocks } from "@/lib/canon/markdown";
 import { inline } from "@/lib/canon/render";
 import { STATUS_LABEL, type CaseFile, type CaseItem, type CaseNote, type Drawer, type Grade } from "@/lib/game/case-file";
-import { addNote, deleteNote, editNote } from "./actions";
+import { addNote, deleteNote, editNote, sendCopy } from "./actions";
 
 /* Drawers and folders; an open item as a sheet of paper with the player's
    margin notes beside it; the Notebook of every note. The open item lives in
@@ -32,7 +32,9 @@ function Stamp({ grade, className = "" }: { grade: Grade; className?: string }) 
   return <span className={`display inline-block -rotate-3 border-2 px-1.5 py-px text-[11px] font-semibold tracking-[0.08em] ${tone} ${className}`}>{GRADE_LABEL[grade]}</span>;
 }
 
-export function CaseFileView({ token, file }: { token: string; file: CaseFile }) {
+export type Person = { slug: string; name: string; title: string | null; player: boolean };
+
+export function CaseFileView({ token, file, people = [] }: { token: string; file: CaseFile; people?: Person[] }) {
   const [notes, setNotes] = useState<CaseNote[]>(file.notes);
   // A server refresh brings a new notes array; adopt it.
   const [seen, setSeen] = useState(file.notes);
@@ -74,7 +76,7 @@ export function CaseFileView({ token, file }: { token: string; file: CaseFile })
 
   const item = open ? byKey.get(open) : undefined;
   if (view === "notebook") return <>{tabs}<Notebook token={token} notes={notes} setNotes={setNotes} byKey={byKey} go={go} /></>;
-  if (item) return <>{tabs}<ItemView token={token} item={item} items={file.items} notes={notes} setNotes={setNotes} byKey={byKey} go={go} close={close} /></>;
+  if (item) return <>{tabs}<ItemView people={people} token={token} item={item} items={file.items} notes={notes} setNotes={setNotes} byKey={byKey} go={go} close={close} /></>;
 
   const needle = q.trim().toLowerCase();
   const noteText = (k: string) => notes.filter((n) => n.itemKey === k).map((n) => `${n.body} ${n.quote ?? ""}`).join(" ");
@@ -213,9 +215,10 @@ function useQuoteHighlights(root: React.RefObject<HTMLElement | null>, quotes: s
   }, [root, quotes]);
 }
 
-function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close }: {
+function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close, people = [] }: {
   token: string; item: CaseItem; items: CaseItem[]; notes: CaseNote[]; setNotes: (f: (n: CaseNote[]) => CaseNote[]) => void;
   byKey: Map<string, CaseItem>; go: (h: string) => void; close: () => void;
+  people?: Person[];
 }) {
   const mine = notes.filter((n) => n.itemKey === i.key);
   const sheet = useRef<HTMLElement>(null);
@@ -283,6 +286,7 @@ function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close }: 
               <p className="mt-1.5 text-xs leading-relaxed text-ink-2">e.g. <code>EXAMINE {i.key}</code> or <code>FILE {i.key} WITH &lt;committee&gt;</code></p>
             </div>
           )}
+          {!gone && i.drawer !== "correspondence" && people.length > 0 && <SendCopy token={token} itemKey={i.key} people={people} />}
         </aside>
       </div>
     </>
@@ -386,6 +390,37 @@ function Notebook({ token, notes, setNotes, byKey, go }: {
       </div>
       {notes.length === 0 ? <p className="text-sm text-ink-2">No notes yet. Open any item in the cabinet to write in its margin.</p>
         : <div className="grid gap-3">{[...notes].reverse().map((n) => <NoteCard key={n.id} token={token} note={n} byKey={byKey} go={go} setNotes={setNotes} showItem />)}</div>}
+    </div>
+  );
+}
+
+
+/* ---------- handing a copy on ---------- */
+
+function SendCopy({ token, itemKey, people }: { token: string; itemKey: string; people: Person[] }) {
+  const [to, setTo] = useState("");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
+  const [pending, start] = useTransition();
+  const send = () => start(async () => {
+    setMsg("");
+    const r = await sendCopy(token, itemKey, to, note);
+    setMsg(r.ok ? `Sent. A copy of "${r.title}" is in their cabinet, with your note as a cover letter.` : r.error ?? "Something went wrong.");
+    if (r.ok) { setTo(""); setNote(""); }
+  });
+  const cohort = people.filter((p) => p.player), staff = people.filter((p) => !p.player);
+  return (
+    <div>
+      <h3 className="display mb-2 text-base font-medium tracking-[0.06em]">Hand a copy on</h3>
+      <p className="text-xs leading-relaxed text-ink-2">A copy goes into their cabinet with a cover letter from you. The original stays here. Staff remember what they are handed.</p>
+      <select value={to} onChange={(e) => setTo(e.target.value)} className="mt-2 w-full border border-rule bg-paper-2 px-2 py-1.5 text-xs">
+        <option value="">Choose someone…</option>
+        {cohort.length > 0 && <optgroup label="Your cohort">{cohort.map((p) => <option key={p.slug} value={p.slug}>{p.name}{p.title ? `, ${p.title}` : ""}</option>)}</optgroup>}
+        <optgroup label="Staff and others">{staff.map((p) => <option key={p.slug} value={p.slug}>{p.name}{p.title ? `, ${p.title}` : ""}</option>)}</optgroup>
+      </select>
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="A line for the cover letter (optional)" className="type mt-2 w-full border border-rule bg-paper-2 px-2 py-1.5 text-xs" />
+      <button type="button" onClick={send} disabled={pending || !to} className="mt-2 bg-ink px-3.5 py-2 text-[11px] uppercase tracking-[0.2em] text-paper hover:bg-red disabled:opacity-50">{pending ? "Sending…" : "Send a copy"}</button>
+      {msg && <p className="mt-2 text-xs leading-relaxed">{msg}</p>}
     </div>
   );
 }

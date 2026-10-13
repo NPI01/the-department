@@ -10,6 +10,7 @@ import { FileNav } from "./file-nav";
 import { BIO_FIELDS, bioFrom, particulars } from "@/lib/game/personnel";
 import { OfficeCalendar } from "./calendar";
 import { goalsFor, scoreOf, standings } from "@/lib/game/goals";
+import { GOAL_BRIEFS } from "@/lib/game/goal-briefs";
 import { saveBio } from "./actions";
 
 /* A player's personnel file, reached by the private link in every letter the
@@ -109,6 +110,18 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
                 <p className={`type mt-3 text-xl leading-snug ${g.status === "failed" ? "line-through decoration-red/60" : ""}`}>{g.text}</p>
                 <p className="mt-3 text-sm text-ink-2">{g.deadline ? `Due ${g.deadline}. ` : ""}{g.assignedRound === 1 && g === goals[0] ? `Set by ${p.supervisor ? p.supervisor.name : "your supervisor"} in your first memo.` : g.assignedRound ? `Assigned in Round ${g.assignedRound}.` : ""}</p>
                 {g.note && <p className="mt-2 border-l-2 border-red pl-3 text-sm">{g.note}</p>}
+                {g.goalKey && GOAL_BRIEFS[g.goalKey] && (
+                  <details className="group mt-4 border-t border-rule pt-3">
+                    <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.25em] text-red hover:underline">What this means <span className="inline-block transition-transform group-open:rotate-90">→</span></summary>
+                    <div className="mt-3 space-y-3 text-sm leading-relaxed">
+                      <p>{GOAL_BRIEFS[g.goalKey].what}</p>
+                      <p><span className="text-[10px] uppercase tracking-[0.2em] text-ink-2">What you already know · </span>{GOAL_BRIEFS[g.goalKey].known}</p>
+                      <div><p className="text-[10px] uppercase tracking-[0.2em] text-ink-2">Where to look</p><ul className="mt-1 list-disc space-y-1 pl-5">{GOAL_BRIEFS[g.goalKey].leads.map((l, i) => <li key={i}>{l}</li>)}</ul></div>
+                      <p><span className="text-[10px] uppercase tracking-[0.2em] text-ink-2">What would settle it · </span>{GOAL_BRIEFS[g.goalKey].proof}</p>
+                      <p className="text-xs text-ink-2">Documents you obtain go to your Case File. You can hand copies to colleagues from there, or by replying <code>SEND &lt;item&gt; TO &lt;name&gt;</code> to any Department mail.</p>
+                    </div>
+                  </details>
+                )}
               </article>
             ))}
           </div>
