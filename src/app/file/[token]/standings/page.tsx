@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { characterForToken } from "@/lib/game/case-file";
 import { standings } from "@/lib/game/goals";
 import { PublicShell } from "../../../_public-shell";
+import { FileNav } from "../file-nav";
 
 /* The season standings: every employee in the cohort by points from met
    Personal Goals. Names and points only; what anyone's goals are stays private. */
@@ -36,7 +36,7 @@ async function Content({ params }: { params: PageProps<"/file/[token]/standings"
   const div = new Map((divisions ?? []).map((d) => [d.id as string, d.slug === "dsrd" ? "Executive Office" : (d.name as string)]));
 
   return (
-    <PublicShell kicker={`Season standings · ${campaign?.title ?? "Royce Industries"}`} title="The Board">
+    <PublicShell nav={<FileNav token={token} active="standings" />} kicker={`Season standings · ${campaign?.title ?? "Royce Industries"}`} title="The Board">
       <p className="text-sm text-ink-2">Points from Personal Goals met, for everyone in your cohort. Goals themselves are confidential; only the totals are posted. The season&apos;s winner is whoever stands first when it ends.</p>
       <div className="mt-8 border-2 border-ink bg-paper-2 shadow-[6px_6px_0_0_var(--ink)]">
         <div className="grid grid-cols-[3rem_1fr_5rem] border-b-2 border-ink bg-ink px-4 py-2 text-[10px] uppercase tracking-[0.3em] text-paper">
@@ -53,7 +53,6 @@ async function Content({ params }: { params: PageProps<"/file/[token]/standings"
           </div>
         )) : <p className="px-4 py-6 text-sm text-ink-2">No one is on the board yet.</p>}
       </div>
-      <p className="mt-8 text-sm"><Link href={`/file/${token}`} className="underline hover:text-red">← Your personnel file</Link></p>
     </PublicShell>
   );
 }

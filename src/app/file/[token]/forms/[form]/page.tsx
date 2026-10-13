@@ -7,6 +7,7 @@ import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { characterForToken } from "@/lib/game/case-file";
 import { FORMS } from "@/lib/engine/forms";
 import { submitForm } from "./actions";
+import { FileNav } from "../../file-nav";
 import { bioFrom, longDate, particulars, roundDate } from "@/lib/game/personnel";
 
 /* A company form, hosted. Reached from the letter that required it (the
@@ -51,10 +52,7 @@ async function Content({ params, searchParams }: { params: Params; searchParams:
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6 sm:py-16">
-      <nav className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink pb-3 text-xs uppercase tracking-[0.25em]">
-        <Link href={`/file/${token}`} className="hover:text-red">← Your personnel file</Link>
-        <Link href={`/file/${token}/case`} className="hover:text-red">Case File</Link>
-      </nav>
+<FileNav token={token} />
 
       {filed && (
         <div className="mb-8 border-2 border-red bg-paper-2 p-4 text-sm">

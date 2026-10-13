@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { gameMailbox } from "@/lib/email/resend";
 import { PublicShell } from "../../_public-shell";
+import { FileNav } from "./file-nav";
 import { BIO_FIELDS, bioFrom, particulars } from "@/lib/game/personnel";
 import { OfficeCalendar } from "./calendar";
 import { goalsFor, scoreOf, standings } from "@/lib/game/goals";
@@ -49,14 +50,13 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
     );
   }
 
-  const [p, { data: campaign }, { data: divisions }, { data: resources }, { data: assets }, { data: memberships }, { data: staff }] = await Promise.all([
+  const [p, { data: campaign }, { data: divisions }, { data: resources }, { data: assets }, { data: memberships }] = await Promise.all([
     particulars(db, me),
     db.from("campaigns").select("title").eq("id", me.campaign_id).maybeSingle(),
     db.from("divisions").select("id, name, slug").eq("campaign_id", me.campaign_id),
     db.from("resources").select("kind, balance, cap").eq("character_id", me.id),
     db.from("assets").select("name, kind, tier").eq("holder_id", me.id).order("created_at"),
     db.from("memberships").select("role, organizations(name)").eq("character_id", me.id),
-    db.from("characters").select("id, slug, name, title, division_id").eq("campaign_id", me.campaign_id).eq("status", "active").not("division_id", "is", null).order("name"),
   ]);
   const bio = bioFrom(me.sheet, me.public_profile);
   const [goals, table] = await Promise.all([goalsFor(db, me.id), standings(db, me.campaign_id)]);
@@ -65,8 +65,6 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
   // DSRD is not on the org chart new hires receive; its people appear under the Executive Office.
   const div = new Map(((divisions ?? []) as { id: string; name: string; slug: string }[]).map((d) => [d.id, d.slug === "dsrd" ? "Executive Office" : d.name]));
   const au = ((resources ?? []) as { kind: string; balance: number; cap: number | null }[]).find((r) => r.kind === "au");
-  const directory = ((staff ?? []) as { id: string; slug: string; name: string; title: string | null; division_id: string }[]);
-  const byDept = [...new Set(directory.map((s) => div.get(s.division_id) ?? "Other"))].sort();
   const mailbox = gameMailbox().address;
 
   const row = (k: string, v: React.ReactNode) => (
@@ -76,7 +74,7 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
   );
 
   return (
-    <PublicShell kicker={`Personnel & Administration · ${campaign?.title ?? "Royce Industries"}`} title={me.name}>
+    <PublicShell nav={<FileNav token={token} active="file" />} kicker={`Personnel & Administration · ${campaign?.title ?? "Royce Industries"}`} title={me.name}>
       <section>
         {row("Badge No.", <span className="font-mono">{p.badge}</span>)}
         {row("Title", me.title ?? "—")}
@@ -157,23 +155,10 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
         </ul>
       ) : <p className="mt-3 text-sm text-ink-2">Nothing on file yet.</p>}
 
-      <h2 className="display mt-12 text-2xl">Staff directory</h2>
-      <p className="mt-2 text-sm text-ink-2">To answer a letter, reply to it. To write to anyone here, send a new message to <code>{mailbox}</code> with <code>TO: their name</code> as the first line. Always write from the address your letters arrive at.</p>
-      <div className="mt-4 space-y-6">
-        {byDept.map((d) => (
-          <div key={d}>
-            <p className="text-xs uppercase tracking-[0.25em] text-red">{d}</p>
-            <ul className="mt-2 space-y-1 text-sm">
-              {directory.filter((s) => (div.get(s.division_id) ?? "Other") === d).map((s) => (
-                <li key={s.id} className="grid gap-x-4 sm:grid-cols-[1fr_1fr]">
-                  <span>{s.name}{s.id === me.id && <span className="text-xs text-red"> (you)</span>}<span className="text-ink-2">{s.title ? `, ${s.title}` : ""}</span></span>
-                  <code className="text-xs text-ink-2">TO: {s.name}</code>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+      <Link href={`/file/${token}/directory`} className="mt-12 flex items-center justify-between gap-4 border-2 border-ink bg-paper-2 px-5 py-4 hover:border-red hover:text-red">
+        <span><span className="display block text-3xl">Personnel Directory</span><span className="mt-1 block text-sm text-ink-2">Everyone you can write to, by department, and how to reach them.</span></span>
+        <span aria-hidden className="text-2xl">→</span>
+      </Link>
       <p className="mt-10 text-xs text-ink-2">This page is private to you. Anyone with the link can read it, so don&apos;t share the link.</p>
     </PublicShell>
   );
