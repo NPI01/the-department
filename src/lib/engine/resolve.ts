@@ -32,12 +32,12 @@ function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.len
 
 function findDocument(text: string): DocumentDef | null {
   const t = norm(text); let best: { d: DocumentDef; n: number } | null = null;
-  for (const d of DOCUMENTS) for (const a of d.aliases) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { d, n }; }
+  for (const d of DOCUMENTS) for (const a of d.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { d, n }; }
   return best?.d ?? null;
 }
 function findPlace(text: string): PlaceDef | null {
   const t = norm(text); let best: { p: PlaceDef; n: number } | null = null;
-  for (const p of PLACES) for (const a of p.aliases) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { p, n }; }
+  for (const p of PLACES) for (const a of p.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { p, n }; }
   return best?.p ?? null;
 }
 type Person = { id: string; slug: string; name: string; division: string | null; player: boolean };
@@ -144,7 +144,15 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
   }
   if (verb === "interview" || verb === "lobby") {
     const who = findPerson(text, people.filter((p) => !p.player));
-    if (!who) return ruled(`The clerk could not tell who "${text}" names. Units returned. Use a surname from the directory.`);
+    if (!who) {
+      // Not a listed person: asking around at a place (a guard, a clerk, whoever is there).
+      const p = findPlace(text);
+      if (!p) return ruled(`The clerk could not tell who "${text}" names. Units returned. Use a surname from the directory, or name a place to ask around.`);
+      base.target = p.slug;
+      if (p.restricted) await notify(db, ctx, `${ctx.character.name} was asking questions at ${p.name}, Round ${ctx.roundNo}.`);
+      await learn(db, ctx, [`asked.${p.slug}`], "told", null);
+      return { ...base, kind: "conversation", summary: `${ctx.character.name} asked around at ${p.name}. ${p.ask ?? p.visit}`, learned: [`asked.${p.slug}`], noticed: p.restricted };
+    }
     base.target = who.slug;
     if (!ctx.dry) {
       // The conversation happened; the person writes the note they would send the next morning (or declines in a line).
