@@ -146,6 +146,14 @@ export const DOCUMENTS: DocumentDef[] = [
     body: "**PROJECT ORPHEUS — ACCESS ROSTER (restricted)**\n\nFragments: (1) Adv. Materials lab, E. Thorne; (2) Applied Physics lab, A. Kovic; (3) held by county authority, signature ________.\nAccess: Vale, Kovic, E. Thorne; biological handling requires Ely countersignature. Calibration scheduled: field, Round of 18 October.",
   },
   {
+    slug: "sayer-letter-with-royce-layout", title: "Building layout, hand-drawn (enclosed by M. Sayer)", kind: "diagram",
+    aliases: ["sayer's layout", "the layout", "building layout", "sayer's drawing", "the drawing sayer sent", "the tracing"],
+    holder: "sayer", access: { clearance: 5, via: "sayer" },
+    grants: ["layout.exists"], wrongDetail: { text: "the hand is draughtsman-trained and the note 'B9 — after the second pour' uses the company's own pour numbering, which no outsider would know", grants: "layout.draughtsman_hand_noticed" },
+    from: "unknown", written: "October 1977",
+    body: "A pencil plan on tracing paper, no title. Nine rooms around a central shaft, the shaft marked with the ring-and-bar symbol. The hand is neat, draughtsman-trained. In the corner, very small: *B9 — after the second pour.*",
+  },
+  {
     slug: "vetch-page", title: "A single page in a stranger's hand (Marsh's old office)", kind: "document",
     aliases: ["the page", "marsh's drawer", "loose page"],
     holder: "marsh-office", access: { clearance: 1 },

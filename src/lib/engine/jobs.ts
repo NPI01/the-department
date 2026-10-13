@@ -24,6 +24,7 @@ import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { episodeOf } from "@/lib/engine/world";
+import { judgeGoals } from "@/lib/game/goal-predicates";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
@@ -482,6 +483,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
       await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
+      // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.
+      const perEpisode = Number(await rule(db, round.campaign_id, "episode.rounds", 14));
+      await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
       // Income: every active player character draws the round's Action Units, to the cap.
       const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
