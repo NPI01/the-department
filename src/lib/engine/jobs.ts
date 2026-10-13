@@ -22,6 +22,7 @@ import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { renderDirectoryLetter } from "@/lib/email/directory";
 import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
+import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -370,7 +371,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: filedEv } = await db.from("events").select("payload").eq("campaign_id", c.campaign_id).eq("kind", "form.filed").contains("payload", { character: pc.id });
     for (const f of filedEv ?? []) { const v = f.payload as { form: string; index: string; missing?: number[] }; memory.filed!.push(`Form ${v.form} (${v.index})${v.missing?.length ? ", incomplete" : ""}`); }
     const thisForm = parseFormSubmission(c.body_text as string);
-    const formNote = thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
+    const { data: cRaw } = await db.from("correspondence").select("raw").eq("id", id).single();
+    const inPerson = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind === "interview";
+    const formNote = inPerson
+      ? `this was not a letter: the writer came to see you in person last night and asked what the line above says. Write the short note you would send them the next morning about that conversation: what you were willing to say to their face, and nothing you would not put on paper. If you would send nothing, write one line saying so.`
+      : thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
     for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
       if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
       else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
@@ -399,7 +404,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const key = `phase:${roundId}:${phase}`;
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
     if (dup) return;
-    const { data: round } = await db.from("rounds").select("campaign_id, number").eq("id", roundId).single();
+    const { data: round } = await db.from("rounds").select("campaign_id, number, episode_round").eq("id", roundId).single();
     if (!round) throw new Error("round missing");
     if (phase === "validate") {
       // Missed-turn defaults: every active player character without a packet gets mode=missed.
@@ -423,11 +428,32 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
     if (phase === "strategic") {
-      // Until the Rules Lawyer's verb rules land, a funded order is carried out as given and the morning narrates it.
-      const { data: packets } = await db.from("order_packets").select("id").eq("round_id", roundId);
-      for (const pk of packets ?? []) await db.from("orders").update({ status: "resolved", ruling: "carried out; see the morning dispatch" }).eq("packet_id", pk.id).eq("status", "reserved");
+      // Each funded order meets the verb rules; the outcome is written down for the morning.
+      const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, divisions(slug))").eq("round_id", roundId);
+      for (const pk of packets ?? []) {
+        const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
+        if (!chRaw) continue;
+        const division = (Array.isArray(chRaw.divisions) ? chRaw.divisions[0]?.slug : chRaw.divisions?.slug) ?? null;
+        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title } };
+        const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").order("seq");
+        let refund = 0;
+        for (const o of orders ?? []) {
+          try {
+            const out = await resolveOrder(db, ctx, { id: o.id, verb: o.verb, args: o.args as Record<string, unknown> });
+            refund += out.refund;
+            await db.from("orders").update({ status: "resolved", ruling: out.summary, args: { ...(o.args as object), outcome: out } }).eq("id", o.id);
+            await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "order.resolved", payload: { order_id: o.id, verb: out.verb, kind: out.kind, target: out.target, learned: out.learned, refund: out.refund }, idempotency_key: `order:${o.id}:resolved`, visible_to: [chRaw.id] });
+          } catch (e) {
+            await db.from("orders").update({ status: "resolved", ruling: `The clerk could not carry this out (${(e as Error).message.slice(0, 80)}); units returned.`, args: { ...(o.args as object), outcome: { kind: "ruling", summary: "could not be carried out; units returned", refund: Number((o.args as { cost?: number }).cost ?? 5), learned: [], verb: o.verb, target: null } } }).eq("id", o.id);
+            refund += Number((o.args as { cost?: number }).cost ?? 5);
+          }
+        }
+        if (refund) { const { data: au } = await db.from("resources").select("balance").eq("character_id", chRaw.id).eq("kind", "au").maybeSingle(); await db.from("resources").upsert({ character_id: chRaw.id, kind: "au", balance: Number(au?.balance ?? 0) + refund }, { onConflict: "character_id,kind" }); }
+      }
     }
     if (phase === "world") {
+      // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
+      await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number);
       // Income: every active player character draws the round's Action Units, to the cap.
       const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);

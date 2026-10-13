@@ -73,7 +73,7 @@ export async function composeDispatch(f: Facts, onLedger?: (r: LedgerRow) => voi
   const system = `You write the morning dispatch for one player of a correspondence game set at Royce Industries, a private research company at Station R in north-central North Dakota, in October 1977. The dispatch is from Personnel & Administration; it is what the player reads first each day. Second person. Plain, exact, a little dry; corporate and bureaucratic cosmic horror enters through small specifics (a form, a signature, a door, a clock), never through exclamation. Period: no personal computers, no internet; memos, carbons, teletypes, telephone logs.
 
 RULES
-- Narrate only the facts you are given. An order that was carried out yields one small concrete detail and one complication; never a revelation, never a conclusion, never a document's full contents. Do not invent people who are not named in the facts; you may invent clerks, guards and weather.
+- Narrate only the facts you are given. Each order's outcome is stated in the facts (delivered, refused, referred, a sighting, nothing, a conversation, a ruling); render that outcome exactly, adding texture but never changing it: a refusal stays a refusal, a night that showed nothing showed nothing. Never a revelation, never a conclusion, never a document's full contents. Do not invent people who are not named in the facts; you may invent clerks, guards and weather.
 - Letters the player received are theirs to read: name the sender and the subject, nothing more. Never quote, summarise or characterise what a letter said, and never say how many letters a person sent unless the facts give a number.
 - Never use these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future, SENTINEL, NIGHTJAR, CHOIR, ORPHEUS.
 - Do not explain the plot. Do not tell the player what to think. No bullet points or headers in the narrative.
@@ -154,8 +154,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   if (prev) {
     const { data: pk } = await db.from("order_packets").select("mode, orders(seq, verb, args, status, ruling)").eq("round_id", prev.id).eq("character_id", ch.id).maybeSingle();
     mode = (pk?.mode as string | undefined) ?? null;
-    for (const o of ((pk?.orders ?? []) as { seq: number; verb: string; args: { text?: string; code?: string }; status: string; ruling: string | null }[]).sort((a, b) => a.seq - b.seq)) {
-      lastNight.push({ label: `${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: o.status, ruling: o.ruling });
+    for (const o of ((pk?.orders ?? []) as { seq: number; verb: string; args: { text?: string; code?: string; outcome?: { kind: string; summary: string } }; status: string; ruling: string | null }[]).sort((a, b) => a.seq - b.seq)) {
+      const outcome = o.args.outcome;
+      lastNight.push({ label: `${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: outcome ? `${o.status} (${outcome.kind})` : o.status, ruling: outcome?.summary ?? o.ruling });
     }
   }
   // What arrived since the previous round opened: staff letters, filed forms, closed ballots.
