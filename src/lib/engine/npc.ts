@@ -97,7 +97,9 @@ export type StaffReply = { subject: string; body: string; shared: string[]; want
 /* How much a staff member lets slip, by how long the writer has been here.
    Round 1 is the writer's first Monday. The arc opens the ground in Episode 4;
    the first three episodes are suspicion, paperwork and one oddity at a time. */
-export function pacing(round: number): string {
+export function pacing(round: number, outsider = false): string {
+  if (outsider && round <= 3) return `DISCLOSURE, THIS WEEK. The writer is a Royce newcomer you have never met, and Royce people have given you reasons to be careful. Answer short. You may say what you have or have not heard, whether anyone else has called, what the papers print, and what you think of the company in general; that is your business and nobody's secret. You do not volunteer what you yourself have seen, you do not hand over anything you hold, you do not name local people, and you offer no theory about what anything was. One small local detail of your own day is welcome. If you want something from them, say so plainly.`;
+  if (outsider) return `DISCLOSURE. You know this writer a little now. You may trade what you have heard for what they know, say what you have seen if it serves you, and name people you trust. You still offer no theory about what anything was, and you still never use the forbidden words.`;
   if (round <= 3) return `DISCLOSURE, THIS WEEK. The writer started this week; you do not know them and have no reason to trust them. Keep to your job: procedures, forms, schedules, who to see, what is and is not your department. You may let one small oddity show (a form that asks a strange question, a door that is always locked, a name typed over on a roster, a colleague who stopped coming to the cafeteria) but you do not explain it and you do not connect it to anything else. Do not raise the newspapers' stories (the cult, the cattle, the helicopters, the lights) yourself; if the writer raises them, answer as an employee would: take the report, play it down, or refer it on, without speculation and without a theory. Do not accuse, suspect or name colleagues. Do not say what Security, Research or the Department is looking into. You never report what any log, camera, sensor, radar or file showed; if you said you would look into something, it is in hand, or there is nothing to report yet. No threats of dismissal or revocation over a first letter. You do not judge whether what the writer saw was plausible or improbable, and you do not say what any record does or does not show; you take the report. Your private notes above are for how you feel, not for what you say.
 THE MEASURE of a first-week reply, in the abstract: acknowledge what was reported; decline, briefly and without reasons, anything that is not the writer's business; ask for one routine thing in a form your office would really use; let one small, ordinary oddity from your own day show, invented fresh each time and never explained; end with how you expect to be written to. Do not borrow phrasing from these instructions; write in your own words.`;
   if (round <= 7) return `DISCLOSURE, SECOND WEEK. The writer has been here a week. You may acknowledge that people talk and that the papers print things, without endorsing any of it. You may ask one pointed question of your own. You may give one real crumb from your own work if the writer has earned it. Still no theories, no naming of suspects, no description of what any department is investigating.`;
@@ -146,12 +148,12 @@ export async function reviewDraft(draft: string, input: ReplyInput, temperature 
   const system = `You are the Skeptic, the continuity editor for a 1977 corporate-intrigue correspondence game played by email. A staff character has drafted a reply to a player's letter. Your only job is pacing: does the draft give away more than this character would at this point in the game?
 
 THE RULE FOR THIS ROUND
-${pacing(input.round)}
+${pacing(input.round, input.dossier.outsider)}
 
 FAIL the draft only for one of these:
 1. It offers a theory about what a specific event really was or who is behind it, or connects separate events (a sighting and a disappearance, a rumor and a department). Being suspicious of the writer, telling them to keep quiet, or a general opinion about people or the company ("the company men fly where they please") is not a theory.
 2. It names, accuses or casts suspicion on a specific colleague before the rule above allows it.
-3. In the first week, it reports findings: what logs, sensors, cameras or files showed, or what Security or Research has concluded.
+3. A Royce employee, in the first week, reports findings: what logs, sensors, cameras or files showed, or what Security or Research has concluded. (An outsider saying what they have or have not heard, or whether anyone called, is not a finding.)
 4. It uses technology that did not exist in 1977 (computers on desks, email, mobile phones, video recording as routine).
 
 Do not fail a draft for tone, formality, word choice, length, bureaucratic jargon, demands, forms, deadlines, repeating something the character said before, or small invented details about the character's job. Those are the character's business. When in doubt, PASS.
@@ -212,7 +214,7 @@ RULES
 - No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").${d.outsider ? "\n- You are not staff. Do not use Royce forms, Royce titles for yourself, or office language. Royce people are 'the company' or 'your outfit'." : ""}
 
 LIMITS FOR THIS POINT IN THE GAME (these override everything above)
-${pacing(input.round)}${input.round <= 3 ? `
+${pacing(input.round, d.outsider)}${input.round <= 3 && !d.outsider ? `
 Words you do not use this week unless the writer used them first: cult, ritual, occult, conspiracy, cover-up, disinformation. Words you use only to refuse, never to report: surveillance, sensor, log, camera, footage, radar, record, manifest, investigation, suspect, anomaly. If you must refer to a record, call it "the file" or "my notes" and say nothing of what is in it.` : ""}
 
 FORMAT. Write the letter as plain text. Then, on its own line, write exactly three tildes: ~~~
@@ -263,7 +265,7 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     else {
       const bad = leaks(draft.body, input.letter.body, input.round);
       if (bad.length) { guarded = true; reasons.push(`uses words you must not: ${bad.join(", ")}`); }
-      const found = input.round <= 3 ? findings(draft.body) : null;
+      const found = input.round <= 3 && !d.outsider ? findings(draft.body) : null;
       if (found) reasons.push(`reports what a record showed: "${found}"; this week you only take the report`);
       if (!reasons.length && input.review !== false) {
         // The editor is strict and sometimes wrong; a draft is rejected only when two reads agree.
