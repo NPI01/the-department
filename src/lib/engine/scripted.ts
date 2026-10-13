@@ -4,7 +4,8 @@
    recipient. Called at the morning before the dispatches are written, so the
    dispatch can list what came. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SCHEDULED, type Route } from "./world/episode-01-mail";
+import { type Route } from "./world/episode-01-mail";
+import { scheduledFor } from "./world";
 import { newMessageId } from "@/lib/email/resend";
 
 type PC = { id: string; slug: string; name: string; division: string | null; email: string | null; created_at: string; goal_key: string | null };
@@ -26,7 +27,8 @@ async function recipients(db: SupabaseClient, campaignId: string, route: Route, 
 }
 
 export async function deliverScheduledMail(db: SupabaseClient, campaignId: string, round: { id: string; number: number; episodeRound: number; episodeNumber: number }): Promise<{ delivered: number }> {
-  if (round.episodeNumber !== 1) return { delivered: 0 };
+  const items = scheduledFor(round.episodeNumber);
+  if (!items.length) return { delivered: 0 };
   const { data: chars } = await db.from("characters").select("id, slug, name, created_at, goal_key, divisions(slug), players(email)").eq("campaign_id", campaignId).eq("status", "active").not("player_id", "is", null);
   const pcs: PC[] = (chars ?? []).map((c) => ({ id: c.id as string, slug: c.slug as string, name: c.name as string, created_at: c.created_at as string, goal_key: (c.goal_key as string | null) ?? null, division: ((Array.isArray(c.divisions) ? c.divisions[0] : c.divisions) as { slug: string } | null)?.slug ?? null, email: ((Array.isArray(c.players) ? c.players[0] : c.players) as { email: string } | null)?.email ?? null }));
   const { data: npcs } = await db.from("characters").select("id, slug").eq("campaign_id", campaignId).is("player_id", null);
@@ -36,7 +38,7 @@ export async function deliverScheduledMail(db: SupabaseClient, campaignId: strin
   for (const e of done ?? []) { const v = e.payload as { key: string; character: string }; delivered.set(v.key, [...(delivered.get(v.key) ?? []), v.character]); }
   let n = 0;
   // Everything due on or before today, in order, so a late joiner still gets the pack.
-  for (const item of SCHEDULED.filter((i) => i.round <= round.episodeRound).sort((a, b) => a.round - b.round)) {
+  for (const item of items.filter((i) => i.round <= round.episodeRound).sort((a, b) => a.round - b.round)) {
     const to = await recipients(db, campaignId, item.route, pcs, delivered);
     for (const pc of to) {
       if ((delivered.get(item.key) ?? []).includes(pc.id)) continue;

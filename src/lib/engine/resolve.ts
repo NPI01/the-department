@@ -4,7 +4,7 @@
    in the Case File, knowledge rows, a note in Security's memory, a refund.
    The outcome summary is for the morning narrator and is player-safe. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { DOCUMENTS, PLACES, PRESSURE } from "./world/episode-01";
+import { documentsFor, placesFor, pressureFor, episodeOf } from "./world";
 import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
@@ -21,7 +21,7 @@ export type Outcome = {
 };
 
 export type Ctx = {
-  campaignId: string; roundId: string; roundNo: number; episodeRound: number;
+  campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
   character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null };
   dry?: boolean;
 };
@@ -31,14 +31,14 @@ export const VERB_COST: Record<string, number> = { request_files: 6, interview: 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
 
-function findDocument(text: string): DocumentDef | null {
+function findDocument(text: string, episode = 1): DocumentDef | null {
   const t = norm(text); let best: { d: DocumentDef; n: number } | null = null;
-  for (const d of DOCUMENTS) for (const a of d.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { d, n }; }
+  for (const d of documentsFor(episode)) for (const a of d.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { d, n }; }
   return best?.d ?? null;
 }
-function findPlace(text: string): PlaceDef | null {
+function findPlace(text: string, episode = 1): PlaceDef | null {
   const t = norm(text); let best: { p: PlaceDef; n: number } | null = null;
-  for (const p of PLACES) for (const a of p.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { p, n }; }
+  for (const p of placesFor(episode)) for (const a of p.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { p, n }; }
   return best?.p ?? null;
 }
 type Person = { id: string; slug: string; name: string; division: string | null; player: boolean };
@@ -60,7 +60,8 @@ function allowed(a: Access | undefined, c: Ctx["character"]): boolean {
 export function inferVerb(text: string): { verb: string; target: string } {
   const t = norm(text);
   const rules: [RegExp, string][] = [
-    [/\b(manifest|submit a manifest|vehicle manifest)\b/, "submit_manifest"], [/\b(overtime|coverage)\b/, "approve_overtime"], [/\b(reconcile|coordinates)\b/, "reconcile_maps"],
+    [/\b(manifest|submit a manifest|vehicle manifest|sign-out|sign out log)\b/, "submit_manifest"], [/\b(overtime|coverage)\b/, "approve_overtime"], [/\b(reconcile|coordinates)\b/, "reconcile_maps"],
+    [/\b(statement to the county|issue a statement|press statement|statement to the press|official statement)\b/, "issue_statement"], [/\b(clear the invoices|clear invoices|pay the invoices|settle the invoices)\b/, "clear_invoices"], [/\b(approve the corridors?|flight corridors?)\b/, "approve_corridors"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker)\b/, "search"],
@@ -86,7 +87,7 @@ async function notify(db: SupabaseClient, ctx: Ctx, text: string) {
 }
 async function deliver(db: SupabaseClient, ctx: Ctx, d: DocumentDef, how: string): Promise<string> {
   const slug = `${d.slug}`;
-  if (!ctx.dry) await db.from("case_items").upsert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug, kind: d.kind === "map" ? "map" : d.kind === "letter" ? "letter" : d.kind === "memo" ? "memo" : d.kind === "report" ? "report" : "document", drawer: d.kind === "map" ? "maps" : "documents", title: d.title, from_label: d.from ?? null, written_label: d.written ?? null, body: d.body, round_received: ctx.roundNo, how_obtained: how, copy_note: "A copy; the original stays where it was.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
+  if (!ctx.dry) await db.from("case_items").upsert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug, kind: d.kind === "map" ? "map" : d.kind === "letter" ? "letter" : d.kind === "memo" ? "memo" : d.kind === "report" ? "report" : d.kind === "object" ? "object" : "document", drawer: d.kind === "map" ? "maps" : "documents", title: d.title, from_label: d.from ?? null, written_label: d.written ?? null, body: d.body, round_received: ctx.roundNo, how_obtained: how, copy_note: "A copy; the original stays where it was.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
   await learn(db, ctx, d.grants, "document", null);
   return slug;
 }
@@ -99,10 +100,11 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
   const { data: roster } = await db.from("characters").select("id, slug, name, player_id, divisions(slug)").eq("campaign_id", ctx.campaignId).eq("status", "active");
   const people: Person[] = (roster ?? []).map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, division: ((Array.isArray(r.divisions) ? r.divisions[0] : r.divisions) as { slug: string } | null)?.slug ?? null, player: Boolean(r.player_id) }));
   const paid = Number(order.args.cost ?? 5);
+  const episode = ctx.episode ?? episodeOf(ctx.roundNo);
   const ruled = (summary: string): Outcome => ({ ...base, kind: "ruling", summary, refund: paid });
 
   if (verb === "request_files") {
-    const d = findDocument(text);
+    const d = findDocument(text, episode);
     if (!d) return ruled(`The clerk could not match "${text}" to any file on the company's index. Units returned. Name the file, the office, or the person who keeps it.`);
     base.target = d.slug;
     if (d.notice) await notify(db, ctx, `${ctx.character.name} requested "${d.title}" on the night of Round ${ctx.roundNo}.`);
@@ -111,11 +113,11 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     return { ...base, kind: "refused", summary: `Records refused "${d.title}": clearance ${d.access.clearance ?? 3} required${d.access.department ? ` (or a request from ${d.access.department.join(" or ")})` : ""}. The request was logged.`, noticed: d.notice };
   }
   if (verb === "surveil" || verb === "visit") {
-    const p = findPlace(text);
+    const p = findPlace(text, episode);
     if (!p) return ruled(`The clerk could not place "${text}". Units returned. Name a building, a gate, a road, or a property.`);
     base.target = p.slug;
     if (verb === "visit") { if (p.restricted) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted }; }
-    const s = p.surveil.find((x) => ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
+    const s = p.surveil.find((x) => (x.episode ?? 1) === episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]) ?? p.surveil.find((x) => (x.episode ?? 1) < episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
     const seen = hash(`${ctx.roundId}:${ctx.character.id}:${p.slug}`) % 4 !== 0;   // one night in four shows nothing
     if (!s || !seen) return { ...base, kind: "nothing", summary: `A night on ${p.name}: cold, quiet, nothing that would go in a report. ${p.restricted ? "A patrol truck slowed as it passed." : ""}`.trim(), noticed: p.restricted };
     if (s.restricted || p.restricted) await notify(db, ctx, `${ctx.character.name} spent the night of Round ${ctx.roundNo} watching ${p.name}.`);
@@ -123,18 +125,18 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     return { ...base, kind: "sighting", summary: `A night watching ${p.name}: ${s.text}.`, learned: [s.grants], noticed: s.restricted || p.restricted };
   }
   if (verb === "search") {
-    const p = findPlace(text);
+    const p = findPlace(text, episode);
     if (!p) return ruled(`The clerk could not place "${text}". Units returned.`);
     base.target = p.slug;
     if (!allowed(p.searchAccess, ctx.character)) { await notify(db, ctx, `${ctx.character.name} tried to get into ${p.name} on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is locked, sealed or watched; ${ctx.character.name} could not get in and was probably seen trying.`, noticed: true }; }
-    const docs = (p.contains ?? []).map((s) => DOCUMENTS.find((d) => d.slug === s)).filter((d): d is DocumentDef => Boolean(d));
+    const docs = (p.contains ?? []).map((s) => documentsFor(episode).find((d) => d.slug === s)).filter((d): d is DocumentDef => Boolean(d));
     if (p.restricted) await notify(db, ctx, `${ctx.character.name} was in ${p.name} after hours, Round ${ctx.roundNo}.`);
     if (!docs.length) return { ...base, kind: "nothing", summary: `A search of ${p.name} turned up nothing that could be carried away. ${p.visit}`, noticed: p.restricted };
     const d = docs[0]; const item = await deliver(db, ctx, d, `Found in ${p.name}.`);
     return { ...base, kind: "found", summary: `In ${p.name}, ${ctx.character.name} found "${d.title}" and took it. It is in the Case File.`, learned: d.grants, item, noticed: p.restricted };
   }
   if (verb === "examine") {
-    const d = findDocument(text);
+    const d = findDocument(text, episode);
     if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned.`);
     base.target = d.slug;
     const { data: held } = ctx.dry ? { data: [{ slug: d.slug }] } : await db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("slug", d.slug);
@@ -147,7 +149,7 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     const who = findPerson(text, people.filter((p) => !p.player));
     if (!who) {
       // Not a listed person: asking around at a place (a guard, a clerk, whoever is there).
-      const p = findPlace(text);
+      const p = findPlace(text, episode);
       if (!p) return ruled(`The clerk could not tell who "${text}" names. Units returned. Use a surname from the directory, or name a place to ask around.`);
       base.target = p.slug;
       if (p.restricted) await notify(db, ctx, `${ctx.character.name} was asking questions at ${p.name}, Round ${ctx.roundNo}.`);
@@ -158,7 +160,7 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     let lobbyNote = "";
     if (verb === "lobby" && !ctx.dry) {
       const direction: "for" | "against" = /\b(against|oppose|block|kill|vote no|no on)\b/i.test(text) ? "against" : "for";
-      const { data: motion } = await db.from("motions").select("id, number, organization_id").eq("campaign_id", ctx.campaignId).eq("status", "open").order("closes_round").limit(1).maybeSingle();
+      const { data: motion } = await db.from("motions").select("id, number, organization_id").eq("campaign_id", ctx.campaignId).eq("status", "open").lte("opens_round", ctx.roundNo).neq("kind", "election").order("closes_round").limit(1).maybeSingle();
       if (!motion) return ruled(`There is no motion open to lobby ${who.name} on. Units returned.`);
       const { data: seat } = await db.from("memberships").select("character_id").eq("organization_id", motion.organization_id).eq("character_id", who.id).maybeSingle();
       if (!seat) return ruled(`${who.name} holds no seat on the body deciding ${motion.number}. Units returned.`);
@@ -175,14 +177,14 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person${lobbyNote}. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
   }
   if (["submit_manifest", "approve_overtime", "reconcile_maps", "approve_corridors", "clear_invoices", "issue_statement"].includes(verb)) {
-    const tier = PRESSURE.find((t) => t.mitigation?.verbs.includes(verb) && ctx.episodeRound >= t.rounds[0] && ctx.episodeRound <= t.rounds[1]);
+    const tier = pressureFor(episode).find((t) => t.mitigation?.verbs.includes(verb) && ctx.episodeRound >= t.rounds[0] && ctx.episodeRound <= t.rounds[1]);
     if (!tier) return ruled(`There is nothing for ${verb.replace(/_/g, " ")} to act on this week. Units returned.`);
     if (tier.mitigation?.department && !(ctx.character.division && tier.mitigation.department.includes(ctx.character.division))) return ruled(`${verb.replace(/_/g, " ")} must come from ${tier.mitigation.department.join(" or ")}. Units returned.`);
     if (!ctx.dry) {
-      await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `pressure.tier${tier.tier}.mitigated`, value: { by: ctx.character.id, round: ctx.roundNo }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
+      await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `pressure.ep${episode}.tier${tier.tier}.mitigated`, value: { by: ctx.character.id, round: ctx.roundNo }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
       const { data: idx } = await db.from("rules").select("value").eq("campaign_id", ctx.campaignId).eq("key", "convergence.index").maybeSingle();
       await db.from("rules").upsert({ campaign_id: ctx.campaignId, key: "convergence.index", value: Math.max(0, Number(idx?.value ?? 0) - 1) }, { onConflict: "campaign_id,key" });
-      await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "pressure.mitigated", payload: { tier: tier.tier, by: ctx.character.id, verb }, idempotency_key: `mitigated:${ctx.campaignId}:${tier.tier}` });
+      await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "pressure.mitigated", payload: { episode, tier: tier.tier, by: ctx.character.id, verb }, idempotency_key: `mitigated:${ctx.campaignId}:${episode}:${tier.tier}` });
     }
     return { ...base, kind: "mitigated", summary: `${ctx.character.name}'s paperwork (${verb.replace(/_/g, " ")}) went through. The matter of "${tier.text}" is, for now, handled.` };
   }
@@ -191,16 +193,16 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
 }
 
 /* At the lock of a band's last round: the tier is reached unless mitigated. */
-export async function advancePressure(db: SupabaseClient, campaignId: string, roundId: string, episodeRound: number): Promise<number | null> {
-  const tier = PRESSURE.find((t) => t.rounds[1] === episodeRound);
+export async function advancePressure(db: SupabaseClient, campaignId: string, roundId: string, episodeRound: number, episode = 1): Promise<number | null> {
+  const tier = pressureFor(episode).find((t) => t.rounds[1] === episodeRound);
   if (!tier) return null;
-  const { data: m } = await db.from("facts").select("key").eq("campaign_id", campaignId).eq("key", `pressure.tier${tier.tier}.mitigated`).maybeSingle();
+  const { data: m } = await db.from("facts").select("key").eq("campaign_id", campaignId).eq("key", `pressure.ep${episode}.tier${tier.tier}.mitigated`).maybeSingle();
   if (m) return null;
-  const { data: dup } = await db.from("events").select("id").eq("idempotency_key", `pressure:${campaignId}:${tier.tier}`).maybeSingle();
+  const { data: dup } = await db.from("events").select("id").eq("idempotency_key", `pressure:${campaignId}:${episode}:${tier.tier}`).maybeSingle();
   if (dup) return null;
   const { data: idx } = await db.from("rules").select("value").eq("campaign_id", campaignId).eq("key", "convergence.index").maybeSingle();
   await db.from("rules").upsert({ campaign_id: campaignId, key: "convergence.index", value: Number(idx?.value ?? 0) + 2 }, { onConflict: "campaign_id,key" });
-  await db.from("facts").upsert({ campaign_id: campaignId, key: `pressure.tier${tier.tier}.reached`, value: { round: episodeRound }, established_round: episodeRound, secret: true }, { onConflict: "campaign_id,key" });
-  await db.from("events").insert({ campaign_id: campaignId, round_id: roundId, phase: "world", kind: "pressure.tier_reached", payload: { tier: tier.tier, text: tier.text }, idempotency_key: `pressure:${campaignId}:${tier.tier}` });
+  await db.from("facts").upsert({ campaign_id: campaignId, key: `pressure.ep${episode}.tier${tier.tier}.reached`, value: { round: episodeRound }, established_round: episodeRound, secret: true }, { onConflict: "campaign_id,key" });
+  await db.from("events").insert({ campaign_id: campaignId, round_id: roundId, phase: "world", kind: "pressure.tier_reached", payload: { episode, tier: tier.tier, text: tier.text }, idempotency_key: `pressure:${campaignId}:${episode}:${tier.tier}` });
   return tier.tier;
 }

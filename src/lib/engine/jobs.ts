@@ -23,6 +23,7 @@ import { renderDirectoryLetter } from "@/lib/email/directory";
 import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
+import { episodeOf } from "@/lib/engine/world";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
@@ -177,8 +178,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
       if (a.kind === "elect") {
         // VOTE E-77-001: <colleague>: a seat election; plurality of cohort votes; a later vote replaces the earlier.
-        const { data: em } = await db.from("motions").select("id, number, status, closes_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
-        if (!em || em.status !== "open") { ignored.push(`VOTE ${a.motion} — no open election by that number`); continue; }
+        const { data: em } = await db.from("motions").select("id, number, status, closes_round, opens_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
+        if (!em || em.status !== "open" || Number(em.opens_round) > round.number) { ignored.push(`VOTE ${a.motion} — no open election by that number`); continue; }
         const { data: cohort } = await db.from("characters").select("id, name, slug").eq("campaign_id", c.campaign_id).eq("status", "active").not("player_id", "is", null);
         const ck = surnameKey(a.candidate);
         const cand = (cohort ?? []).find((x) => x.slug === ck || surnameKey(x.name) === ck || x.name.toLowerCase().includes(ck));
@@ -210,8 +211,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform" }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — cost ruled in the morning` });
       } else if (a.kind === "hold") hold = true;
       else if (a.kind === "vote") {
-        const { data: m } = await db.from("motions").select("id, status, number").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
-        if (m?.status === "open") { await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" }); recorded.push(`VOTE ${m.number}: ${a.choice.toUpperCase()}`); }
+        const { data: m } = await db.from("motions").select("id, status, number, opens_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
+        if (m?.status === "open" && Number(m.opens_round) <= round.number) { await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" }); recorded.push(`VOTE ${m.number}: ${a.choice.toUpperCase()}`); }
         else ignored.push(`VOTE ${a.motion} — no open ballot by that number`);
       } else if (a.kind === "accept" || a.kind === "reject") {
         const { data: ag } = await db.from("agreements").select("id, accepted_by, parties, status").eq("campaign_id", c.campaign_id).eq("title", a.agreement).maybeSingle();
@@ -461,7 +462,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
         const division = (Array.isArray(chRaw.divisions) ? chRaw.divisions[0]?.slug : chRaw.divisions?.slug) ?? null;
-        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title } };
+        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode: episodeOf(round.number), character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title } };
         const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").order("seq");
         let refund = 0;
         for (const o of orders ?? []) {
@@ -480,7 +481,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
-      await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number);
+      await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
       // Income: every active player character draws the round's Action Units, to the cap.
       const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);

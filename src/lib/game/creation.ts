@@ -97,6 +97,11 @@ export const GOALS: Record<string, { text: string; deadline: string; points: num
   "ep1-7": { text: "Trace a classified appropriation through the company accounts.", deadline: "the end of the month", points: 15 },
   "ep1-8": { text: "Explain the future-dated entries in the computer records.", deadline: "the end of the month", points: 20 },
   "ep1-9": { text: "Secure enough Board support to carry the departmental reporting motion the way this office requires.", deadline: "October 16", points: 25 },
+  // Episode 02 — The Harvest (PROPOSED 2026-10-13): handed out by the showrunner from the console.
+  "ep2-1": { text: "Establish, case by case, which of the county's dead cattle were HARVEST sampling and which were not.", deadline: "November 6", points: 20 },
+  "ep2-2": { text: "Get Paul Greeley's notebook, or what is left of it, in front of the Research Committee.", deadline: "November 6", points: 20 },
+  "ep2-3": { text: "Get the thing in the sheriff's evidence locker into a Royce laboratory, by any means the company will survive.", deadline: "November 6", points: 25 },
+  "ep2-4": { text: "Carry the Research Committee's ballot on cooperating with the county the way your department needs it to go.", deadline: "November 2", points: 20 },
 };
 
 export const ALL_GOAL_KEYS = Object.keys(GOALS);

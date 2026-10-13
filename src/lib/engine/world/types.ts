@@ -11,8 +11,9 @@ export type Access = {
 
 export type DocumentDef = {
   slug: string;
+  episode?: number;              // first episode in which it exists (default 1)
   title: string;
-  kind: "document" | "report" | "memo" | "map" | "letter" | "diagram";
+  kind: "document" | "report" | "memo" | "map" | "letter" | "diagram" | "object";
   aliases: string[];             // words a request may use; all lowercase
   holder: string;                // where the original is: a division slug, an NPC slug, or a place slug
   access: Access;
@@ -23,10 +24,11 @@ export type DocumentDef = {
   notice?: boolean;              // Security learns who asked
 };
 
-export type Sighting = { rounds: [number, number]; text: string; grants: string; restricted?: boolean };
+export type Sighting = { episode?: number; rounds: [number, number]; text: string; grants: string; restricted?: boolean };   // rounds are days of that episode
 
 export type PlaceDef = {
   slug: string;
+  episode?: number;              // first episode in which it can be reached (default 1)
   name: string;
   aliases: string[];
   restricted?: boolean;          // being seen there is noticed by Security
@@ -37,4 +39,4 @@ export type PlaceDef = {
   searchAccess?: Access;
 };
 
-export type PressureTier = { tier: number; rounds: [number, number]; text: string; mitigation: { verbs: string[]; department?: string[] } | null };
+export type PressureTier = { episode?: number; tier: number; rounds: [number, number]; text: string; mitigation: { verbs: string[]; department?: string[] } | null };

@@ -9,6 +9,7 @@ import { gameDate } from "@/lib/email/letter";
 import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
+import { pressureFor, episodeOf } from "./world";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -174,10 +175,14 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null }; if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`the ballot on ${v.number ?? "a motion"} "${v.title ?? ""}" closed: ${v.passed ? "carried" : "failed"}`); if (e.kind === "election.closed") arrived.push(`the election ${v.number ?? ""} closed: ${v.winner_name ? `${v.winner_name} takes the seat` : "no votes were cast; the seat stays empty"}`); }
   const { data: office } = await db.from("correspondence").select("subject, raw").eq("direction", "outbound").contains("to_characters", [ch.id]).is("from_character", null).gte("received_at", since).limit(8);
   for (const o of office ?? []) { const r = o.raw as { scripted?: string; office?: { office: string } | null } | null; if (r?.scripted) arrived.push(`a ${r.office ? `memo from ${r.office.office}` : "notice"}: "${o.subject ?? ""}"`); }
-  const { data: openMotions } = await db.from("motions").select("number, title, closes_round, organizations(name)").eq("campaign_id", round.campaign_id).eq("status", "open");
+  const { data: openMotions } = await db.from("motions").select("number, title, closes_round, organizations(name)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("opens_round", round.number);
   for (const m of openMotions ?? []) { const org = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string } | null; arrived.push(`a ballot is open before the ${org?.name ?? "Board"}: ${m.number} "${m.title}", closing at the lock of Round ${m.closes_round}${m.closes_round === round.number ? " (tonight)" : ""}`); }
   const { data: beatDoc } = await db.from("canon_docs").select("content").eq("path", "canon/secret/09-episode-01-beats.md").maybeSingle();
-  const scheduled = ep?.number === 1 && beatDoc ? beatsFor(beatDoc.content as string, round.episode_round ?? round.number) : [];
+  const epNo = ep?.number ?? episodeOf(round.number);
+  const scheduled = epNo === 1 && beatDoc ? beatsFor(beatDoc.content as string, round.episode_round ?? round.number) : [];
+  // The pressure band the day sits in, any episode; the player notices the symptom, never the tier.
+  const band = pressureFor(epNo).find((t) => (round.episode_round ?? round.number) >= t.rounds[0] && (round.episode_round ?? round.number) <= t.rounds[1]);
+  if (band && epNo !== 1) scheduled.push(`around the company: ${band.text}`);
 
   const facts: Facts = { first, name: ch.name, title: ch.title, department, date: gameDate(round.number), round: round.number, episodeRound: round.episode_round ?? round.number, episodeTitle: ep?.title ?? "Orientation", au: Number(au?.balance ?? 0), lastNight, mode, arrived, scheduled };
   const out = await composeDispatch(facts, onLedger);

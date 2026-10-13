@@ -5,6 +5,30 @@
 export type GoalBrief = { what: string; known: string; leads: string[]; proof: string };
 
 export const GOAL_BRIEFS: Record<string, GoalBrief> = {
+  "ep2-1": {
+    what: "The county has eleven dead-cattle cases on its books since 1975. Some were Royce's HARVEST crews sampling tissue, authorized or not; some were lightning and coyotes; at least one is something nobody can explain. Sort them.",
+    known: "The Minot paper has run the steer story. HARVEST's 1976 lots are authorized; the 1977 continuation sheet has a lot with no signatures. The sheriff keeps his own ledger and lets nobody else touch it.",
+    leads: ["Write to Sheriff Hollis for his livestock case ledger; he will want something in return.", "Request the PGS field unit log from Procurement; it says which nights a crew went out and in which truck.", "The motor pool sign-out log is open to anyone; match trucks to nights.", "Visit the Vane barn and the Halvorsen parcel; ask who comes at night."],
+    proof: "A list in your Case File that puts each case in one of three columns, with a document behind each.",
+  },
+  "ep2-2": {
+    what: "Paul Greeley died in July in a laboratory accident the company says was electrical. His notebook was listed among his effects, struck off, and never reached his family. Find it, or enough of it, and put it before the Research Committee.",
+    known: "His sister has written three times. A custodian clearing room 2-C found something. The inventory of effects is in Personnel; the sealed locker is in Building 2.",
+    leads: ["Request Greeley's inventory of effects from Personnel and examine who struck the notebook off.", "The Building 2 locker is sealed by Security; search it with the right access, or get Security to open it.", "Request the Applied Physics daybook for 12 July from Dr. Kovic; a page is missing.", "The Research Committee's employee seat is the way to put a document in front of it."],
+    proof: "The notebook or its pages in your Case File and in the Committee's hands.",
+  },
+  "ep2-3": {
+    what: "In June 1976 the sheriff logged a warm metal fragment found beside a dead heifer as 'ordnance' and wrote that he referred it to Minot Air Force Base. It is still in his locker. Applied Physics would very much like to have it.",
+    known: "The sheriff's ledger lists it as case 7, tag E-76-19. Dr. Kovic keeps a fragment of his own and knows what one looks like.",
+    leads: ["Write to Sheriff Hollis; he will not hand it over, but he may say what it is worth to him.", "Watch the Sheriff's office at night; he visits the locker alone.", "Dr. Kovic will trade for it; Walter Crane will pay for it; neither will say so first.", "The county attorney, the state veterinarian and the Air Force are all levers, and all of them cost the company something."],
+    proof: "The fragment, or the signed-out tag, in a Royce laboratory.",
+  },
+  "ep2-4": {
+    what: "Ballot R-77-002 asks the Research Committee to hand the county HARVEST's authorizations and PGS's field logs and to record a finding on Lot 77-B. Your department has told you which way it must go. Carry it.",
+    known: "Five staff seats and one employee seat. Vale and both Thornes lean against; Ely leans for and can be made certain; Kovic is for sale, and the price is the thing in the sheriff's locker.",
+    leads: ["Lobby committee members in person (ORDER: LOBBY <name> FOR or AGAINST); each has a price.", "Ely moves on proof that 77-B was unsigned; Kovic moves on word of the fragment in the county locker.", "The employee seat was elected in Episode 1; whoever holds it votes."],
+    proof: "The ballot closing the way your department requires.",
+  },
   "ep1-1": {
     what: "Prairie Geological Services, a Royce subsidiary, has been paying for concrete, cable and well-drilling at a parcel near Tagus where nothing has ever been built. Somebody at Royce approved those shipments. Find out who.",
     known: "You have seen the 1974 payables summary on a Procurement desk: eleven loads of concrete to the Halvorsen parcel, approved with two initials.",
