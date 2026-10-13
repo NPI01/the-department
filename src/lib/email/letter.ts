@@ -11,7 +11,7 @@
    - MSO conditionals hold the width in Outlook for Windows
    - a plain-text part with the same structure and links */
 
-export type LetterKind = "letter" | "memo" | "dispatch" | "notice" | "form";
+export type LetterKind = "letter" | "memo" | "dispatch" | "notice" | "form" | "directory";
 
 export type Letter = {
   kind: LetterKind;
@@ -28,6 +28,7 @@ export type Letter = {
   signature?: { name: string; title?: string | null } | null;
   cta?: { href: string; label: string } | null;   // one button under the body, e.g. "Fill in Form 14-B"
   letterhead?: { name: string; place: string } | null;  // an outsider's own paper instead of Royce's
+  bodyHtml?: string;                        // prebuilt HTML for the body (the plain-text part still comes from body)
   links: LetterLinks;
 };
 
@@ -56,10 +57,10 @@ export function splitSections(text: string): { body: string; sections: { heading
 }
 
 // ---------- palette and type ----------
-const C = { desk: "#d8ceb6", paper: "#efe6d4", paper2: "#e6dcc6", ink: "#141210", ink2: "#4b453c", red: "#b8241a", rule: "#c9bea4" };
-const TYPE = `'Special Elite', 'Courier New', Courier, monospace`;
-const DISPLAY = `Oswald, 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif`;
-const MONO = `'Courier New', Courier, monospace`;
+export const C = { desk: "#d8ceb6", paper: "#efe6d4", paper2: "#e6dcc6", ink: "#141210", ink2: "#4b453c", red: "#b8241a", rule: "#c9bea4" };
+export const TYPE = `'Special Elite', 'Courier New', Courier, monospace`;
+export const DISPLAY = `Oswald, 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif`;
+export const MONO = `'Courier New', Courier, monospace`;
 
 const KIND_LABEL: Record<LetterKind, string> = {
   letter: "Interoffice Correspondence",
@@ -67,9 +68,10 @@ const KIND_LABEL: Record<LetterKind, string> = {
   dispatch: "Daily Dispatch",
   notice: "Personnel Notice",
   form: "Company Form",
+  directory: "Personnel Directory",
 };
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /* Paragraphs from plain text. Command lines (ORDER:, VOTE ...) keep their
    line breaks and get a typed-form look; other single newlines become <br>. */
@@ -100,7 +102,7 @@ function link(href: string, label: string) {
 
 export function renderLetter(l: Letter): { html: string; text: string } {
   const label = l.label ?? (l.kind === "dispatch" && l.round ? `${KIND_LABEL.dispatch} · Round ${String(l.round.number).padStart(2, "0")}` : KIND_LABEL[l.kind]);
-  const classification = l.classification ?? (l.kind === "dispatch" ? "Personal & Confidential" : l.kind === "notice" || l.kind === "form" ? "Internal" : null);
+  const classification = l.classification ?? (l.kind === "dispatch" ? "Personal & Confidential" : l.kind === "notice" || l.kind === "form" || l.kind === "directory" ? "Internal" : null);
   const dateLine = l.date ?? (l.round ? gameDate(l.round.number) : null);
   const preheader = l.preheader ?? l.body.replace(/\s+/g, " ").slice(0, 110);
 
@@ -190,14 +192,14 @@ export function renderLetter(l: Letter): { html: string; text: string } {
 
   <tr><td class="pad" style="padding:22px 40px 10px 40px;">
     ${roundLine}
-    ${paragraphs(l.body)}
+    ${l.bodyHtml ?? paragraphs(l.body)}
     ${sections ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${sections}</table>` : ""}
     ${signature}
     ${cta}
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">
-    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">${l.letterhead ? "Received by the Station R mail room &middot; Retain for your records" : `Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : l.kind === "form" ? "0" : "7"} &middot; Retain for your records`}</p>
+    <p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${C.ink2};">${l.letterhead ? "Received by the Station R mail room &middot; Retain for your records" : `Form RI-${l.kind === "dispatch" ? "40" : l.kind === "memo" ? "12" : l.kind === "notice" ? "1" : l.kind === "form" ? "0" : l.kind === "directory" ? "3" : "7"} &middot; Retain for your records`}</p>
   </td></tr>
 
   <tr><td class="pad" style="padding:22px 40px 0 40px;">

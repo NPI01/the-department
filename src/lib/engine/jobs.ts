@@ -19,8 +19,9 @@ import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, s
 import { generateStaffReply, loadDossier, type CastSheet, type Memory } from "@/lib/engine/npc";
 import { FORMS, formIsKnown, parseFormSubmission } from "@/lib/engine/forms";
 import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
+import { renderDirectoryLetter } from "@/lib/email/directory";
 import { newMessageId } from "@/lib/email/resend";
-import { menuFor, renderDirectory, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
+import { menuFor, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
 /* Short stable key for a remembered sentence (djb2), so re-runs do not duplicate. */
@@ -267,8 +268,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const staff = all.filter((x) => !x.player_id && x.division_id).map(entry);
         const offCampus = all.filter((x) => !x.player_id && !x.division_id).map(entry);
         const { data: orgs } = await db.from("organizations").select("name, kind").eq("campaign_id", c.campaign_id).in("kind", ["council", "committee"]);
-        const text = renderDirectory({ first, cohort, staff, offCampus, committees: (orgs ?? []).map((o) => o.name) });
-        await sendMail({ to: player.email, from, replyTo: from, subject: "Personnel Directory · Station R", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+        const dir = renderDirectoryLetter({ first, to: { name: ch?.name ?? first, title: (ch0 as { title?: string | null } | null)?.title ?? null }, date: gameDate(round.number), cohort, staff, offCampus, committees: (orgs ?? []).map((o) => o.name), mailbox: gameMailbox().address, links: letterLinks(player0?.file_token) });
+        await sendMail({ to: player.email, from, replyTo: from, subject: dir.subject, text: dir.text, html: dir.html, inReplyTo: c.message_id ?? undefined });
       }
       for (const cmd of commands) {
         if (!cmd.startsWith("form:")) continue;
