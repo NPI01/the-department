@@ -8,6 +8,7 @@ import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { openNextRound, queueMorningDispatches } from "../src/lib/engine/rounds";
 import { PHASES } from "../src/lib/engine/phases";
+import { deliverScheduledMail } from "../src/lib/engine/scripted";
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
 async function main() {
@@ -15,7 +16,12 @@ async function main() {
   const cid = process.env.CAMPAIGN_ID!;
   const [cmd, arg] = process.argv.slice(2);
   if (cmd === "open") { const r = await openNextRound(db, cid); console.log(r.opened ? `opened round ${r.round.number}, locks ${r.round.locks_at}` : `round ${r.round.number} already open`); }
-  else if (cmd === "dispatch") {
+  else if (cmd === "mail") {
+    const { data: open } = await db.from("rounds").select("id, number, episode_round, episode_id").eq("campaign_id", cid).eq("status", "open").maybeSingle();
+    if (!open) throw new Error("no open round; run open first");
+    const { data: ep } = await db.from("episodes").select("number").eq("id", open.episode_id).maybeSingle();
+    console.log(`scheduled mail delivered: ${(await deliverScheduledMail(db, cid, { id: open.id, number: open.number, episodeRound: open.episode_round ?? open.number, episodeNumber: (ep?.number as number | undefined) ?? 1 })).delivered}`);
+  } else if (cmd === "dispatch") {
     const { data: open } = await db.from("rounds").select("id, number").eq("campaign_id", cid).eq("status", "open").maybeSingle();
     if (!open) throw new Error("no open round; run open first");
     console.log(`queued ${await queueMorningDispatches(db, cid, open.id)} dispatch(es) for round ${open.number}`);
@@ -41,6 +47,6 @@ async function main() {
   } else if (cmd === "work") {
     const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "https://weird.delivery"}/api/cron/work`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
     console.log(res.status, await res.text());
-  } else { console.log("usage: open | dispatch | reresolve <n> | work"); process.exit(2); }
+  } else { console.log("usage: open | mail | dispatch | reresolve <n> [strategic] | work"); process.exit(2); }
 }
 main().catch((e) => { console.error(e); process.exit(1); });

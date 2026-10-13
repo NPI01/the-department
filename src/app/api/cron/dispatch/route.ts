@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { heartbeat } from "@/lib/engine/heartbeat";
 import { openNextRound, queueMorningDispatches } from "@/lib/engine/rounds";
+import { deliverScheduledMail } from "@/lib/engine/scripted";
 
 /* The morning. Vercel cron calls this at the campaign's dispatch time: open the
    next round (unless one is open) and queue a morning dispatch for every
@@ -18,8 +19,10 @@ export async function GET(req: NextRequest) {
     const out: Record<string, unknown>[] = [];
     for (const cid of campaigns) {
       const { round, opened } = await openNextRound(db, cid);
+      const { data: ep } = round.episode_id ? await db.from("episodes").select("number").eq("id", round.episode_id).maybeSingle() : { data: null };
+      const mail = await deliverScheduledMail(db, cid, { id: round.id, number: round.number, episodeRound: round.episode_round ?? round.number, episodeNumber: (ep?.number as number | undefined) ?? 1 });
       const queued = await queueMorningDispatches(db, cid, round.id);
-      out.push({ campaign: cid, round: round.number, opened, queued });
+      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, queued });
     }
     return { ok: true, campaigns: out };
   });

@@ -86,10 +86,25 @@ else abstain); only members' votes count; quorum is half the seats. Players vote
 item goes into the other cabinet with a cover letter on the sender's paper; the original
 stays. Staff who are handed a document remember it.
 
+## Scheduled mail and the Round 3 election (v1.2)
+`src/lib/engine/world/episode-01-mail.ts` lists what the beat sheet says arrives, by day
+of the episode; `deliverScheduledMail` sends it at the morning before the dispatch is
+written, once per recipient, and files documents in the Case File. Routing (PROPOSED):
+the orientation memo, confidentiality clause, department map and Bernard's letter go to
+everyone; each irregularity is copied to one or two departments' players (falling back to
+the newest hire if nobody is in them); Sayer's first letter goes to the newest hire and
+his Round 6 layout letter to the same person; Bradley's Round 3 memo goes to whoever holds
+the Aerospace goal. A late joiner receives everything due so far.
+
+Elections E-77-001 (Research seat) and E-77-002 (Safety seat) open Round 1 and close at
+the Round 3 lock. Every active cohort member is a candidate; `VOTE E-77-001: <surname>`
+casts or replaces a vote; plurality, ties to the earliest hire; the winner is seated as
+Employee representative with clearance 2 and the result goes to everyone's dispatch.
+
 ## Open
 - attend has no calendar; approve_corridors / clear_invoices / issue_statement are
   mitigation stubs with no further effect.
 - Asset originals are not yet tracked in `assets`; the objectives' `asset_held`
   predicates read the Case File for now.
 
-CHANGELOG: v1 verb rules, costs, the Episode 01 document and place index, pressure mitigation. v1.1 directors' leans and lobbying, document transfer, goal-context documents (IS job and operator logs, batch authorizations, personnel roster, ORPHEUS roster).
+CHANGELOG: v1 verb rules, costs, the Episode 01 document and place index, pressure mitigation. v1.1 directors' leans and lobbying, document transfer, goal-context documents (IS job and operator logs, batch authorizations, personnel roster, ORPHEUS roster). v1.2 scheduled mail and the seat elections.

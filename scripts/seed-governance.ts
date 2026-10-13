@@ -26,6 +26,11 @@ async function main() {
   const { data: existing } = await db.from("motions").select("id, number").eq("campaign_id", cid).eq("number", "B-77-001").maybeSingle();
   const { data: motion, error: e2 } = existing ? await db.from("motions").update(motionRow).eq("id", existing.id).select("id, number").single() : await db.from("motions").insert({ ...motionRow, status: "open" }).select("id, number").single();
   if (e2) throw e2;
+  for (const [number, orgName, title] of [["E-77-001", "Research Committee", "Employee seat, Research Committee"], ["E-77-002", "Safety Committee", "Employee seat, Safety Committee"]] as const) {
+    const row = { campaign_id: cid, organization_id: org(orgName), number, title, kind: "election", sponsor_id: id("armitage"), threshold: { method: "plurality" }, opens_round: 1, closes_round: 3, text: `Every active member of the October cohort is a candidate. Reply VOTE ${number}: <colleague's surname>. Plurality of cohort votes cast; ties to the earliest hire. The winner is seated at once with clearance 2.` };
+    const { data: ex } = await db.from("motions").select("id").eq("campaign_id", cid).eq("number", number).maybeSingle();
+    if (ex) await db.from("motions").update(row).eq("id", ex.id); else await db.from("motions").insert({ ...row, status: "open" });
+  }
   const stances: Record<string, { lean: number; price?: { any_of: string[]; sets: number; note: string } | null }> = {
     hensley: { lean: 1 }, sloane: { lean: 0.6 }, armitage: { lean: 0.5 },
     royce: { lean: -1 }, vale: { lean: -0.8 },

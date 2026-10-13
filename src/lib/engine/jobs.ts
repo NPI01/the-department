@@ -175,6 +175,18 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
+      if (a.kind === "elect") {
+        // VOTE E-77-001: <colleague>: a seat election; plurality of cohort votes; a later vote replaces the earlier.
+        const { data: em } = await db.from("motions").select("id, number, status, closes_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
+        if (!em || em.status !== "open") { ignored.push(`VOTE ${a.motion} — no open election by that number`); continue; }
+        const { data: cohort } = await db.from("characters").select("id, name, slug").eq("campaign_id", c.campaign_id).eq("status", "active").not("player_id", "is", null);
+        const ck = surnameKey(a.candidate);
+        const cand = (cohort ?? []).find((x) => x.slug === ck || surnameKey(x.name) === ck || x.name.toLowerCase().includes(ck));
+        if (!cand) { ignored.push(`VOTE ${a.motion}: ${a.candidate} — no one in your cohort by that name`); continue; }
+        await db.from("election_votes").upsert({ motion_id: em.id, voter_id: c.from_character, candidate_id: cand.id, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,voter_id" });
+        recorded.push(`VOTE ${em.number}: ${cand.name}${cand.id === c.from_character ? " (yourself)" : ""} — closes at the lock of Round ${em.closes_round}`);
+        continue;
+      }
       if (a.kind === "send") {
         // SEND <item> TO <person>: a copy into their cabinet, with a cover letter. Free; not an order.
         const { data: mine } = await db.from("case_items").select("slug, title").eq("character_id", c.from_character).eq("status", "held");
@@ -478,8 +490,25 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
     if (phase === "governance") {
-      const { data: motions } = await db.from("motions").select("id, number, title, campaign_id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
+      const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
       for (const m of motions ?? []) {
+        if ((m as { kind?: string }).kind === "election") {
+          // Plurality of cohort votes cast; ties to the earliest-created candidate; the winner is seated with clearance 2.
+          const { data: ev } = await db.from("election_votes").select("candidate_id").eq("motion_id", m.id);
+          const tally = new Map<string, number>();
+          for (const v of ev ?? []) tally.set(v.candidate_id as string, (tally.get(v.candidate_id as string) ?? 0) + 1);
+          const { data: cands } = tally.size ? await db.from("characters").select("id, name, created_at, clearance").in("id", [...tally.keys()]) : { data: [] };
+          const ranked = (cands ?? []).sort((x, y) => (tally.get(y.id as string)! - tally.get(x.id as string)!) || (x.created_at as string).localeCompare(y.created_at as string));
+          const winner = ranked[0] ?? null;
+          if (winner) {
+            await db.from("memberships").upsert({ organization_id: m.organization_id, character_id: winner.id, role: "Employee representative", voting_weight: 1, since_round: round.number }, { onConflict: "organization_id,character_id" });
+            if (Number(winner.clearance) < 2) await db.from("characters").update({ clearance: 2 }).eq("id", winner.id);
+          }
+          await db.from("motions").update({ status: winner ? "passed" : "failed" }).eq("id", m.id);
+          const { data: everyone } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).not("player_id", "is", null);
+          await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "election.closed", payload: { motion_id: m.id, number: m.number, title: m.title, winner: winner?.id ?? null, winner_name: winner?.name ?? null, votes: Object.fromEntries([...tally.entries()]), cast: (ev ?? []).length }, idempotency_key: `election:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
+          continue;
+        }
         // Directors who have not voted vote by their lean; only members' votes count; quorum is half the seats.
         await castNpcVotes(db, m, round.number);
         const { data: members } = await db.from("memberships").select("character_id").eq("organization_id", m.organization_id);
@@ -562,7 +591,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
               label: outsider ? "Correspondence" : undefined,
               letterhead: outsider,
               subject: c.subject ?? "(no subject)",
-              from: sender ? { name: sender.name, title: sender.title, department: outsider ? null : sender.divisions?.name } : { name: "Personnel & Administration", department: "Royce Industries" },
+              from: sender ? { name: sender.name, title: sender.title, department: outsider ? null : sender.divisions?.name } : (c.raw?.office as { office: string; department?: string } | null) ? { name: (c.raw.office as { office: string }).office, department: (c.raw.office as { department?: string }).department ?? "Royce Industries" } : { name: "Personnel & Administration", department: "Royce Industries" },
               classification: (c.raw?.classification as string | undefined) ?? null,
               ...splitSections(c.body_text as string),
               signature: sender ? { name: sender.name, title: sender.title } : null,
