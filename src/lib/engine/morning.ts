@@ -122,7 +122,8 @@ export function beatsFor(md: string, round: number): string[] {
     const m = rounds.match(/^(\d+)(?:\s*[–-]\s*(\d+))?$/); if (!m) continue;
     const lo = Number(m[1]), hi = Number(m[2] ?? m[1]);
     if (round < lo || round > hi) continue;
-    const text = beat.replace(/`[^`]*`/g, "").replace(/\s+/g, " ").trim();
+    // The engine's notes to itself (how a tier is mitigated, open TBDs) are not for the player.
+    const text = beat.replace(/`[^`]*`/g, "").replace(/\b(Mitigated by|TBD:?)[^.]*\.?/g, "").replace(/\s+/g, " ").trim();
     if (SECRET_TERMS.test(text)) continue;
     out.push(`${kind}: ${text}`);
   }
