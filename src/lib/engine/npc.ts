@@ -236,6 +236,10 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const m = body.match(/^\s*(?:subject|re)\s*:\s*([^\n]+)\n+/i);
     if (m) { subject = subject ?? m[1].trim(); body = body.slice(m[0].length).trim(); }
     if (subject) subject = subject.replace(/[\s:.]+$/, "").trim() || null;
+    // The first line must address the writer, not the character's own name or title.
+    const own = new RegExp(`^(?:dear\\s+)?(?:${[d.name.split(" ").pop() ?? "", ...(d.title ?? "").split(/[,\s]+/).filter((w) => w.length > 3)].filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*[,:—-]?\\s*$`, "i");
+    const firstLine = body.split("\n")[0]?.trim() ?? "";
+    if (firstLine && own.test(firstLine)) body = `Mr. ${input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop()},` + body.slice(body.indexOf("\n") >= 0 ? body.indexOf("\n") : body.length);
     const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS");
     const shared = sharedRaw && !/^none\b/i.test(sharedRaw) ? sharedRaw.split(/;\s*/).map((x) => x.trim()).filter(Boolean) : [];
     const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
