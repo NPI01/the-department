@@ -259,9 +259,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const reSubject = /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`;
       if (commands.has("directory") || commands.has("help")) {
         const { data: chars } = await db.from("characters").select("slug, name, title, player_id, status, division_id, npc_state, divisions(name)").eq("campaign_id", c.campaign_id).eq("status", "active").order("name");
-        type Row = { slug: string; name: string; title: string | null; player_id: string | null; division_id: string | null; npc_state: { letterhead?: { place?: string } | null } | null; divisions: { name: string } | { name: string }[] | null };
+        type Row = { slug: string; name: string; title: string | null; player_id: string | null; division_id: string | null; npc_state: { letterhead?: { place?: string } | null; listed?: boolean } | null; divisions: { name: string } | { name: string }[] | null };
         const entry = (x: Row): DirectoryEntry => ({ name: x.name, title: x.title, division: Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? (x.npc_state?.letterhead?.place ?? null), address: `${x.slug}@${process.env.EMAIL_DOMAIN || "weird.delivery"}` });
-        const all = (chars ?? []) as unknown as Row[];
+        // npc_state.listed === false keeps a character out of the directory (a correspondent players must discover).
+        const all = ((chars ?? []) as unknown as Row[]).filter((x) => x.npc_state?.listed !== false);
         const cohort = all.filter((x) => x.player_id).map(entry);
         const staff = all.filter((x) => !x.player_id && x.division_id).map(entry);
         const offCampus = all.filter((x) => !x.player_id && !x.division_id).map(entry);
