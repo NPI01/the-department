@@ -121,8 +121,14 @@ messages are memos and letters, never "email".
 *   **Voice:** Polite, detached, precise. Uses passive voice.
 *   **Round 1 Hook:** Asks new hires about "company culture" and "who really makes decisions," implying he suspects occult influence.
 
+**Maya Okafor**
+*   **Title:** Clerk, Procurement & Logistics
+*   **Department:** Procurement & Logistics
+*   **Public Profile:** Two years at Station R, in the office that signs for everything that arrives. The one person a new hire can buy lunch for. Has seen two versions of the campus map. Family in Tagus. (PROPOSED, 2026-10-13.)
+*   **Voice:** Warm, gossipy, casual. Signs "Maya."
+
 **Sheriff Dale Hollis**
-*   **Title:** Sheriff, Rural County Sheriff's Department
+*   **Title:** Sheriff, Ward County Sheriff's Department
 *   **Department:** External (Law Enforcement)
 *   **Public Profile:** 58-year-old lawman. Fixes his own cars, attends football games. Treats Royce with polite distance. Considers them a necessary economic engine.
 *   **Voice:** Gruff, concise, weary. Uses "reckon."
@@ -166,3 +172,4 @@ messages are memos and letters, never "email".
 ---
 
 CHANGELOG: v1 promotes the agent-team directory of 23 named NPCs with public profiles, voices and Round 1 hooks.
+v1.1 (2026-10-13): Hollis's county is Ward County; Maya Okafor added (PROPOSED).
