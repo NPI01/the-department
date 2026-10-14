@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   const messageId = String((d.headers as Record<string, string> | undefined)?.["message-id"] ?? d.message_id ?? (providerId ? `<${providerId}@resend>` : ""));
   const { data: row, error } = await db.from("correspondence").upsert({
-    campaign_id: process.env.CAMPAIGN_ID, // single-campaign v1; routed per domain later
+    campaign_id: null, // the route job finds the sender's cohort
     direction: "inbound",
     message_id: messageId || null,
     in_reply_to: (d.headers as Record<string, string> | undefined)?.["in-reply-to"] ?? null,

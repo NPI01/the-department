@@ -25,6 +25,7 @@ import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { episodeOf } from "@/lib/engine/world";
 import { judgeGoals } from "@/lib/game/goal-predicates";
+import { campaignForPlayer } from "@/lib/game/cohorts";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
@@ -97,7 +98,14 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const recipients = (p.recipients as { slug?: string; name?: string }[]) ?? [];
     const { data: c } = await db.from("correspondence").select("id, campaign_id, from_address, to_characters, in_reply_to").eq("id", id).single();
     if (!c || c.to_characters?.length) return; // already routed
-    const campaign = c.campaign_id ?? process.env.CAMPAIGN_ID;
+    // The sender's cohort: their latest character's campaign; the environment's campaign is the last resort.
+    let campaign = c.campaign_id as string | null;
+    if (!campaign) {
+      const { data: pl } = await db.from("players").select("id").eq("email", c.from_address).maybeSingle();
+      if (pl) campaign = await campaignForPlayer(db, pl.id as string);
+    }
+    campaign = campaign ?? process.env.CAMPAIGN_ID ?? null;
+    if (!campaign) { await db.from("events").insert({ campaign_id: process.env.CAMPAIGN_ID, kind: "mail.unrouted", payload: { correspondence_id: id, reason: "no cohort" }, idempotency_key: `unrouted:${id}` }).then(() => undefined, () => undefined); return; }
     const to = new Set<string>();
     // Addressed by name (TO: lines) or by legacy per-character mailbox.
     const slugs = recipients.map((r) => r.slug).filter(Boolean) as string[];

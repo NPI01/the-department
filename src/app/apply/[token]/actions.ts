@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { refresh } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { recruitingCampaign } from "@/lib/game/cohorts";
 import { hasSubscription } from "@/lib/stripe";
 import { DEJA_VU, DEPARTMENTS, IDENTITIES, KNOWLEDGE, SKILLS, SPECIALIZATIONS, priceOut } from "@/lib/game/creation";
 
@@ -49,8 +50,9 @@ export async function submitApplication(_: ApplyState, fd: FormData): Promise<Ap
   const price = priceOut(f.identity, skills, knowledge);
   if (!price.ok) return { error: price.problems[0] };
   const tz = validTz(f.timezone) ? f.timezone : "America/New_York";
-  const campaign = process.env.CAMPAIGN_ID;
-  if (!campaign) return { error: "No season is open for applications." };
+  const cohort = await recruitingCampaign(db);
+  const campaign = cohort?.id;
+  if (!campaign) return { error: "No cohort is taking applications at the moment. Personnel will write when the next one opens." };
 
   const { data: app, error } = await db.from("applications").insert({
     player_id: player.id, campaign_id: campaign, name: f.name, bio: f.bio || null, identity: f.identity, specialization: f.specialization, dept_prefs: prefs,

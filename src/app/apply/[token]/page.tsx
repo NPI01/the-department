@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { campaignForPlayer, recruitingCampaign } from "@/lib/game/cohorts";
 import { connection } from "next/server";
 import Link from "next/link";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
@@ -27,7 +28,7 @@ async function Content({ params }: { params: PageProps<"/apply/[token]">["params
   const db = supabaseAdmin();
   const { data: player } = await db.from("players").select("id, email, timezone").eq("file_token", token).maybeSingle();
   if (!player) notFound();
-  const campaign = process.env.CAMPAIGN_ID ?? "";
+  const campaign = (await campaignForPlayer(db, player.id)) ?? (await recruitingCampaign(db))?.id ?? "";
   const [subscribed, { data: app }, { data: divisions }] = await Promise.all([
     hasSubscription(db, player.id),
     db.from("applications").select("*").eq("player_id", player.id).eq("campaign_id", campaign).maybeSingle(),

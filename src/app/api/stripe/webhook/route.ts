@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { recruitingCampaign } from "@/lib/game/cohorts";
 import { stripe, recordSubscription } from "@/lib/stripe";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { sendMail } from "@/lib/email/resend";
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
       const links = letterLinks(player.file_token);
       const { subject, html, text } = await renderTemplate(db, "application_link", { email: player.email, apply_url: `${links.rules.replace(/\/rules$/, "")}/apply/${player.file_token}` }, links);
       const r = await sendMail({ to: player.email, subject, html, text });
-      await db.from("events").insert({ campaign_id: process.env.CAMPAIGN_ID, kind: "player.subscribed", payload: { player_id: player.id, sent: !r.error, error: r.error }, idempotency_key: key });
+      const cohort = await recruitingCampaign(db);
+      if (cohort) await db.from("events").insert({ campaign_id: cohort.id, kind: "player.subscribed", payload: { player_id: player.id, sent: !r.error, error: r.error }, idempotency_key: key });
     }
     return Response.json({ ok: true });
   }
