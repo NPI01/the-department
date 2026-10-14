@@ -531,7 +531,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
     if (phase === "governance") {
-      const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
+      const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id, finding, organizations(name, slug)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
       for (const m of motions ?? []) {
         if ((m as { kind?: string }).kind === "election") {
           // Plurality of cohort votes cast; ties to the earliest-created candidate; the winner is seated with clearance 2.
@@ -564,7 +564,17 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const passed = quorum && (t.method === "majority_of_seats" ? forW > seats / 2 : t.method === "supermajority" ? forW >= (t.fraction ?? 0.67) * (forW + againstW) && forW > 0 : forW > againstW);
         await db.from("motions").update({ status: passed ? "passed" : "failed" }).eq("id", m.id);
         const { data: everyone } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).not("player_id", "is", null);
-        await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "motion.closed", payload: { motion_id: m.id, number: m.number, title: m.title, passed, for: forW, against: againstW, seats, quorum, abstain: counted.filter((v) => v.choice === "abstain").length }, idempotency_key: `motion:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
+        // A finding: what the body is held to have established by this decision. Recorded for the engine, told to every player.
+        const fdef = (m as { finding?: { claim: string; on: "passed" | "failed" | "either"; text: string; false_text?: string } | null }).finding ?? null;
+        let findingText: string | null = null;
+        if (fdef && (fdef.on === "either" || (fdef.on === "passed") === passed)) {
+          const org = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string; slug: string } | null;
+          const established = fdef.on === "either" ? passed : true;
+          findingText = established ? fdef.text : (fdef.false_text ?? `the ${org?.name ?? "body"} declined to find ${fdef.text}`);
+          await db.from("facts").upsert({ campaign_id: round.campaign_id, key: `finding.${fdef.claim}`, value: { established, by: org?.slug ?? null, motion: m.number, round: round.number, text: findingText }, established_round: round.number, secret: false }, { onConflict: "campaign_id,key" });
+          if ((everyone ?? []).length) await db.from("knowledge").insert((everyone ?? []).map((c) => ({ character_id: c.id, fact_key: `finding.${fdef.claim}`, value: { established, text: findingText, by: org?.name ?? null, motion: m.number, round: round.number }, confidence: 1, source_kind: "dispatch", learned_round: round.number })));
+        }
+        await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "motion.closed", payload: { motion_id: m.id, number: m.number, title: m.title, passed, for: forW, against: againstW, seats, quorum, abstain: counted.filter((v) => v.choice === "abstain").length, finding: findingText }, idempotency_key: `motion:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
       }
     }
     if (phase === "send") {

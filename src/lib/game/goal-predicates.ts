@@ -15,10 +15,12 @@ export type Pred =
   | { motion: string; result: "passed" | "failed" | "instructed" }   // instructed: facts goal.instruction.<goalId>, default "passed"
   | { sent_doc: { any_of: string[]; to_org: string } }  // handed a copy of one of these to a member of this body
   | { filed: { any_of: string[]; with: string } }        // filed one of these with this body (organizations.slug)
+  | { finding: string; established?: boolean }           // a body recorded this finding (default: as established)
   | { filed_form: string };                             // a form on file
 
 export type GoalRule = {
   episode: number;
+  until?: number;                                       // judged through the end of this episode instead (a goal that waits on a later body)
   pred: Pred;
   review?: boolean;                                     // engine proposes; the showrunner decides
   timing?: { before_day: number; points: number; after: number };   // points if met before this day of the episode, else `after`
@@ -26,12 +28,12 @@ export type GoalRule = {
 };
 
 export const GOAL_RULES: Record<string, GoalRule> = {
-  "ep1-1": { episode: 1, pred: { any: [{ holds: "pgs-invoice-1974-original" }, { all: [{ holds: "pgs-field-log-sep-77" }, { knows: "pgs.concrete_to_empty_parcel_noticed" }] }] } },
+  "ep1-1": { episode: 1, pred: { any: [{ finding: "voss_approved_pgs_invoices" }, { holds: "pgs-invoice-1974-original" }, { all: [{ holds: "pgs-field-log-sep-77" }, { knows: "pgs.concrete_to_empty_parcel_noticed" }] }] } },
   "ep1-2": { episode: 1, review: true, pred: { all: [{ holds: "sayer-letter-with-royce-layout" }, { any: [{ knows: "layout.draughtsman_hand_noticed" }, { knows: "greeley.corresponded_with_religious_group" }, { knows: "is.jt_batch_authority_covers_chr_recon" }] }] } },
   "ep1-3": { episode: 1, review: true, pred: { any: [{ holds: "sheriff-evidence-e76-19" }, { all: [{ holds: "orpheus-access-roster" }, { knows: "orpheus.third_fragment_with_sheriff_noticed" }] }] } },
   "ep1-4": { episode: 1, pred: { all: [{ knows: "personnel.ghost_employee_noticed" }, { knows: "marsh.transfer_notice_postdated_noticed" }, { any: [{ knows: "greeley.notebook_withheld_noticed" }, { knows: "greeley.timeline_gap_noticed" }] }] } },
   "ep1-5": { episode: 1, pred: { holds: "nightjar-test-log-77-on" }, timing: { before_day: 10, points: 15, after: 5 } },
-  "ep1-6": { episode: 1, review: true, pred: { any: [{ motion: "R-77-002", result: "passed" }, { all: [{ holds: "harvest-lot-77b-sampling-order" }, { knows: "harvest.lot_77b_unsigned_noticed" }] }] } },
+  "ep1-6": { episode: 1, until: 2, pred: { any: [{ finding: "harvest_sampling_unauthorized" }, { finding: "harvest_sampling_unauthorized", established: false }] }, partial: { pred: { all: [{ holds: "harvest-lot-77b-sampling-order" }, { knows: "harvest.lot_77b_unsigned_noticed" }] }, points: 10 } },
   "ep1-7": { episode: 1, pred: { all: [{ holds: "sentinel-contract-ledger-page" }, { knows: "finance.overrun_noticed" }] } },
   "ep1-8": { episode: 1, pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }, { any: [{ holds: "jthorne-batch-authorizations" }, { knows: "is.chr_recon_authorized_before_it_existed_noticed" }, { knows: "is.operator_log_signed_by_wrong_hand_noticed" }] }] }, partial: { pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }] }, points: 10 } },
   "ep1-9": { episode: 1, pred: { motion: "B-77-001", result: "instructed" } },
@@ -47,6 +49,7 @@ type State = {
   instruction: (goalId: string) => Promise<"passed" | "failed">;
   sentTo: (slugs: string[], org: string) => Promise<boolean>;
   filed: (slugs: string[], orgSlug: string) => Promise<boolean>;
+  finding: (claim: string, established: boolean) => Promise<boolean>;
   forms: Set<string>;
 };
 
@@ -59,6 +62,7 @@ async function evaluate(p: Pred, s: State, goalId: string): Promise<boolean> {
   if ("motion" in p) { const r = await s.motion(p.motion); if (r !== "passed" && r !== "failed") return false; return p.result === "instructed" ? r === (await s.instruction(goalId)) : r === p.result; }
   if ("sent_doc" in p) return s.sentTo(p.sent_doc.any_of, p.sent_doc.to_org);
   if ("filed" in p) return s.filed(p.filed.any_of, p.filed.with);
+  if ("finding" in p) return s.finding(p.finding, p.established ?? true);
   return false;
 }
 
@@ -79,6 +83,7 @@ export async function judgeGoals(db: SupabaseClient, p: { campaignId: string; ro
       forms: new Set((forms ?? []).map((f) => (f.payload as { form: string }).form)),
       motion: async (n) => { const { data } = await db.from("motions").select("status").eq("campaign_id", p.campaignId).eq("number", n).maybeSingle(); return (data?.status as string | undefined) ?? null; },
       instruction: async (goalId) => { const { data } = await db.from("facts").select("value").eq("campaign_id", p.campaignId).eq("key", `goal.instruction.${goalId}`).maybeSingle(); return ((data?.value as { result?: "passed" | "failed" } | null)?.result) ?? "passed"; },
+      finding: async (claim, established) => { const { data } = await db.from("facts").select("value").eq("campaign_id", p.campaignId).eq("key", `finding.${claim}`).maybeSingle(); return Boolean(data) && Boolean((data!.value as { established?: boolean }).established) === established; },
       filed: async (slugs, orgSlug) => { const { data } = await db.from("facts").select("key, value").eq("campaign_id", p.campaignId).in("key", slugs.map((s) => `filed.${orgSlug}.${s}`)); return (data ?? []).some((f) => (f.value as { by?: string }).by === g.character_id); },
       sentTo: async (slugs, org) => {
         const { data: o } = await db.from("organizations").select("id").eq("campaign_id", p.campaignId).eq("name", org).maybeSingle(); if (!o) return false;
@@ -88,7 +93,7 @@ export async function judgeGoals(db: SupabaseClient, p: { campaignId: string; ro
       },
     };
     const ok = await evaluate(rule.pred, state, g.id as string);
-    const lastDay = p.episode === rule.episode && p.episodeRound >= p.perEpisode;
+    const lastDay = p.episode === (rule.until ?? rule.episode) && p.episodeRound >= p.perEpisode;
     const payloadBase = { goal: g.id, character: g.character_id, goal_key: g.goal_key, round: p.roundNo };
     if (ok) {
       const points = rule.timing ? (p.episode < rule.episode || (p.episode === rule.episode && p.episodeRound < rule.timing.before_day) ? rule.timing.points : rule.timing.after) : Number(g.points);

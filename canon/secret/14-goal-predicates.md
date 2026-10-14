@@ -18,12 +18,12 @@ are not closed by the engine: a `goal.proposed_met` event asks the showrunner to
 ## The predicates
 | Goal | Predicate | Review |
 |---|---|---|
-| ep1-1 Tagus shipments | holds the 1974 PGS invoices, or holds the PGS field log and noticed the concrete went to an empty parcel | |
+| ep1-1 Tagus shipments | a finding that Voss approved the PGS invoices, or holds the 1974 invoices, or holds the PGS field log and noticed the concrete went to an empty parcel | |
 | ep1-2 the leaker | holds Sayer's layout letter and noticed the draughtsman's hand, or knows of Greeley's Congregation letters, or knows J-T's batch authority covers CHR-RECON | yes |
 | ep1-3 ORPHEUS sample | holds the county fragment, or holds the ORPHEUS roster and noticed the third fragment is with the sheriff | yes |
 | ep1-4 three records | noticed the ghost employee, the postdated transfer form, and either the notebook withheld or the Greeley timeline gap | |
 | ep1-5 NIGHTJAR log | holds the 77-ON log; 15 points before day 10, 5 after | |
-| ep1-6 HARVEST authority | R-77-002 passed, or holds the 77-B order and noticed it is unsigned | yes |
+| ep1-6 HARVEST authority | the Research Committee's finding on HARVEST, either way (R-77-002, Episode 2); judged through Episode 2; partial 10 for holding the 77-B order and noticing it is unsigned | |
 | ep1-7 appropriation | holds the 77-S ledger page and noticed the overrun | |
 | ep1-8 future-dated entries | holds the job log, noticed the jobs ran unattended, and holds J-T's authorizations or noticed the authorization predates the series or the operator log's wrong hand; partial 10 for log + unattended | |
 | ep1-9 the motion | B-77-001 closes as instructed | |
@@ -33,6 +33,8 @@ are not closed by the engine: a `goal.proposed_met` event asks the showrunner to
 | ep2-4 R-77-002 | closes as instructed | |
 
 ## Open
-- No finding mechanism: a committee motion passing does not yet record a named finding.
+- Findings: a motion may carry `finding {claim, on, text, false_text}`; at the close the body's
+  decision records `facts finding.<claim>` and tells every player. R-77-002 carries
+  harvest_sampling_unauthorized either way. Goals may test `finding`.
 
 CHANGELOG: v1 predicates for ep1-1..9 and ep2-1..4; nightly judging; review flags.
