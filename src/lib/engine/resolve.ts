@@ -120,8 +120,8 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     }
     return { ...base, kind: "conversation", summary: `${ctx.character.name} reported ${who.name} to Corporate Security. The clerk took the name and asked nothing else. Security will not say what it does with names.`, noticed: false };
   }
-  if (verb === "attend") {
-    // Attending the meeting an invitation names accepts it.
+  if (verb === "attend" || verb === "visit" || verb === "surveil") {
+    // Going where an invitation says to go accepts it, whatever the order called it.
     const p = findPlace(text, episode);
     if (p && !ctx.dry) {
       const open = await outstandingInvitations(db, ctx.campaignId, ctx.character.id);
@@ -133,6 +133,8 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     const d = findDocument(text, episode);
     if (!d) return ruled(`The clerk could not match "${text}" to any file on the company's index. Units returned. Name the file, the office, or the person who keeps it.`);
     base.target = d.slug;
+    const keptAt = placesFor(episode).find((pl) => pl.slug === d.holder);
+    if (keptAt) return ruled(`Records does not hold "${d.title}"; it is kept at ${keptAt.name}. Units returned. Go there, or search there, and see.`);
     if (d.notice) await notify(db, ctx, `${ctx.character.name} requested "${d.title}" on the night of Round ${ctx.roundNo}.`);
     if (allowed(d.access, ctx.character)) { const item = await deliver(db, ctx, d, "Requested through Records."); return { ...base, kind: "document", summary: `Records delivered a copy of "${d.title}". It is in the Case File.`, learned: d.grants, item, noticed: d.notice }; }
     if (d.access.via) { const who = people.find((p) => p.slug === d.access.via); return { ...base, kind: "referred", summary: `Records does not hold "${d.title}"; it is kept by ${who?.name ?? d.access.via} personally. The request was logged and referred; a letter to them might do what a requisition cannot.`, noticed: d.notice }; }
