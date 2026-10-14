@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminDb } from "./auth";
 
 /* The cohort monitor: every campaign, its seats and round, and per player the
@@ -17,8 +18,9 @@ export type CohortRow = {
   players: PlayerRow[];
 };
 
-export async function getCohortMonitor(): Promise<{ cohorts: CohortRow[]; modelErrors24h: number; jobsFailed: number }> {
-  const db = await adminDb();
+export async function getCohortMonitor() { return getCohortMonitorWith(await adminDb()); }
+
+export async function getCohortMonitorWith(db: SupabaseClient): Promise<{ cohorts: CohortRow[]; modelErrors24h: number; jobsFailed: number }> {
   const since7d = new Date(Date.now() - 7 * 86400_000).toISOString();
   const since24h = new Date(Date.now() - 86400_000).toISOString();
   const [{ data: campaigns }, { count: modelErrors24h }, { count: jobsFailed }] = await Promise.all([
