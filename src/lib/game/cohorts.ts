@@ -11,7 +11,11 @@ export type Cohort = { id: string; slug: string; title: string; status: string; 
 async function withSeats(db: SupabaseClient, rows: Record<string, unknown>[]): Promise<Cohort[]> {
   const out: Cohort[] = [];
   for (const r of rows) {
-    const { count } = await db.from("applications").select("id", { count: "exact", head: true }).eq("campaign_id", r.id as string).in("status", ["submitted", "approved"]);
+    const [{ count: seated }, { count: waiting }] = await Promise.all([
+      db.from("characters").select("id", { count: "exact", head: true }).eq("campaign_id", r.id as string).not("player_id", "is", null).in("status", ["active", "missing"]),
+      db.from("applications").select("id", { count: "exact", head: true }).eq("campaign_id", r.id as string).eq("status", "submitted"),
+    ]);
+    const count = (seated ?? 0) + (waiting ?? 0);
     out.push({ id: r.id as string, slug: r.slug as string, title: r.title as string, status: r.status as string, cohort_size: Number(r.cohort_size ?? 12), scheduled_start: (r.scheduled_start as string | null) ?? null, late_join_days: Number(r.late_join_days ?? 7), timezone: (r.timezone as string) ?? "America/New_York", seats_taken: count ?? 0 });
   }
   return out;

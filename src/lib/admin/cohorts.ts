@@ -32,7 +32,7 @@ export async function getCohortMonitorWith(db: SupabaseClient): Promise<{ cohort
   for (const c of campaigns ?? []) {
     const cid = c.id as string;
     const [{ count: seats }, { data: rounds }, { data: pcs }, { data: motions }] = await Promise.all([
-      db.from("applications").select("id", { count: "exact", head: true }).eq("campaign_id", cid).in("status", ["submitted", "approved"]),
+      db.from("applications").select("id", { count: "exact", head: true }).eq("campaign_id", cid).eq("status", "submitted"),
       db.from("rounds").select("id, number, episode_round, status, locks_at, opens_at").eq("campaign_id", cid).order("number", { ascending: false }).limit(3),
       db.from("characters").select("id, name, title, status, divisions(name), players(email)").eq("campaign_id", cid).not("player_id", "is", null).in("status", ["active", "missing"]).order("name"),
       db.from("motions").select("number, title, closes_round, opens_round").eq("campaign_id", cid).eq("status", "open"),
@@ -74,7 +74,7 @@ export async function getCohortMonitorWith(db: SupabaseClient): Promise<{ cohort
       });
     }
     cohorts.push({
-      id: cid, slug: c.slug as string, title: c.title as string, status: c.status as string, timezone: c.timezone as string, cohortSize: Number(c.cohort_size ?? 12), seatsTaken: seats ?? 0, scheduledStart: (c.scheduled_start as string | null) ?? null,
+      id: cid, slug: c.slug as string, title: c.title as string, status: c.status as string, timezone: c.timezone as string, cohortSize: Number(c.cohort_size ?? 12), seatsTaken: (seats ?? 0) + (pcs ?? []).length, scheduledStart: (c.scheduled_start as string | null) ?? null,
       round: current ? { number: Number(current.number), episodeRound: (current.episode_round as number | null) ?? null, status: current.status as string, locksAt: current.locks_at as string, opensAt: current.opens_at as string } : null, episode,
       dispatchesToday: dispatchesToday ?? 0, scriptedToday: scriptedToday ?? 0, invitations: invitations ?? 0, summonses: summonses ?? 0,
       mailUnsent: mailUnsent ?? 0, sendFailed: sendFailed ?? 0, staffPending: staffPending ?? 0,
