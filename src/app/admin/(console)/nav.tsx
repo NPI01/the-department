@@ -13,6 +13,7 @@ export const NAV = [
   { href: "/admin/seasons", label: "Seasons & Episodes" },
   { href: "/admin/casting", label: "Casting Call" },
   { href: "/admin/players", label: "Players" },
+  { href: "/admin/cohorts", label: "Cohorts" },
   { href: "/admin/engine", label: "Engine Health" },
 ];
 

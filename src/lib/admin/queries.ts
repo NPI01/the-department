@@ -273,5 +273,6 @@ export async function getEngine() {
 /* Cron cadence from vercel.json, in ms, and how late counts as stale. */
 export const CRON_EXPECT: Record<string, { every: string; staleAfter: number }> = {
   tick: { every: "daily, 00:00 UTC", staleAfter: 26 * 3600_000 },
+  dispatch: { every: "daily, 13:00 UTC", staleAfter: 26 * 3600_000 },
   work: { every: "every minute", staleAfter: 5 * 60_000 },
 };
