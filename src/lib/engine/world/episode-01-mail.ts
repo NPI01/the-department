@@ -9,7 +9,8 @@ export type Route =
   | { departments: string[] }          // division slugs; falls back to the newest hire if none is staffed
   | { goal: string }                   // whoever holds this goal key; falls back to the newest hire
   | { newest: true }                   // the most recently created player character
-  | { sameAs: string };                // whoever received the item with this key
+  | { sameAs: string }                 // whoever received the item with this key
+  | { society: string };               // members of a society (societies.ts slug)
 
 export type ScheduledItem = {
   key: string;

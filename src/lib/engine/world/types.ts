@@ -7,6 +7,7 @@ export type Access = {
   department?: string[];         // division slugs that may request it regardless of clearance
   via?: string;                  // an NPC slug who holds it personally; a request is referred to them
   sealed?: boolean;              // Security seal: needs clearance 3 or a Security grant
+  society?: string;              // members of this society (org slug) may reach it regardless
 };
 
 export type DocumentDef = {

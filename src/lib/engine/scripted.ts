@@ -22,6 +22,12 @@ async function recipients(db: SupabaseClient, campaignId: string, route: Route, 
     const hit = pcs.filter((p) => ids.has(p.id) || p.goal_key === route.goal);
     return hit.length ? hit : [newest];
   }
+  if ("society" in route) {
+    const { data: org } = await db.from("organizations").select("id").eq("campaign_id", campaignId).ilike("name", route.society === "vigil" ? "%Vigil%" : "%Congregation%").maybeSingle();
+    const { data: mem } = org ? await db.from("memberships").select("character_id").eq("organization_id", org.id) : { data: [] };
+    const ids = new Set((mem ?? []).map((m) => m.character_id as string));
+    return pcs.filter((p) => ids.has(p.id));
+  }
   if ("sameAs" in route) { const ids = delivered.get(route.sameAs) ?? []; const hit = pcs.filter((p) => ids.includes(p.id)); return hit.length ? hit : [newest]; }
   return [];
 }

@@ -4,6 +4,8 @@ import { heartbeat } from "@/lib/engine/heartbeat";
 import { openNextRound, queueMorningDispatches } from "@/lib/engine/rounds";
 import { deliverScheduledMail } from "@/lib/engine/scripted";
 import { startDueCohorts } from "@/lib/game/cohorts";
+import { issueInvitations } from "@/lib/engine/societies";
+import { episodeOf } from "@/lib/engine/world";
 
 /* The morning. Vercel cron calls this at the campaign's dispatch time: open the
    next round (unless one is open) and queue a morning dispatch for every
@@ -23,8 +25,9 @@ export async function GET(req: NextRequest) {
       const { round, opened } = await openNextRound(db, cid);
       const { data: ep } = round.episode_id ? await db.from("episodes").select("number").eq("id", round.episode_id).maybeSingle() : { data: null };
       const mail = await deliverScheduledMail(db, cid, { id: round.id, number: round.number, episodeRound: round.episode_round ?? round.number, episodeNumber: (ep?.number as number | undefined) ?? 1 });
+      const invited = await issueInvitations(db, cid, { id: round.id, number: round.number, episode: (ep?.number as number | undefined) ?? episodeOf(round.number), episodeRound: round.episode_round ?? round.number });
       const queued = await queueMorningDispatches(db, cid, round.id);
-      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, queued });
+      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, invited, queued });
     }
     return { ok: true, started, campaigns: out };
   });

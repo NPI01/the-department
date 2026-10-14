@@ -9,6 +9,7 @@ import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
 import { applyLobby } from "./governance";
+import { acceptInvitation, accessRestricted, outstandingInvitations } from "./societies";
 
 export type Outcome = {
   kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "ruling";
@@ -22,11 +23,11 @@ export type Outcome = {
 
 export type Ctx = {
   campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
-  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null };
+  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[] };
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
@@ -51,6 +52,7 @@ function findPerson(text: string, people: Person[]): Person | null {
 
 function allowed(a: Access | undefined, c: Ctx["character"]): boolean {
   if (!a) return true;
+  if (a.society && c.societies?.includes(a.society)) return true;
   if (a.department && c.division && a.department.includes(c.division)) return true;
   if (a.clearance !== undefined && c.clearance >= a.clearance) return true;
   return a.clearance === undefined && !a.department && !a.via;
@@ -62,6 +64,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
   const rules: [RegExp, string][] = [
     [/\b(manifest|submit a manifest|vehicle manifest|sign-out|sign out log)\b/, "submit_manifest"], [/\b(overtime|coverage)\b/, "approve_overtime"], [/\b(reconcile|coordinates)\b/, "reconcile_maps"],
     [/\b(statement to the county|issue a statement|press statement|statement to the press|official statement)\b/, "issue_statement"], [/\b(clear the invoices|clear invoices|pay the invoices|settle the invoices)\b/, "clear_invoices"], [/\b(approve the corridors?|flight corridors?)\b/, "approve_corridors"],
+    [/\b(report .* to security|report .* to corporate security|turn in|inform security|tell security about)\b/, "report"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker)\b/, "search"],
@@ -103,6 +106,29 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
   const episode = ctx.episode ?? episodeOf(ctx.roundNo);
   const ruled = (summary: string): Outcome => ({ ...base, kind: "ruling", summary, refund: paid });
 
+  if ((verb === "request_files" || verb === "search") && !ctx.dry && (await accessRestricted(db, ctx.campaignId, ctx.character.id, ctx.roundNo))) {
+    return { ...base, kind: "refused", summary: `${ctx.character.name}'s access is suspended pending interview with Corporate Security; Records and restricted areas are closed to them until then.` };
+  }
+  if (verb === "report") {
+    const who = findPerson(text, people.filter((p) => p.player));
+    if (!who) return ruled(`The clerk could not tell whom "${text}" names. Units returned. Use a colleague's surname.`);
+    base.target = who.slug;
+    if (!ctx.dry) {
+      const { data: sec } = await db.from("characters").select("id, divisions!inner(slug)").eq("campaign_id", ctx.campaignId).is("player_id", null).eq("divisions.slug", "corporate-security");
+      for (const s of sec ?? []) await db.from("knowledge").insert({ character_id: s.id, fact_key: `reported:${who.slug}:${hash(ctx.character.id).toString(36)}`, value: { kind: "reported", text: `${ctx.character.name} reported ${who.name} to Security`, from: ctx.character.id, from_name: ctx.character.name, about: who.id, round: ctx.roundNo }, confidence: 1, source_kind: "told", learned_round: ctx.roundNo });
+      await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "security.reported", payload: { by: ctx.character.id, about: who.id, round: ctx.roundNo }, idempotency_key: `reported:${ctx.character.id}:${who.id}:${ctx.roundNo}` });
+    }
+    return { ...base, kind: "conversation", summary: `${ctx.character.name} reported ${who.name} to Corporate Security. The clerk took the name and asked nothing else. Security will not say what it does with names.`, noticed: false };
+  }
+  if (verb === "attend") {
+    // Attending the meeting an invitation names accepts it.
+    const p = findPlace(text, episode);
+    if (p && !ctx.dry) {
+      const open = await outstandingInvitations(db, ctx.campaignId, ctx.character.id);
+      const inv = open.find((s) => s.meeting.place === p.slug);
+      if (inv) { base.target = inv.slug; return { ...base, kind: "conversation", summary: await acceptInvitation(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, characterId: ctx.character.id, characterName: ctx.character.name, characterSlug: ctx.character.slug, society: inv }) }; }
+    }
+  }
   if (verb === "request_files") {
     const d = findDocument(text, episode);
     if (!d) return ruled(`The clerk could not match "${text}" to any file on the company's index. Units returned. Name the file, the office, or the person who keeps it.`);
@@ -188,7 +214,7 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     }
     return { ...base, kind: "mitigated", summary: `${ctx.character.name}'s paperwork (${verb.replace(/_/g, " ")}) went through. The matter of "${tier.text}" is, for now, handled.` };
   }
-  if (verb === "attend") return ruled(`Nothing on the company calendar matched "${text}". Units returned.`);
+  if (verb === "attend") return ruled(`Nothing on the company calendar, and no invitation you hold, matched "${text}". Units returned.`);
   return ruled(`The clerk could not make an order of "${text}". Units returned. Say what you want to request, watch, search, examine, or whom you want to see.`);
 }
 

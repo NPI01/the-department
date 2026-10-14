@@ -26,6 +26,7 @@ import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { episodeOf } from "@/lib/engine/world";
 import { judgeGoals } from "@/lib/game/goal-predicates";
 import { campaignForPlayer } from "@/lib/game/cohorts";
+import { acceptInvitation, declineInvitation, outstandingInvitations, securityPurge, societyByName } from "@/lib/engine/societies";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
@@ -185,6 +186,17 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
+      if (a.kind === "invitation") {
+        const open = await outstandingInvitations(db, c.campaign_id, c.from_character);
+        const named = a.society ? societyByName(a.society) : null;
+        // "the Vigil" may mean the genuine note or Security's; the genuine one wins if both are held.
+        const target = open.find((s) => named ? s.name === named.name && s.genuine : true) ?? open.find((s) => named ? s.name === named.name : true) ?? null;
+        if (!target) { ignored.push(`${a.answer.toUpperCase()} INVITATION — you hold no open invitation${a.society ? ` from ${a.society}` : ""}`); continue; }
+        const { data: me } = await db.from("characters").select("name, slug").eq("id", c.from_character).single();
+        if (a.answer === "accept") { const summary = await acceptInvitation(db, { campaignId: c.campaign_id, roundId: round.id, roundNo: round.number, characterId: c.from_character, characterName: me?.name ?? "", characterSlug: me?.slug ?? "", society: target }); recorded.push(`ACCEPTED the invitation from ${target.name} — ${summary}`); }
+        else { await declineInvitation(db, { campaignId: c.campaign_id, roundId: round.id, roundNo: round.number, characterId: c.from_character, society: target }); recorded.push(`DECLINED the invitation from ${target.name}`); }
+        continue;
+      }
       if (a.kind === "elect") {
         // VOTE E-77-001: <colleague>: a seat election; plurality of cohort votes; a later vote replaces the earlier.
         const { data: em } = await db.from("motions").select("id, number, status, closes_round, opens_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
@@ -334,7 +346,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND") || r.startsWith("ACCEPTED") || r.startsWith("DECLINED"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -471,7 +483,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
         const division = (Array.isArray(chRaw.divisions) ? chRaw.divisions[0]?.slug : chRaw.divisions?.slug) ?? null;
-        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode: episodeOf(round.number), character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title } };
+        const { data: socs } = await db.from("memberships").select("organizations!inner(name, kind)").eq("character_id", chRaw.id).eq("organizations.kind", "society");
+        const societies = (socs ?? []).map((m) => { const o = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string }; return /Vigil/.test(o.name) ? "vigil" : /Congregation/.test(o.name) ? "congregation" : o.name; });
+        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode: episodeOf(round.number), character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies } };
         const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").order("seq");
         let refund = 0;
         for (const o of orders ?? []) {
@@ -491,6 +505,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
       await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
+      // Security's purge, at the lock of Episode 3 day 7.
+      if (episodeOf(round.number) === 3 && (round.episode_round ?? round.number) === 7) await securityPurge(db, round.campaign_id, { id: roundId, number: round.number });
       // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.
       const perEpisode = Number(await rule(db, round.campaign_id, "episode.rounds", 14));
       await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
@@ -574,7 +590,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       : { data: null };
     const sender = from as { slug: string; name: string; title: string | null; division_id: string | null; npc_state: { letterhead?: { name: string; place: string } | null } | null; divisions: { name: string } | null } | null;
     // An outsider (no division) writes on their own paper, not Royce's.
-    const outsider = sender && !sender.division_id ? (sender.npc_state?.letterhead ?? { name: sender.name, place: "North Dakota" }) : null;
+    const outsider = sender && !sender.division_id ? (sender.npc_state?.letterhead ?? { name: sender.name, place: "North Dakota" }) : ((c.raw?.letterhead as { name: string; place: string } | null) ?? null);
     const { data: round } = c.round_id
       ? await db.from("rounds").select("number, episode_round, episodes(number)").eq("id", c.round_id).maybeSingle()
       : { data: null };
