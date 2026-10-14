@@ -54,6 +54,9 @@ H                               ← hold: keep your units this round`}</Code>
 12. Joseph Pruitt`}</Code>
       <P>A filed form is on the record under your name. It costs nothing and is not an order, but staff read it and remember it, and it can be cited against you. A copy, stamped with its index number, is kept in your Case File. Incomplete forms may be returned.</P>
 
+      <H>Documents, copies, and the record</H>
+      <P>Anything you obtain goes into your Case File. From there you can hand a copy to a colleague (<code>SEND facilities-ledger-b7 TO Okafor</code>, or the button on the item) or put it before a committee as evidence (<code>FILE facilities-ledger-b7 WITH the Research Committee</code>). Filing is free and on the record: every member is told, the chair may answer, and a document that proves what a member needed to see can change their vote.</P>
+
       <H>Votes and committees</H>
       <P>When a ballot is open, the notice tells you its number. Reply with a line such as <code>VOTE E-77-001: Okafor</code> or <code>VOTE B-77-003: FOR</code> before the lock on its closing day.</P>
 

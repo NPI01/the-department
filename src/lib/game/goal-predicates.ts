@@ -14,6 +14,7 @@ export type Pred =
   | { holds: string }                                   // a Case File item slug (copies match by prefix)
   | { motion: string; result: "passed" | "failed" | "instructed" }   // instructed: facts goal.instruction.<goalId>, default "passed"
   | { sent_doc: { any_of: string[]; to_org: string } }  // handed a copy of one of these to a member of this body
+  | { filed: { any_of: string[]; with: string } }        // filed one of these with this body (organizations.slug)
   | { filed_form: string };                             // a form on file
 
 export type GoalRule = {
@@ -35,7 +36,7 @@ export const GOAL_RULES: Record<string, GoalRule> = {
   "ep1-8": { episode: 1, pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }, { any: [{ holds: "jthorne-batch-authorizations" }, { knows: "is.chr_recon_authorized_before_it_existed_noticed" }, { knows: "is.operator_log_signed_by_wrong_hand_noticed" }] }] }, partial: { pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }] }, points: 10 } },
   "ep1-9": { episode: 1, pred: { motion: "B-77-001", result: "instructed" } },
   "ep2-1": { episode: 2, review: true, pred: { all: [{ holds: "sheriff-case-ledger" }, { holds: "pgs-field-log-sep-77" }, { holds: "motor-pool-log-oct-77" }] } },
-  "ep2-2": { episode: 2, pred: { sent_doc: { any_of: ["greeley-notebook", "greeley-notebook-page"], to_org: "Research Committee" } } },
+  "ep2-2": { episode: 2, pred: { any: [{ filed: { any_of: ["greeley-notebook", "greeley-notebook-page"], with: "research-committee" } }, { sent_doc: { any_of: ["greeley-notebook", "greeley-notebook-page"], to_org: "Research Committee" } }] } },
   "ep2-3": { episode: 2, review: true, pred: { holds: "sheriff-evidence-e76-19" } },
   "ep2-4": { episode: 2, pred: { motion: "R-77-002", result: "instructed" } },
 };
@@ -45,6 +46,7 @@ type State = {
   motion: (n: string) => Promise<string | null>;
   instruction: (goalId: string) => Promise<"passed" | "failed">;
   sentTo: (slugs: string[], org: string) => Promise<boolean>;
+  filed: (slugs: string[], orgSlug: string) => Promise<boolean>;
   forms: Set<string>;
 };
 
@@ -56,6 +58,7 @@ async function evaluate(p: Pred, s: State, goalId: string): Promise<boolean> {
   if ("filed_form" in p) return s.forms.has(p.filed_form);
   if ("motion" in p) { const r = await s.motion(p.motion); if (r !== "passed" && r !== "failed") return false; return p.result === "instructed" ? r === (await s.instruction(goalId)) : r === p.result; }
   if ("sent_doc" in p) return s.sentTo(p.sent_doc.any_of, p.sent_doc.to_org);
+  if ("filed" in p) return s.filed(p.filed.any_of, p.filed.with);
   return false;
 }
 
@@ -76,6 +79,7 @@ export async function judgeGoals(db: SupabaseClient, p: { campaignId: string; ro
       forms: new Set((forms ?? []).map((f) => (f.payload as { form: string }).form)),
       motion: async (n) => { const { data } = await db.from("motions").select("status").eq("campaign_id", p.campaignId).eq("number", n).maybeSingle(); return (data?.status as string | undefined) ?? null; },
       instruction: async (goalId) => { const { data } = await db.from("facts").select("value").eq("campaign_id", p.campaignId).eq("key", `goal.instruction.${goalId}`).maybeSingle(); return ((data?.value as { result?: "passed" | "failed" } | null)?.result) ?? "passed"; },
+      filed: async (slugs, orgSlug) => { const { data } = await db.from("facts").select("key, value").eq("campaign_id", p.campaignId).in("key", slugs.map((s) => `filed.${orgSlug}.${s}`)); return (data ?? []).some((f) => (f.value as { by?: string }).by === g.character_id); },
       sentTo: async (slugs, org) => {
         const { data: o } = await db.from("organizations").select("id").eq("campaign_id", p.campaignId).eq("name", org).maybeSingle(); if (!o) return false;
         const { data: members } = await db.from("memberships").select("character_id").eq("organization_id", o.id); const ids = new Set((members ?? []).map((m) => m.character_id as string));

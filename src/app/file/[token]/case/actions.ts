@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { characterForToken, currentRound, letterKey, type CaseNote } from "@/lib/game/case-file";
 import { sendDocumentCopy } from "@/lib/game/transfer";
+import { fileWithCommittee } from "@/lib/game/filing";
 
 /* The player's notes. The file token is the only key (as for the personnel
    file), so every action resolves it to a character and touches only that
@@ -73,4 +74,15 @@ export async function sendCopy(token: string, itemKey: string, toSlug: string, n
   const round = await currentRound(db, me.campaignId);
   const r = await sendDocumentCopy(db, { campaignId: me.campaignId, fromCharacterId: me.id, toCharacterId: to.id as string, itemSlug: itemKey, round, note: note.trim().slice(0, 600) || null });
   return r.ok ? { ok: true, title: r.title } : { error: r.error };
+}
+
+/* File an item with a committee: evidence before the body, every member told. */
+export async function fileWith(token: string, itemKey: string, orgName: string): Promise<{ ok?: true; summary?: string; error?: string }> {
+  const db = supabaseAdmin();
+  const me = await characterForToken(db, token);
+  if (!me) return { error: "This link is not valid." };
+  const round = await currentRound(db, me.campaignId);
+  const { data: r } = await db.from("rounds").select("id").eq("campaign_id", me.campaignId).eq("status", "open").maybeSingle();
+  const out = await fileWithCommittee(db, { campaignId: me.campaignId, characterId: me.id, itemSlug: itemKey, orgName, round, roundId: r?.id ?? null });
+  return out.ok ? { ok: true, summary: `Filed with the ${out.org}. ${out.members} members have it${out.moved.length ? `; ${out.moved.join(", ")} moved` : ""}.` } : { error: out.error };
 }

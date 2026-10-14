@@ -26,6 +26,9 @@ HOLD                             strategic hold this round
 VOTE <motion-number>: FOR|AGAINST|ABSTAIN
 ACCEPT AGREEMENT <id>  /  REJECT AGREEMENT <id>
 TRANSFER <n> <resource> TO <person>
+SEND <item> TO <person>          a copy of a Case File item into their cabinet
+FILE <item> WITH <committee>     a Case File item before a body, as evidence, on the record
+ACCEPT INVITATION / DECLINE INVITATION
 ```
 Anything else is conversation. If the game is unsure whether you meant to commit, it
 will ask you to confirm before anything happens.

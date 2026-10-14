@@ -37,6 +37,7 @@ export type GrammarAct =
   | { kind: "send"; item: string; to: string }
   | { kind: "elect"; motion: string; candidate: string }
   | { kind: "invitation"; answer: "accept" | "decline"; society: string }
+  | { kind: "file"; item: string; with: string }
   | { kind: "select"; code: string }
   | { kind: "vote"; motion: string; choice: "for" | "against" | "abstain" }
   | { kind: "hold" }
@@ -86,6 +87,7 @@ export function parseGrammar(text: string): GrammarAct[] {
       continue;
     }
     if ((m = line.match(/^(ACCEPT|DECLINE|REFUSE)\s+(?:THE\s+)?INVITATION(?:\s+(?:FROM|TO|OF)?\s*(.+?))?\.?$/i))) { acts.push({ kind: "invitation", answer: m[1].toUpperCase() === "ACCEPT" ? "accept" : "decline", society: (m[2] ?? "").trim() }); continue; }
+    if ((m = line.match(/^FILE\s+["\u201c]?(.+?)["\u201d]?\s+WITH\s+(?:THE\s+)?(.+?)\.?$/i))) { acts.push({ kind: "file", item: m[1].trim(), with: m[2].trim() }); continue; }
     if ((m = line.match(/^(?:SEND|GIVE|FORWARD)\s+(?:A\s+COPY\s+OF\s+)?["\u201c]?(.+?)["\u201d]?\s+TO\s+(.+?)\.?$/i))) { acts.push({ kind: "send", item: m[1].trim(), to: m[2].trim() }); continue; }
     if ((m = line.match(/^VOTE\s+(E-[A-Z0-9-]+)\s*:\s*(.+?)\.?$/i)) && !/^(FOR|AGAINST|ABSTAIN)$/i.test(m[2].trim())) { acts.push({ kind: "elect", motion: m[1].toUpperCase(), candidate: m[2].trim() }); continue; }
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {

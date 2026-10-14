@@ -81,6 +81,15 @@ the close, every member without a cast vote votes by lean (> 0.15 for, < -0.15 a
 else abstain); only members' votes count; quorum is half the seats. Players vote with
 `VOTE B-77-001: FOR` only if they hold a seat.
 
+## Filing with a committee
+`FILE <item> WITH <committee>` in any reply, or "File with a committee" in the Case File.
+Free: paperwork, not an order. The document goes before the body as evidence: a copy to
+each player member's Case File, a memory row for each staff member, a `facts` key
+`filed.<body>.<item>` for the goal judge, the filer's copy marked filed, and a row for the
+chair, who answers through the staff pipeline. Any staff member whose price on the body's
+open ballot the document meets (its knowledge keys, plus its wrong detail if the filer has
+noticed it) moves to that price's lean, as if lobbied with the evidence in hand.
+
 ## Handing documents on
 `SEND <item> TO <name>` in any reply, or "Hand a copy on" in the Case File: a copy of the
 item goes into the other cabinet with a cover letter on the sender's paper; the original

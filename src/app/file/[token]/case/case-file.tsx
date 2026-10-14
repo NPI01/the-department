@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } f
 import { parseBlocks } from "@/lib/canon/markdown";
 import { inline } from "@/lib/canon/render";
 import { STATUS_LABEL, type CaseFile, type CaseItem, type CaseNote, type Drawer, type Grade } from "@/lib/game/case-file";
-import { addNote, deleteNote, editNote, sendCopy } from "./actions";
+import { addNote, deleteNote, editNote, fileWith, sendCopy } from "./actions";
 
 /* Drawers and folders; an open item as a sheet of paper with the player's
    margin notes beside it; the Notebook of every note. The open item lives in
@@ -287,6 +287,7 @@ function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close, pe
             </div>
           )}
           {!gone && i.drawer !== "correspondence" && people.length > 0 && <SendCopy token={token} itemKey={i.key} people={people} />}
+          {!gone && i.drawer !== "correspondence" && <FileWith token={token} itemKey={i.key} />}
         </aside>
       </div>
     </>
@@ -420,6 +421,30 @@ function SendCopy({ token, itemKey, people }: { token: string; itemKey: string; 
       </select>
       <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="A line for the cover letter (optional)" className="type mt-2 w-full border border-rule bg-paper-2 px-2 py-1.5 text-xs" />
       <button type="button" onClick={send} disabled={pending || !to} className="mt-2 bg-ink px-3.5 py-2 text-[11px] uppercase tracking-[0.2em] text-paper hover:bg-red disabled:opacity-50">{pending ? "Sending…" : "Send a copy"}</button>
+      {msg && <p className="mt-2 text-xs leading-relaxed">{msg}</p>}
+    </div>
+  );
+}
+
+
+/* ---------- filing with a committee ---------- */
+
+function FileWith({ token, itemKey }: { token: string; itemKey: string }) {
+  const [org, setOrg] = useState("");
+  const [msg, setMsg] = useState("");
+  const [pending, start] = useTransition();
+  const go = () => start(async () => { setMsg(""); const r = await fileWith(token, itemKey, org); setMsg(r.ok ? r.summary ?? "Filed." : r.error ?? "Something went wrong."); if (r.ok) setOrg(""); });
+  return (
+    <div>
+      <h3 className="display mb-2 text-base font-medium tracking-[0.06em]">File with a committee</h3>
+      <p className="text-xs leading-relaxed text-ink-2">Puts this before a body as evidence, on the record. Every member is told; the chair may answer. Filing is free and cannot be withdrawn.</p>
+      <select value={org} onChange={(e) => setOrg(e.target.value)} className="mt-2 w-full border border-rule bg-paper-2 px-2 py-1.5 text-xs">
+        <option value="">Choose a body…</option>
+        <option value="Research Committee">Research Committee</option>
+        <option value="Safety Committee">Safety Committee</option>
+        <option value="Board of Directors">Board of Directors</option>
+      </select>
+      <button type="button" onClick={go} disabled={pending || !org} className="mt-2 bg-ink px-3.5 py-2 text-[11px] uppercase tracking-[0.2em] text-paper hover:bg-red disabled:opacity-50">{pending ? "Filing…" : "File it"}</button>
       {msg && <p className="mt-2 text-xs leading-relaxed">{msg}</p>}
     </div>
   );

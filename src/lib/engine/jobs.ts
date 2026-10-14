@@ -27,6 +27,7 @@ import { episodeOf } from "@/lib/engine/world";
 import { judgeGoals } from "@/lib/game/goal-predicates";
 import { campaignForPlayer } from "@/lib/game/cohorts";
 import { acceptInvitation, declineInvitation, outstandingInvitations, securityPurge, societyByName } from "@/lib/engine/societies";
+import { committeeByName, fileWithCommittee } from "@/lib/game/filing";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
@@ -186,6 +187,17 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
+      if (a.kind === "file") {
+        // FILE <item> WITH <committee>: evidence before a body. Free; paperwork, not an order.
+        const { data: mine } = await db.from("case_items").select("slug, title").eq("character_id", c.from_character).eq("status", "held");
+        const want = a.item.toLowerCase();
+        const item = (mine ?? []).find((i) => i.slug === want) ?? (mine ?? []).find((i) => (i.title as string).toLowerCase().includes(want));
+        const orgName = committeeByName(a.with);
+        if (!item) ignored.push(`FILE ${a.item} — nothing in your Case File by that name`);
+        else if (!orgName) ignored.push(`FILE ${a.item} WITH ${a.with} — the bodies are the Research Committee, the Safety Committee and the Board`);
+        else { const r = await fileWithCommittee(db, { campaignId: c.campaign_id, characterId: c.from_character, itemSlug: item.slug, orgName, round: round.number, roundId: round.id }); recorded.push(r.ok ? `FILED "${r.title}" WITH the ${r.org} (${r.members} members told${r.moved.length ? `; ${r.moved.join(", ")} moved` : ""})` : `FILE ${a.item} — ${r.error}`); }
+        continue;
+      }
       if (a.kind === "invitation") {
         const open = await outstandingInvitations(db, c.campaign_id, c.from_character);
         const named = a.society ? societyByName(a.society) : null;
@@ -346,7 +358,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND") || r.startsWith("ACCEPTED") || r.startsWith("DECLINED"))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND") || r.startsWith("ACCEPTED") || r.startsWith("DECLINED") || r.startsWith("FILED") || r.startsWith("FILE "))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
