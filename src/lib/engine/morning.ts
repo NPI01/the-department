@@ -51,7 +51,7 @@ function fallbackText(f: Facts): { narrative: string; overnight: string[] } {
       : f.mode === "hold" ? `${f.first}, you kept your head down last night and your units with it. The building did not notice; the building notices very little, which is a thing to remember.` : `${f.first}, you sent no orders last night, so the night took its own course. Your desk is as you left it, except that it is not quite.`,
     `This is ${f.date}, Round ${f.round} of 14, ${f.episodeTitle}. Orders lock at 8:00 PM Eastern.`,
   ].join("\n\n");
-  const overnight = f.arrived.length ? f.arrived : ["Nothing came in the overnight mail that bore your name."];
+  const overnight = f.arrived.length ? f.arrived.map((a) => a.replace(/;\s*the player has read (it|them)\.?$/i, "").replace(/^(\d+) letters from (.+?), the latest on "(.+)"$/, "$1 letters from $2, the latest headed \"$3\"").replace(/^a letter from (.+?) \(subject: (.+)\)$/, "a letter from $1, headed \"$2\"")) : ["Nothing came in the overnight mail that bore your name."];
   return { narrative, overnight };
 }
 
@@ -70,7 +70,7 @@ function parse(text: string): { narrative: string; overnight: string[]; menu: Me
   return { narrative: top.trim(), overnight, menu, complete: rest.length > 0 };
 }
 
-export async function composeDispatch(f: Facts, onLedger?: (r: LedgerRow) => void | Promise<void>): Promise<{ narrative: string; overnight: string[]; menu: MenuOption[]; model: string; fallback: boolean }> {
+export async function composeDispatch(f: Facts, onLedger?: (r: LedgerRow) => void | Promise<void>): Promise<{ narrative: string; overnight: string[]; menu: MenuOption[]; model: string; fallback: boolean; rejected: { reason: string; text: string }[] }> {
   const system = `You write the morning dispatch for one player of a correspondence game set at Royce Industries, a private research company at Station R in north-central North Dakota, in October 1977. The dispatch is from Personnel & Administration; it is what the player reads first each day. Second person. Plain, exact, a little dry; corporate and bureaucratic cosmic horror enters through small specifics (a form, a signature, a door, a clock), never through exclamation. Period: no personal computers, no internet; memos, carbons, teletypes, telephone logs.
 
 RULES
@@ -78,6 +78,8 @@ RULES
 - Letters the player received are theirs to read: name the sender and the subject, nothing more. Never quote, summarise or characterise what a letter said, and never say how many letters a person sent unless the facts give a number.
 - Never use these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future, SENTINEL, NIGHTJAR, CHOIR, ORPHEUS.
 - Do not explain the plot. Do not tell the player what to think. No bullet points or headers in the narrative.
+- On a night with no orders, do not inventory the mail; the OVERNIGHT lines do that. Write the morning instead: the building, the weather, one small thing out of place on the desk, and the day ahead.
+- Every MENU line names its target so a clerk could act on it: a person by name, a file by its title, a place by its name. Never "him", "the note", "the data".
 
 FORMAT. Two short paragraphs of narrative (120 to 200 words in all). Then a line of exactly three tildes: ~~~
 Then:
@@ -99,17 +101,24 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
   ].filter(Boolean).join("\n\n");
   const ask = (sys: string) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag: "dispatch", temperature: 0.8, maxTokens: 1200, think: false, timeoutMs: 120_000, model: process.env.DISPATCH_MODEL || undefined, onLedger });
   let model = "";
+  const rejected: { reason: string; text: string }[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await ask(attempt ? system + "\n\nYour previous draft was rejected: it was incomplete, or used a forbidden word, or its menu was malformed. Write it again, shorter, in the exact format." : system);
+      const res = await ask(attempt ? system + `\n\nYour previous draft was rejected: ${rejected[rejected.length - 1]?.reason ?? "it did not follow the format"}. Write it again, in the exact format: narrative, a line of three tildes, OVERNIGHT: with dashed lines, MENU: with four pipe-separated lines A to D.` : system);
       model = res.model;
       const out = parse(res.text);
       const bad = (out.narrative + " " + out.overnight.join(" ") + " " + out.menu.map((m) => m.label + m.args).join(" ")).match(SECRET_TERMS);
-      if (out.complete && out.narrative.length > 200 && out.overnight.length >= 2 && out.menu.length === 4 && !bad) return { ...out, model, fallback: false };
-    } catch { /* model unavailable: fall through to the template */ }
+      // A menu short of four options is padded from the standard list rather than thrown away.
+      const codes = new Set(out.menu.map((m) => m.code));
+      const menu = [...out.menu, ...fallbackMenu(f).filter((m) => !codes.has(m.code))].slice(0, 4).map((m, i) => ({ ...m, code: "ABCD"[i] }));
+      const overnight = out.overnight.length >= 2 ? out.overnight : fallbackText(f).overnight;
+      const reason = !out.complete ? "no ~~~ line separating the letter from the clerk's lines" : out.narrative.length <= 200 ? "the narrative was too short" : bad ? `it used the word "${bad[0]}"` : out.menu.length < 2 ? "the MENU lines were missing or malformed (A | verb | what | line | cost)" : null;
+      if (!reason) return { narrative: out.narrative, overnight, menu, model, fallback: false, rejected };
+      rejected.push({ reason, text: res.text.slice(0, 1500) });
+    } catch (e) { rejected.push({ reason: `model error: ${(e as Error).message.slice(0, 80)}`, text: "" }); }
   }
   const fb = fallbackText(f);
-  return { ...fb, menu: fallbackMenu(f), model: model || "template", fallback: true };
+  return { ...fb, menu: fallbackMenu(f), model: model || "template", fallback: true, rejected };
 }
 
 /* Scheduled beats for a round from the beat sheet, player-facing kinds only. */
@@ -146,7 +155,7 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const player = Array.isArray(pl) ? pl[0] : pl;
   if (!player?.email) return;
   const department = (Array.isArray(ch.divisions) ? ch.divisions[0]?.name : (ch.divisions as { name: string } | null)?.name) ?? null;
-  const first = (player.display_name || ch.name).split(" ")[0];
+  const first = ch.name.split(" ")[0];
   const { data: au } = await db.from("resources").select("balance").eq("character_id", ch.id).eq("kind", "au").maybeSingle();
 
   // Last night: the previous round's packet.
@@ -190,7 +199,7 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");
   const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), "", "## Your orders for tonight", menuBlock].join("\n");
   const subject = `${facts.date} — Round ${round.number} of ${Number(await rule(db, round.campaign_id, "episode.rounds", 14))} — ${facts.episodeTitle}`;
-  const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu } }).select("id").single();
+  const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu, rejected: out.rejected } }).select("id").single();
   if (error) throw new Error(error.message);
   await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
   await db.from("events").insert({ campaign_id: round.campaign_id, round_id: round.id, phase: "open", kind: "dispatch.sent", payload: { character: ch.id, correspondence_id: row.id, model: out.model, fallback: out.fallback }, idempotency_key: key, visible_to: [ch.id] });
