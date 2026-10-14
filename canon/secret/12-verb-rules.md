@@ -110,6 +110,13 @@ the Round 3 lock. Every active cohort member is a candidate; `VOTE E-77-001: <su
 casts or replaces a vote; plurality, ties to the earliest hire; the winner is seated as
 Employee representative with clearance 2 and the result goes to everyone's dispatch.
 
+## Findings
+A motion may carry a finding (`motions.finding`: claim, on passed/failed/either, text,
+false_text). At the close the body's decision is recorded as `facts finding.<claim>`,
+public, and every player character learns it; the dispatch states it. A filing establishes
+knowledge keys; a sponsor's motion turns them into a finding. A finding can be formally
+established and still be wrong (01 §Evidence).
+
 ## Open
 - attend has no calendar; approve_corridors / clear_invoices / issue_statement are
   mitigation stubs with no further effect.
