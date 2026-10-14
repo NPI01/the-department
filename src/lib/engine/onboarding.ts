@@ -116,7 +116,7 @@ export async function approveApplication(db: SupabaseClient, applicationId: stri
     const links = letterLinks(player.file_token);
     const { subject, html, text } = await renderTemplate(db, "employment_file", {
       name: app.name, position, department: div[slug].name, clearance: idn.clearance, supervisor_name: sup.name, supervisor_title: sup.title ?? "",
-      summary, au_start: idn.startAu, au_income: rule("au.per_round", 20), au_cap: rule("au.cap", 60), game_address: gameMailbox().address, game_date: gameDate(1),
+      summary, au_start: rule("au.start", 20), au_income: rule("au.per_round", 20), au_cap: rule("au.cap", 60), game_address: gameMailbox().address, game_date: gameDate(1),
     }, links, { to: { name: app.name, title: position } });
     const r = await sendMail({ to: player.email, subject, html, text, replyTo: gameMailbox().reply(await mailToken(db, player.id)) });
     if (r.error) throw new Error(r.error);
