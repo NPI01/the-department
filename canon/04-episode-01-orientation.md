@@ -105,7 +105,7 @@ Sloane
 
 ## Irregularity 3: Sheriff's Letter
 **SLUG:** shfr-call-9910
-**FROM:** Sheriff Dale Hollis, Rural County Sheriff's Department
+**FROM:** Sheriff Dale Hollis, Ward County Sheriff's Department
 **TO:** Harold Sloane, Director of Corporate Security
 **DATE:** October 6, 1977
 **SUBJECT:** Inquiry: Royce Vehicles at Dead Rancher Site
@@ -134,7 +134,7 @@ Don't go out at night. They watch you. Not the men in uniforms. The ground itsel
 Elmer Bernard
 St. Olaf Church, Tagus
 
-*The wrong detail: St. Olaf's bell was removed in 1961. There is no iron ring in the tower to vibrate.*
+*The wrong detail: St. Olaf's bell was removed in 1961; only the iron ring it hung from is left, and nothing in the tower should make it ring.*
 
 ## NPC Letter 2: Martin Sayer
 **SLUG:** letter-sayer-02
@@ -169,3 +169,4 @@ Capt. Thomas Bradley
 *The wrong detail: Bradley logs a forced landing at Minot AFB "for safety check" at 1900 on October 10. The base log for that evening shows no civilian landing. The coordinate pair, if a player asks Bradley for it, is a point four miles south of Tagus.*
 
 CHANGELOG: v1 promotes the Round 1 document pack, three irregularities and three NPC letters, with corrected wrong-details and a map scheme consistent with the Player Bible.
+v1.1 (2026-10-15): the sheriff's department is Ward County (as in the directory); Bernard's wrong detail keeps the iron ring in the tower.

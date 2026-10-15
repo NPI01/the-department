@@ -24,10 +24,10 @@ Sheriff Dale Hollis is the 58-year-old lawman of the rural county surrounding St
   "register": "Gruff, Weary, Direct",
   "rules": [
    "Uses short, declarative sentences.",
-   "Never uses contractions in official correspondence.",
+   "Writes the way he talks: plain, with contractions.",
    "Refers to Royce personnel as 'company men' or by title.",
-   "Avoids emotional language; sticks to observed facts.",
-   "Typically begins with 'This is Sheriff Hollis.'"
+   "Sticks to what he saw and what he was told; allows himself one dry grumble about the company.",
+   "Typically begins with 'This is Dale Hollis.'"
   ],
   "phrases": [
    "I'm writing this to say...",
@@ -64,15 +64,15 @@ Sheriff Dale Hollis is the 58-year-old lawman of the rural county surrounding St
   "That Royce vehicles were seen near the scene, but have since been accounted for or denied by the company (from Vane's testimony and subsequent investigation).",
   "That Sheriff's deputies are not authorized to enter Royce property without escort (from company policy and past incidents).",
   "That the local press is sensationalizing the cattle mutilations as a 'Devil Cult' matter (from reading the local newspaper).",
-  "That he found a piece of metal at the Vane scene that did not look like any farm equipment, and he filed it as ordnance to avoid questions (from his own case file notes)."
+  "That he found a piece of metal on the Halvorsen parcel in June 1976 that did not look like any farm equipment, and filed it as ordnance, tag E-76-19, to avoid questions (from his own evidence log)."
  ],
  "believes": [
   "Royce is covering up something related to the cattle mutilations.",
   "The 'Devil Cult' narrative is a distraction from Royce's involvement in the mutilations."
  ],
  "checkable_lie": {
-  "claim": "I have no record of Royce security personnel on my premises on the night of the mutilation.",
-  "truth": "He saw Royce security vehicles but they left before he arrived; the vehicles were logged by Royce as 'routine patrol' at a different time.",
+  "claim": "I have no record of Royce vehicles at the Vane pasture.",
+  "truth": "Vane's call is in his own log, with the Royce badge on the fender and the blue light; the trucks were gone before he arrived, so he never saw them, and Royce Security logged them as 'routine patrol' at a different time.",
   "where_to_check": "Sheriff's Case File 77-104; Royce Security Log 77-10-05"
  },
  "breaking_point": "If he is forced to hand over evidence to Royce Security without a warrant.",
@@ -175,7 +175,7 @@ Gary Vane is the owner of Vane Cattle Co., a fourth-generation rancher who sells
 ```
 
 ### Elmer Bernard
-Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus. To a new junior employee, he is a harmless eccentric who speaks in whispery, archaic fragments. He writes on plain paper from Tagus, often pausing mid-sentence as if listening to something else. His letters are filled with warnings about the "hum" and the "ground," reflecting his deep, fearful connection to the local history.
+Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus. To a new junior employee, he is a harmless eccentric who speaks in whispery, archaic fragments. He writes on plain paper from Tagus, often pausing mid-sentence as if listening to something else. His letters are filled with warnings about the "hum" and the "ground," reflecting his deep, fearful connection to the local history. PROPOSED (2026-10-15): the iron ring the bell hung from is still in the tower; his checkable lie is that he has not climbed it since 1961.
 
 ```json
 {
@@ -183,10 +183,10 @@ Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus.
   "register": "Whispery, Archaic, Fearful",
   "rules": [
    "Uses fragmented sentences.",
-   "Frequently pauses with ellipses (...) as if listening.",
+   "Short, fragmented sentences; sometimes trails off with an ellipsis (...) as if listening.",
    "Refers to the phenomenon as 'the hum' or 'the ground'.",
    "Avoids modern slang or technical terms.",
-   "Signs simply with first name."
+   "Signs with his full name and 'St. Olaf Church, Tagus'."
   ],
   "phrases": [
    "The wind is sharp...",
@@ -195,7 +195,7 @@ Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus.
    "They watch you...",
    "The iron ring vibrates..."
   ],
-  "signoff": "Elmer"
+  "signoff": "Elmer Bernard, St. Olaf Church, Tagus"
  },
  "letterhead": {"name": "Elmer Bernard", "place": "Tagus, North Dakota"},
  "wants_from_newcomer": "To know if the new hire hears the 'hum' when walking the campus perimeter, to confirm the phenomenon is spreading.",
@@ -232,9 +232,9 @@ Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus.
   "New people bring fresh energy that the ground likes."
  ],
  "checkable_lie": {
-  "claim": "The bell was removed in 1961 and the tower is silent.",
-  "truth": "The iron ring in the tower still vibrates during high-convergence events, despite the absence of the bell.",
-  "where_to_check": "Church maintenance logs; physical inspection of the tower."
+  "claim": "He has not been up the bell tower since the bell came down in 1961.",
+  "truth": "He climbs it after dark to listen to the iron ring the bell hung from.",
+  "where_to_check": "The tower key's sign-out card in the vestry; the dust on the tower stair."
  },
  "breaking_point": "If the church is damaged or desecrated.",
  "ladder": {
@@ -266,7 +266,7 @@ Capt. Thomas Bradley is the Chief Pilot of Prairie Meridian Aviation, the contra
    "Uses aviation jargon (e.g., 'sector', 'corridor', 'beacon').",
    "Short, imperative sentences.",
    "Blames 'instrument interference' for anomalies.",
-   "Avoids speculation; sticks to flight data.",
+   "Sticks to flight data; allows himself one cautious judgment ('I believe we flew too close to the edge').",
    "Signs with rank and surname."
   ],
   "phrases": [
@@ -276,7 +276,7 @@ Capt. Thomas Bradley is the Chief Pilot of Prairie Meridian Aviation, the contra
    "Co-pilot is shaken.",
    "Requesting review of flight path."
   ],
-  "signoff": "Capt. T. Bradley"
+  "signoff": "Capt. Thomas Bradley"
  },
  "letterhead": {"name": "Prairie Meridian Aviation", "place": "Minot, North Dakota"},
  "wants_from_newcomer": "Validation that the 'voice' on the VHF radio was not a transmission error, to justify his request for a flight path review.",
@@ -303,14 +303,14 @@ Capt. Thomas Bradley is the Chief Pilot of Prairie Meridian Aviation, the contra
  ],
  "knows": [
   "That Flight 77-ON experienced significant instrument failure (from his flight log).",
-  "That a voice repeated a coordinate pair on the VHF radio (from his co-pilot's report).",
+  "That a voice repeated a coordinate pair on the VHF radio (he heard it himself; so did the co-pilot).",
   "That the base log for Minot AFB shows no civilian landing for his forced landing (from checking the log).",
   "That Sector 4 is marked 'Restricted' by Royce Security (from his briefing)."
  ],
  "believes": [
   "The 'interference' is caused by some kind of electromagnetic anomaly.",
   "Royce is hiding something about the restricted sector.",
-  "The 'voice' is a glitch, not a person."
+  "He wants the 'voice' to be a transmission error, and fears it was not."
  ],
  "checkable_lie": {
   "claim": "The forced landing at Minot AFB was logged and approved.",
@@ -508,10 +508,10 @@ Dr. Sarah Ely is the Director of Biological Sciences. She is young, ambitious, a
   "register": "Enthusiastic, Frantic, Academic",
   "rules": [
    "Mix clinical terminology with emotional urgency.",
-   "Use italics for emphasis on *why* something is needed now.",
-   "Refer to Marsh as 'my predecessor' or 'Evelyn' with visible grief/anger.",
+   "In letters, use italics for emphasis on *why* something is needed now; formal requisitions are plain.",
+   "Refer to Marsh as 'my predecessor' or 'Evelyn' with visible grief/anger; to other directors, 'Dr. Marsh'.",
    "Never use the word 'monster' or 'alien'; use 'subject' or 'specimen'.",
-   "Sign with 'Sarah Ely, PhD'."
+   "Sign letters 'Sarah Ely, PhD'; formal requisitions 'Sincerely, Dr. Sarah Ely'."
   ],
   "phrases": [
    "The sample is viable *now*.",
@@ -589,7 +589,7 @@ Dr. Adrian Vale is the Chief Scientist, a man who has been with Edmund Royce sin
   "register": "Warm, Academic, Rambling",
   "rules": [
    "Use metaphors from ecology, growth, or astronomy.",
-   "Never use imperative verbs; frame commands as suggestions or questions.",
+   "In letters to one person, never imperative: frame commands as suggestions or questions. His memos to all staff are a flat formal register: short, imperative, unsigned (the Orientation Schedule memo).",
    "Address subordinates by name if known, or 'colleague' if not.",
    "Ignore strict departmental silos in subject matter reference, though not in access authority.",
    "Sign with 'Adrian' or 'A. Vale', never 'Dr. Vale' unless being formal to an outsider."
@@ -1012,9 +1012,9 @@ Maya Okafor is a junior clerk in Procurement & Logistics. PROPOSED. She has been
 
 ### Checkable Record Lies (Summary)
 
-*   **Sheriff Hollis:** Claims no record of Royce vehicles; truth is they were there but logged differently.
+*   **Sheriff Hollis:** Claims no record of Royce vehicles at the Vane pasture; truth is Vane's call is in his log, and Royce logged the trucks as routine patrol.
 *   **Gary Vane:** Claims natural cause of death; truth is surgical draining.
-*   **Elmer Bernard:** Claims bell tower is silent; truth is it vibrates.
+*   **Elmer Bernard:** Claims he has not climbed the tower since 1961; truth is he climbs it after dark to listen.
 *   **Capt. Bradley:** Claims landing was logged; truth is it was not
 ## Second pass (2026-10-13): the reachable seven
 Written one at a time on qwen 27B from the directory, the allegiance row and canon mentions; checked by hand for leaks. Mercer writes from Minot on plain paper.
