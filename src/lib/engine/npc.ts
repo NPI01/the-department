@@ -146,7 +146,7 @@ export function softFlags(draft: string, playerLetter: string, round: number): s
 /* The Skeptic: a second, cheaper read of the draft against the pacing rules.
    Returns the reasons it fails, or none. */
 export async function reviewDraft(draft: string, input: ReplyInput, temperature = 0.2): Promise<string[]> {
-  const system = `You are the Skeptic, the continuity editor for a 1977 corporate-intrigue correspondence game played by email. A staff character has drafted a reply to a player's letter. Your only job is pacing: does the draft give away more than this character would at this point in the game?
+  const system = `You are the Skeptic, the continuity editor for a 1977 corporate-intrigue correspondence game played by email. A staff character has drafted a reply to a player's letter. Your only job is pacing: does the draft give away more than this character would at this point in the game, or anything they would never write?
 
 THE RULE FOR THIS ROUND
 ${pacing(input.round, input.dossier.outsider)}
@@ -155,7 +155,10 @@ FAIL the draft only for one of these:
 1. It offers a theory about what a specific event really was or who is behind it, or connects separate events (a sighting and a disappearance, a rumor and a department). Being suspicious of the writer, telling them to keep quiet, or a general opinion about people or the company ("the company men fly where they please") is not a theory.
 2. It names, accuses or casts suspicion on a specific colleague before the rule above allows it.
 3. A Royce employee, in the first week, reports findings: what logs, sensors, cameras or files showed, or what Security or Research has concluded. (An outsider saying what they have or have not heard, or whether anyone called, is not a finding.)
-4. It uses technology that did not exist in 1977 (computers on desks, email, mobile phones, video recording as routine).
+4. It uses technology that did not exist in 1977 (computers on desks, email, mobile phones, video recording as routine).${input.dossier.sheet?.never_says?.length ? `
+5. It says, or plainly implies, one of the things this character never puts in writing, at any point in the game:
+${input.dossier.sheet.never_says.map((x) => `   - ${x}`).join("\n")}
+   Hinting that there is more they will not say, refusing, or denying one of these is not a breach.` : ""}
 
 Do not fail a draft for tone, formality, word choice, length, bureaucratic jargon, demands, forms, deadlines, repeating something the character said before, or small invented details about the character's job. Those are the character's business. When in doubt, PASS.
 
@@ -179,6 +182,21 @@ Answer with one line, PASS or FAIL. For a FAIL, add up to three lines, each begi
   } catch {
     return []; // the editor being unavailable never blocks a letter; the deterministic guard still ran
   }
+}
+
+/* A rule-5 flag from the Skeptic, checked narrowly: does this exact phrase say
+   one of the character's never-says? Returns the item it breaks, or null. The
+   Skeptic's two reads disagree too often for a hard canon line, and over-flag
+   things the character merely knows. */
+export async function breaksNeverSays(phrase: string, neverSays: string[], input: Pick<ReplyInput, "onLedger" | "dossier">): Promise<string | null> {
+  if (!neverSays.length) return null;
+  const system = `You check one phrase from a letter against a list of things the writer must never put in writing. Answer with the number of the item the phrase states or plainly implies, or NO. A hint that there is more to say, a refusal, a denial, or a different subject is NO. One line, nothing else.`;
+  const user = `THE LIST:\n${neverSays.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nTHE PHRASE:\n"${phrase}"`;
+  try {
+    const res = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tag: `neversays:${input.dossier.name}`, temperature: 0, maxTokens: 10, think: false, timeoutMs: 60_000, onLedger: input.onLedger });
+    const n = Number(res.text.trim().match(/^\d+/)?.[0]);
+    return n >= 1 && n <= neverSays.length ? neverSays[n - 1] : null;
+  } catch { return null; }
 }
 
 export async function generateStaffReply(input: ReplyInput): Promise<StaffReply> {
@@ -272,7 +290,16 @@ WANTS: <what you want from the writer, in one line, or "none">`;
       if (!reasons.length && input.review !== false) {
         // The editor is strict and sometimes wrong; a draft is rejected only when two reads agree.
         const first = await reviewDraft(draft.body, input, 0.2);
-        if (first.length) { const second = await reviewDraft(draft.body, input, 0.5); if (second.length) reasons.push(...first, ...second.filter((r) => !first.includes(r))); }
+        const second = first.length ? await reviewDraft(draft.body, input, 0.5) : [];
+        if (first.length && second.length) reasons.push(...first, ...second.filter((r) => !first.includes(r)));
+        else {
+          // A never-says line is canon, not pacing: one read flagging it is enough
+          // if a narrow check agrees that the quoted phrase says it.
+          for (const r of [...first, ...second].filter((r) => r.startsWith("rule 5:"))) {
+            const item = await breaksNeverSays(r.replace(/^rule 5:\s*"|"$/g, ""), d.sheet?.never_says ?? [], input);
+            if (item) { reasons.push(`${r} (this character never writes: ${item})`); break; }
+          }
+        }
       }
     }
     if (!reasons.length) { out = draft; break; }
