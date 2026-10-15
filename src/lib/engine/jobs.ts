@@ -481,45 +481,77 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (!email) return; // nothing to send to
     const { data: round } = c.round_id ? await db.from("rounds").select("number").eq("id", c.round_id).maybeSingle() : await db.from("rounds").select("number").eq("campaign_id", c.campaign_id).order("number", { ascending: false }).limit(1).maybeSingle();
     const roundNo = round?.number ?? 1;
-    // Earlier letters between the two, oldest first.
-    const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).neq("id", id)
-      .or(`and(from_character.eq.${c.from_character},to_characters.cs.{${npcId}}),and(from_character.eq.${npcId},to_characters.cs.{${c.from_character}})`).order("received_at").limit(6);
-    const thread = (prior ?? []).map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
-    const salute = parseSalutation(c.body_text as string);
-    const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc), sheet: (npc.npc_state as CastSheet | null) ?? null });
-    // What this character remembers: said (to whom) and heard (from this writer).
-    const { data: known } = await db.from("knowledge").select("source_kind, value").eq("character_id", npcId).in("source_kind", ["stated", "told"]).order("created_at").limit(60);
-    type KV = { kind?: string; text: string; to?: string; to_name?: string; from?: string };
-    const memory: Memory = { saidToThisPerson: [], saidToOthers: [], heardFromThisPerson: [], filed: [] };
-    const { data: filedEv } = await db.from("events").select("payload").eq("campaign_id", c.campaign_id).eq("kind", "form.filed").contains("payload", { character: pc.id });
-    for (const f of filedEv ?? []) { const v = f.payload as { form: string; index: string; missing?: number[] }; memory.filed!.push(`Form ${v.form} (${v.index})${v.missing?.length ? ", incomplete" : ""}`); }
-    const thisForm = parseFormSubmission(c.body_text as string);
-    const { data: cRaw } = await db.from("correspondence").select("raw").eq("id", id).single();
-    const inPerson = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind === "interview";
-    const formNote = inPerson
-      ? `this was not a letter: the writer came to see you in person last night and asked what the line above says. Write the short note you would send them the next morning about that conversation: what you were willing to say to their face, and nothing you would not put on paper. If you would send nothing, write one line saying so.`
-      : thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
-    for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
-      if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
-      else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
+    // Other letters from this writer that this person has not answered yet
+    // (their reply jobs are still pending) are answered in the same letter, so
+    // two quick letters do not get two replies saying the same thing. Each is
+    // claimed by its idempotency key; a claim lost to another worker is left out.
+    // In-person visits and filled-in forms keep replies of their own.
+    const { data: pending } = await db.from("jobs").select("payload").eq("kind", "npc_reply").is("done_at", null).contains("payload", { character_id: npcId });
+    const pendingIds = (pending ?? []).map((j) => (j.payload as { correspondence_id: string }).correspondence_id).filter((x) => x !== id);
+    const { data: others } = pendingIds.length
+      ? await db.from("correspondence").select("id, subject, body_text, received_at, raw").in("id", pendingIds).eq("from_character", c.from_character).order("received_at")
+      : { data: [] };
+    const merged: { id: string; subject: string | null; body_text: string; received_at: string }[] = [];
+    const isPlainLetter = (x: { body_text: string; raw: unknown }) => !(x.raw as { letter_kind?: string } | null)?.letter_kind && !Object.keys(parseFormSubmission(x.body_text ?? "")?.answers ?? {}).length;
+    const { data: cSelf } = await db.from("correspondence").select("received_at, raw").eq("id", id).single();
+    if (isPlainLetter({ body_text: c.body_text as string, raw: cSelf?.raw })) {
+      for (const o of (others ?? []) as { id: string; subject: string | null; body_text: string; received_at: string; raw: unknown }[]) {
+        if (!isPlainLetter(o)) continue;
+        const { error: lost } = await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "npc.reply_merged", payload: { letter: o.id, into: id, npc: npc.slug }, idempotency_key: `npc_reply:${o.id}:${npcId}` });
+        if (!lost) merged.push(o);
+      }
     }
-    const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter: { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote }, thread, round: roundNo, memory, onLedger: ledger(db) });
-    const { data: row, error } = await db.from("correspondence").insert({
-      campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
-      from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
-      raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, rejected: reply.rejected, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id },
-    }).select("id").single();
-    if (error) throw new Error(error.message);
-    await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
-    // Memory: the character remembers what they said and asked; the player's character now knows what they were told.
-    const said = [...reply.shared.map((text) => ({ kind: "shared", text })), ...(reply.wants ? [{ kind: "asked", text: reply.wants }] : [])];
-    if (said.length) {
-      await db.from("knowledge").insert([
-        ...said.map((s) => ({ character_id: npcId, fact_key: `stated:${pc.slug}:${hashKey(s.text)}`, value: { ...s, to: pc.id, to_name: pc.name, round: roundNo }, confidence: 1, source_kind: "stated", source_ref: row.id, learned_round: roundNo })),
-        ...reply.shared.map((text) => ({ character_id: pc.id, fact_key: `told:${npc.slug}:${hashKey(text)}`, value: { kind: "info_share", text, from: npcId, from_name: npc.name, round: roundNo }, confidence: 0.6, source_kind: "told", source_ref: row.id, learned_round: roundNo })),
-      ]);
+    let replied = false;
+    try {
+      const batch = [...merged, { id, subject: c.subject as string | null, body_text: c.body_text as string, received_at: cSelf?.received_at as string }].sort((a, b) => a.received_at.localeCompare(b.received_at));
+      // Earlier letters between the two: the latest six, oldest first.
+      const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).not("id", "in", `(${batch.map((b) => b.id).join(",")})`)
+        .or(`and(from_character.eq.${c.from_character},to_characters.cs.{${npcId}}),and(from_character.eq.${npcId},to_characters.cs.{${c.from_character}})`).order("received_at", { ascending: false }).limit(6);
+      const thread = (prior ?? []).reverse().map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
+      const salute = parseSalutation(c.body_text as string);
+      const dossier = await loadDossier(db, { name: npc.name, title: npc.title, department: dept(npc), sheet: (npc.npc_state as CastSheet | null) ?? null });
+      // What this character remembers: said (to whom) and heard (from this writer).
+      const { data: known } = await db.from("knowledge").select("source_kind, value").eq("character_id", npcId).in("source_kind", ["stated", "told"]).order("created_at").limit(60);
+      type KV = { kind?: string; text: string; to?: string; to_name?: string; from?: string };
+      const memory: Memory = { saidToThisPerson: [], saidToOthers: [], heardFromThisPerson: [], filed: [] };
+      const { data: filedEv } = await db.from("events").select("payload").eq("campaign_id", c.campaign_id).eq("kind", "form.filed").contains("payload", { character: pc.id });
+      for (const f of filedEv ?? []) { const v = f.payload as { form: string; index: string; missing?: number[] }; memory.filed!.push(`Form ${v.form} (${v.index})${v.missing?.length ? ", incomplete" : ""}`); }
+      const thisForm = parseFormSubmission(c.body_text as string);
+      const { data: cRaw } = await db.from("correspondence").select("raw").eq("id", id).single();
+      const inPerson = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind === "interview";
+      const formNote = inPerson
+        ? `this was not a letter: the writer came to see you in person last night and asked what the line above says. Write the short note you would send them the next morning about that conversation: what you were willing to say to their face, and nothing you would not put on paper. If you would send nothing, write one line saying so.`
+        : thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
+      for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
+        if (k.source_kind === "stated") { if (k.value.to === pc.id) memory.saidToThisPerson.push(k.value.text); else memory.saidToOthers.push({ to: k.value.to_name ?? "a colleague", text: k.value.text }); }
+        else if (k.value.from === pc.id) memory.heardFromThisPerson.push(k.value.text);
+      }
+      const letter = batch.length > 1
+        ? { subject: baseSubject(batch[batch.length - 1].subject ?? "") || null, body: batch.map((b, i) => `[Letter ${i + 1} of ${batch.length}${b.subject ? `, subject: ${baseSubject(b.subject)}` : ""}]\n${b.body_text}`).join("\n\n"), date: gameDate(roundNo), formNote: `the writer sent you these ${batch.length} letters before you answered any of them. Answer them together in one letter; say each thing once.` }
+        : { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote };
+      const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter, thread, round: roundNo, memory, onLedger: ledger(db) });
+      const { data: row, error } = await db.from("correspondence").insert({
+        campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
+        from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
+        raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, rejected: reply.rejected, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id, ...(merged.length ? { answers: batch.map((b) => b.id) } : {}) },
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
+      replied = true;
+      // Memory: the character remembers what they said and asked; the player's character now knows what they were told.
+      const said = [...reply.shared.map((text) => ({ kind: "shared", text })), ...(reply.wants ? [{ kind: "asked", text: reply.wants }] : [])];
+      if (said.length) {
+        await db.from("knowledge").insert([
+          ...said.map((s) => ({ character_id: npcId, fact_key: `stated:${pc.slug}:${hashKey(s.text)}`, value: { ...s, to: pc.id, to_name: pc.name, round: roundNo }, confidence: 1, source_kind: "stated", source_ref: row.id, learned_round: roundNo })),
+          ...reply.shared.map((text) => ({ character_id: pc.id, fact_key: `told:${npc.slug}:${hashKey(text)}`, value: { kind: "info_share", text, from: npcId, from_name: npc.name, round: roundNo }, confidence: 0.6, source_kind: "told", source_ref: row.id, learned_round: roundNo })),
+        ]);
+      }
+      await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "npc.replied", payload: { to: id, reply: row.id, npc: npc.slug, model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants, ...(merged.length ? { answers: batch.map((b) => b.id) } : {}) }, idempotency_key: key, visible_to: [c.from_character] });
+    } catch (e) {
+      // No reply was queued: give the merged letters back so their own jobs (or this one's retry) answer them.
+      if (merged.length && !replied) await db.from("events").delete().in("idempotency_key", merged.map((m) => `npc_reply:${m.id}:${npcId}`));
+      throw e;
     }
-    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "npc.replied", payload: { to: id, reply: row.id, npc: npc.slug, model: reply.model, guarded: reply.guarded, shared: reply.shared, wants: reply.wants }, idempotency_key: key, visible_to: [c.from_character] });
   },
 
   async tick_phase(db, p) {

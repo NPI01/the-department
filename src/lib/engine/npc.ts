@@ -209,7 +209,8 @@ THE WRITER'S PERSONNEL FILE (a company record you may have seen; what the writer
 ${input.player.badge ? `Badge ${input.player.badge}. ` : ""}${input.player.bio ?? ""}
 ` : ""}
 RULES
-- Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
+- Write a letter of 80 to 180 words. Answer what was actually asked, or pointedly decline to.
+- Your earlier letters to this writer are above. Do not repeat them: no request, offer, warning or turn of phrase you have already written. If a request of yours still stands, say so in a few words and move on. One concrete detail from your work. Ask the writer for something in return, or give an instruction, if it suits you.
 - You are a person with a job and something to lose. You can be curt, warm, suspicious, bureaucratic. You do not explain the plot. You do not reveal secrets; you can imply you know more than you say.
 - Never mention these words or ideas: Convergence, Drawing 68-24, the Keepers, the Ascendants, 1984, retrocausal, Sublevel Nine, Kessler, Vetch, Clara Wren, the Omega Point, time loops, the future.
 - No modern phrasing. No bullet points. No headers; the letterhead is added for you. Do not write "Dear" lines or a signature block; begin with the salutation line you would use (e.g. "Mr. Pruitt,") and end with how you sign (e.g. "— L. Fisk").${d.outsider ? "\n- You are not staff. Do not use Royce forms, Royce titles for yourself, or office language. Royce people are 'the company' or 'your outfit'." : ""}
