@@ -29,8 +29,15 @@ export async function menuFor(db: SupabaseClient, roundId: string, characterId: 
 }
 
 export function renderMenu(options: MenuOption[], au: number) {
-  const w = Math.max(...options.map((o) => o.label.length));
-  const rows = options.map((o) => `  ${o.code}.  ${o.label.padEnd(w + 2)}${String(o.cost).padStart(3)} AU`);
+  // Long lines wrap under the label so the cost column stays put.
+  const W = 52;
+  const wrap = (t: string) => t.split(/\s+/).reduce<string[]>((ls, word) => {
+    const last = ls[ls.length - 1];
+    if (last !== undefined && (last + " " + word).length <= W) ls[ls.length - 1] = last + " " + word; else ls.push(word);
+    return ls;
+  }, []);
+  const w = Math.min(W, Math.max(...options.map((o) => Math.max(...wrap(o.label).map((l) => l.length)))));
+  const rows = options.flatMap((o) => { const [first, ...more] = wrap(o.label); return [`  ${o.code}.  ${first.padEnd(w + 2)}${String(o.cost).padStart(3)} AU`, ...more.map((l) => `      ${l}`)]; });
   return [
     `YOUR ORDERS FOR TONIGHT`,
     `You have ${au} Action Units. Orders lock at 8:00 PM Eastern.`,

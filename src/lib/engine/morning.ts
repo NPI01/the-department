@@ -55,6 +55,31 @@ function fallbackText(f: Facts): { narrative: string; overnight: string[] } {
   return { narrative, overnight };
 }
 
+/* What each verb looks like on the menu, with its target. */
+const VERB_LINE: Record<string, (what: string) => string> = {
+  request_files: (w) => `Ask Records for ${w}`,
+  interview: (w) => `Talk to ${w}`,
+  surveil: (w) => `Watch ${w} for a night`,
+  examine: (w) => `Examine ${w}`,
+  visit: (w) => `Go to ${w}`,
+  lobby: (w) => `Lobby ${w}`,
+  submit_manifest: (w) => `File ${w}`,
+  search: (w) => `Search ${w}`,
+  attend: (w) => `Attend ${w}`,
+};
+
+/* The line the player reads is the action and its target, built from the verb;
+   the model's own line follows it as the reason when it reads as one. The
+   model has written bare numbers in that column, and lines that never named
+   the target ("Verifying the current count"), so it never stands alone. */
+export function menuLabel(verb: string, args: string, modelLine: string): string {
+  const what = args.replace(/^(the|a|an)\s/i, (x) => x.toLowerCase());
+  const action = (VERB_LINE[verb] ?? ((w: string) => w))(what);
+  const why = modelLine.trim();
+  const usable = /[a-z]{3,}/i.test(why) && why.split(/\s+/).length >= 3 && !action.toLowerCase().includes(why.toLowerCase());
+  return usable && action.length + why.length < 130 ? `${action}: ${why.charAt(0).toLowerCase()}${why.slice(1)}` : action;
+}
+
 /* The letter above a "~~~" line; OVERNIGHT and MENU lines below it. */
 function parse(text: string): { narrative: string; overnight: string[]; menu: MenuOption[]; complete: boolean } {
   const clean = text.replace(/^```[a-z]*\n?|```$/gm, "").trim();
@@ -65,7 +90,7 @@ function parse(text: string): { narrative: string; overnight: string[]; menu: Me
   for (const m of tail.matchAll(/^\s*([A-D])\s*\|\s*([a-z_]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*(\d{1,2})\s*$/gim)) {
     const verb = m[2].toLowerCase(); const cost = Number(m[5]);
     if (!VERBS[verb] || cost < 3 || cost > 12) continue;
-    menu.push({ code: m[1].toUpperCase(), verb, args: m[3].trim(), label: m[4].trim().replace(/\.$/, ""), cost });
+    menu.push({ code: m[1].toUpperCase(), verb, args: m[3].trim(), label: menuLabel(verb, m[3].trim(), m[4].trim().replace(/\.$/, "")), cost });
   }
   return { narrative: top.trim(), overnight, menu, complete: rest.length > 0 };
 }

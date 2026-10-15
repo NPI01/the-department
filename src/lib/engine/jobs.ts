@@ -2,6 +2,7 @@
    be safe to run twice: it checks for the effect before applying it.
    Kinds:
      route       resolve a correspondence row's recipients to characters
+     deliver_letter  copy a player's letter to other players' characters and send it
      grammar     apply deterministic acts (vote/hold/order/accept/reject/transfer) from a trusted sender
      extract     ask the model for non-binding structured events; store with provenance
      tick_phase  one resolution phase of a locked round (deterministic; stubs grow into rules)
@@ -89,6 +90,22 @@ export async function runJob(db: SupabaseClient, job: Job): Promise<void> {
   }
 }
 
+/* "Re: Fwd: Your first assignment" → "Your first assignment". */
+export function baseSubject(s: string): string {
+  return s.replace(/^\s*(?:(?:re|fwd?|aw|sv)\s*(?:\[\d+\])?\s*:\s*)+/i, "").trim();
+}
+
+/* The part of a player's letter meant for its reader: the leading "Re:" line,
+   the "To:" lines and the clerk's order lines (menu letters, ORDER:, HOLD, VOTE)
+   are dropped. Empty when the letter was only orders. */
+export function letterBody(text: string): string {
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?)\s*$/i.test(l));
+  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /* True when the reply contained only commands (DIRECTORY/HELP), so no receipt is owed. */
 function nothingFoundExceptCommands(acts: GrammarAct[]) { return acts.length > 0 && acts.every((a) => a.kind === "command" || a.kind === "form_request" || (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args))); }
 
@@ -129,20 +146,65 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         if (hit) to.add(hit.id);
       }
     }
-    // A reply to a letter goes to whoever wrote it.
+    const { data: sender } = await db.from("players").select("id").eq("email", c.from_address).maybeSingle();
+    let from: string | null = null;
+    if (sender) { const { data: pc } = await db.from("characters").select("id").eq("campaign_id", campaign).eq("player_id", sender.id).maybeSingle(); from = pc?.id ?? null; }
+    // A reply to a letter goes to whoever wrote it. The mail provider replaces
+    // our Message-ID with its own, so In-Reply-To rarely matches; fall back to
+    // the latest letter from a person to this character under the same subject.
     if (!to.size && c.in_reply_to) {
       const { data: parent } = await db.from("correspondence").select("from_character").eq("message_id", c.in_reply_to).maybeSingle();
       if (parent?.from_character) to.add(parent.from_character);
     }
-    const { data: sender } = await db.from("players").select("id").eq("email", c.from_address).maybeSingle();
-    let from: string | null = null;
-    if (sender) { const { data: pc } = await db.from("characters").select("id").eq("campaign_id", campaign).eq("player_id", sender.id).maybeSingle(); from = pc?.id ?? null; }
+    if (!to.size && from) {
+      const { data: subj } = await db.from("correspondence").select("subject").eq("id", id).single();
+      const base = baseSubject((subj?.subject as string | null) ?? "");
+      if (base) {
+        const { data: parent } = await db.from("correspondence").select("from_character").eq("campaign_id", campaign).eq("direction", "outbound").eq("subject", base)
+          .contains("to_characters", [from]).not("from_character", "is", null).neq("from_character", from).order("received_at", { ascending: false }).limit(1).maybeSingle();
+        if (parent?.from_character) to.add(parent.from_character as string);
+      }
+    }
+    if (from) to.delete(from); // "Best, Joe" is a signature, not an address
     await db.from("correspondence").update({ to_characters: [...to], from_character: from, campaign_id: campaign }).eq("id", id);
     if (!to.size) { await db.from("events").insert({ campaign_id: campaign, kind: "mail.unrouted", payload: { correspondence_id: id }, idempotency_key: `unrouted:${id}` }); return; }
-    // NPC recipients get a reply job; the model answers in the next dispatch window.
-    const { data: npcs } = await db.from("characters").select("id").in("id", [...to]).is("player_id", null);
+    const { data: recips } = await db.from("characters").select("id, player_id").in("id", [...to]);
     // Staff answer within a few minutes: long enough to feel like a person, short enough to keep a conversation going.
-    for (const n of npcs ?? []) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: id, character_id: n.id }, run_after: new Date(Date.now() + (2 + Math.random() * 4) * 60_000).toISOString() });
+    for (const n of (recips ?? []).filter((x) => !x.player_id)) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: id, character_id: n.id }, run_after: new Date(Date.now() + (2 + Math.random() * 4) * 60_000).toISOString() });
+    // Another player's character gets the letter itself, by inter-office mail.
+    if (from && (recips ?? []).some((x) => x.player_id)) await db.from("jobs").insert({ kind: "deliver_letter", payload: { correspondence_id: id } });
+  },
+
+  /* A player's letter to other players' characters: copied as an outbound
+     letter from the writer's character to each recipient, on the letterhead,
+     and sent. Order lines in it were for the clerk and are left out; a reply
+     that was only order lines is not a letter. */
+  async deliver_letter(db, p) {
+    const id = p.correspondence_id as string;
+    const key = `delivered:${id}`;
+    const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
+    if (dup) return;
+    const { data: c } = await db.from("correspondence").select("campaign_id, round_id, thread_id, message_id, from_character, to_characters, subject, body_text").eq("id", id).single();
+    if (!c?.from_character) return;
+    const { data: recips } = await db.from("characters").select("id, name, players(email)").in("id", c.to_characters as string[]).not("player_id", "is", null).neq("id", c.from_character);
+    const body = letterBody((c.body_text as string) ?? "");
+    if (!body || !recips?.length) return;
+    const { data: dispatchSubject } = await db.from("correspondence").select("id").eq("campaign_id", c.campaign_id).eq("subject", baseSubject((c.subject as string | null) ?? "")).is("from_character", null).limit(1).maybeSingle();
+    // A letter written as a reply to the morning dispatch carries the dispatch's subject; its own "Re:" line wins, and a dispatch subject is never reused.
+    const subject = parseSalutation(c.body_text as string).subject ?? (dispatchSubject ? "A letter" : (c.subject as string | null)?.trim() || "A letter");
+    const delivered: string[] = [];
+    for (const r of recips as unknown as { id: string; name: string; players: { email: string } | null }[]) {
+      const email = r.players?.email; if (!email) continue;
+      const { data: row, error } = await db.from("correspondence").insert({
+        campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
+        from_character: c.from_character, to_characters: [r.id], to_addresses: [email], subject, body_text: body,
+        raw: { letter_kind: "letter", source: "player", in_reply_to_correspondence: id },
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
+      delivered.push(row.id);
+    }
+    await db.from("events").insert({ campaign_id: c.campaign_id, round_id: c.round_id, phase: "intake", kind: "letter.delivered", payload: { from: id, copies: delivered }, idempotency_key: key, visible_to: [c.from_character, ...recips.map((r) => r.id)] });
   },
 
   async grammar(db, p) {
