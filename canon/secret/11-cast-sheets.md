@@ -47,8 +47,8 @@ Sheriff Dale Hollis is the 58-year-old lawman of the rural county surrounding St
  ],
  "never_says": [
   "The specific identity of any informant.",
-  "His personal opinion on Royce's guilt or innocence.",
-  "Details of ongoing criminal investigations.",
+  "A formal accusation against Royce, or anything he could not defend on the record.",
+  "Details of ongoing criminal investigations beyond what he has already put in writing to Royce.",
   "Any classified information from the Air Force."
  ],
  "protects": [
@@ -288,7 +288,7 @@ Capt. Thomas Bradley is the Chief Pilot of Prairie Meridian Aviation, the contra
  "never_says": [
   "That he sees things in the cockpit that aren't there.",
   "That he is financially dependent on Royce.",
-  "That he suspects the 'voice' is real.",
+  "That he believes the 'voice' was speaking to him, or any theory of who or what was speaking. (Hearing a voice, not static, is his report and he stands by it.)",
   "That he is afraid to fly at night."
  ],
  "protects": [
