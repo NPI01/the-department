@@ -30,6 +30,10 @@ export const DOCUMENTS_02: DocumentDef[] = [
     holder: "sheriff-locker", access: { clearance: 5, via: "hollis", sealed: true }, notice: true,
     grants: ["r1.fragment_in_sheriff_locker", "r1.fragment_warm_to_touch"],
     wrongDetail: { text: "the tag says 'referred to Minot AFB 7/76' but the chain-of-custody line has never been signed out; the thing has been in the locker for fifteen months", grants: "r1.fragment_never_referred_noticed" },
+    analyses: [
+      { department: "advanced-materials", text: "3 lb 2 oz. Dark grey, no seam, no casting or machining marks under magnification. Hardness beyond the bench tester's scale. Density 1.6 times that of steel. The alloy matches nothing in the reference set, and a filing taken for assay would not take an etch. After an hour on the bench in a cold room it read six degrees above the bench, with no source.", grants: ["r1.fragment_anomalous_alloy_confirmed", "r1.fragment_self_heating_confirmed"] },
+      { department: "applied-physics", text: "Thermal output steady over twelve hours, not decaying. No radioactivity above background on the Geiger counter or the film badge. A weak, steady magnetic field that does not align with the earth's and does not move when the piece is turned. It is not ordnance; ordnance does not do any of this.", grants: ["r1.fragment_no_radiation_confirmed", "r1.fragment_field_measured"] },
+    ],
     from: "Ward County Sheriff's Department", written: "June 1976",
     body: "**EVIDENCE — WARD COUNTY SHERIFF — TAG E-76-19**\n\nItem: metal fragment, 3 lb 2 oz, dark, no seam, no markings. Found 11 June 1976, Halvorsen parcel, 40 ft from carcass (case 5). Warm to the touch at recovery; still warm at logging. Classified ordnance (unexploded) by Sheriff Hollis. Referred to Minot AFB 7/76.\n\nChain of custody: IN — D. Hollis, 11 Jun 76. OUT — ________.",
   },
@@ -38,6 +42,9 @@ export const DOCUMENTS_02: DocumentDef[] = [
     aliases: ["the jar", "tissue sample", "vane's sample", "the sample", "jar of tissue"],
     holder: "vane", access: { clearance: 5, via: "vane" },
     grants: ["vane.sample_exists", "vane.sample_does_not_decay"], wrongDetail: { text: "Vane's label dates the sample October 10, but the tissue is from the September 29 animal; he has two jars and has shown reporters the wrong one", grants: "vane.two_jars_noticed" },
+    analyses: [
+      { department: "biological-sciences", text: "Culture at 48 hours: no growth. Cells intact under the microscope, no autolysis, no bacterial action; the brine is tap water and table salt and would preserve nothing. The cut edges are not blade cuts: the tissue is sealed at the margin as if cauterized, down to the cell. The optic nerve is severed in one plane. Whatever took this animal did not use a knife, and the sample has not aged a day.", grants: ["vane.sample_no_decay_confirmed", "vane.cuts_cauterized_confirmed"] },
+    ],
     from: "G. Vane", written: "October 1977",
     body: "A mason jar, lid taped. Inside, a cut of hide and something that was an eye. Label in pencil: *V-north, 10 Oct 77, G.V.* No smell. No cloud in the brine. Mr. Vane says it has not changed in two weeks and will not let it out of his sight.",
   },
@@ -47,6 +54,9 @@ export const DOCUMENTS_02: DocumentDef[] = [
     holder: "procurement-logistics", access: { clearance: 2, department: ["procurement-logistics"], via: "voss" }, notice: true,
     grants: ["pgs.field_unit_ran_night_of_29_sep", "pgs.truck_mp_14_used"],
     wrongDetail: { text: "the 29 September entry lists tissue 'hide, lymph, eye' and a crew of two by initials, but the authorization column is blank where every other entry carries Ely's and Baines's initials", grants: "pgs.29_sep_run_unauthorized_noticed" },
+    analyses: [
+      { department: "biological-sciences", text: "Hide, lymph and eye is a necropsy set, not an agricultural survey: lymph and ocular tissue must be taken by a veterinarian and chilled within the hour, or they are worthless. The crew of two is listed by initials with no qualification, and no transport is logged. Either a veterinarian went out that night who is not in this log, or the tissue was not taken for study.", grants: ["pgs.crew_not_qualified_for_tissue_noticed"] },
+    ],
     from: "Prairie Geological Services", written: "September 1977",
     body: "**PRAIRIE GEOLOGICAL SERVICES — FIELD UNIT LOG — SEPTEMBER 1977**\n\n| Date | Site | Task | Crew | Vehicle | Auth. |\n|---|---|---|---|---|---|\n| 2 Sep | Halvorsen | instrument check | R.K., T.L. | MP-14 | S.E./F.B. |\n| 14 Sep | County rd 12 | soil | T.L. | MP-14 | S.E./F.B. |\n| 29 Sep | V-north | hide, lymph, eye | R.K., T.L. | MP-14 | — |",
   },
@@ -55,6 +65,9 @@ export const DOCUMENTS_02: DocumentDef[] = [
     aliases: ["motor pool", "motor pool log", "vehicle log", "sign-out log", "truck log", "the trucks"],
     holder: "personnel-administration", access: { clearance: 1 }, logKey: "motor-pool",
     grants: ["motorpool.mp14_out_9_oct_no_name"], wrongDetail: { text: "truck MP-14 is signed out on Sunday 9 October to 'PGS' with no driver's name and returned at 0330 with 61 more miles on the clock than the Tagus round trip", grants: "motorpool.mp14_mileage_noticed" },
+    analyses: [
+      { department: "procurement-logistics", text: "The fuel chit filed against MP-14 for the night of 9 October is for 11.2 gallons, which at the truck's rated draw is 150 miles, not the 82 of the Tagus round trip; the chit is approved with the initials G.V., the same initials that approve the Prairie Geological payables.", grants: ["motorpool.mp14_fuel_chit_signed_gv_noticed"] },
+    ],
     from: "Facilities Management", written: "October 1977",
     body: "**MOTOR POOL — SIGN-OUT — OCTOBER 1977**\n\n| Date | Vehicle | Out | In | Driver | Miles |\n|---|---|---|---|---|---|\n| 7 Oct | MP-03 | 0800 | 1700 | Okafor, M. | 42 |\n| 9 Oct | MP-14 | 2100 | 0330 | PGS | 143 |\n| 11 Oct | MP-14 | 0900 | 1200 | Pike | 18 |",
   },
@@ -64,6 +77,9 @@ export const DOCUMENTS_02: DocumentDef[] = [
     holder: "ely", access: { clearance: 3, department: ["biological-sciences"], via: "ely" },
     grants: ["harvest.protocol_requires_two_signatures", "harvest.tissue_limited_to_hide_and_blood"],
     wrongDetail: { text: "the protocol limits sampling to hide and blood and forbids ocular tissue; the 1977 lots list lymph and eye", grants: "harvest.eye_tissue_outside_protocol_noticed" },
+    analyses: [
+      { department: "biological-sciences", text: "Set against the 1977 lots the protocol is not merely exceeded but reversed: it forbids exactly the tissues the lots take. A protocol is rewritten on paper when a program changes its purpose; this one was not rewritten, which means the purpose changed and nobody wanted a signature on it.", grants: ["harvest.purpose_changed_unsigned_noticed"] },
+    ],
     from: "Biological Sciences", written: "March 1975",
     body: "**PROGRAM HARVEST — SAMPLING PROTOCOL — March 1975**\n\n1. Purpose: agricultural monitoring of livestock health in Ward and Mountrail Counties under agreement with participating ranchers.\n2. Authority: each lot requires the signatures of the Director, Biological Sciences and the Safety Committee's Aerospace member (for air support).\n3. Tissue: hide and blood only. No ocular, neural or lymphatic tissue.\n4. Animals are to be left as found. Carcasses are the rancher's property.\n\n— S. Ely, Director",
   },

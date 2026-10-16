@@ -85,6 +85,7 @@ export function renderHelp(first: string) {
     `  ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU`,
     `  ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU`,
     `  ORDER: RECRUIT <name> / DISMISS <name>   an informant who knows you; 10 AU, then 2 a round`,
+    `  ORDER: ANALYZE <item>            your department's laboratory report on something held; 6 AU`,
     `  FALLBACK: <order>                done only if the order above it fails`,
     `  HOLD                             keep your units, +5 AU; while you hold you`,
     `                                   learn who pulled your department's files`,

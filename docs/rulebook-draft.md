@@ -242,6 +242,7 @@ could not be done is refunded in the morning.
 | `REQUEST_FILES <records>` | 4 | Pull records you are cleared for. Above your clearance, the request goes to whoever can approve it, and they may ask why. |
 | `EXAMINE <item>` | 3 | Study a document or object you hold. Can turn intelligence into evidence (§9). |
 | `REQUISITION <item>` | by item | Sign equipment out of Procurement stores (§5.2): a camera, a cassette recorder, a motor pool truck for the night, a temporary badge. On your personnel file by morning, and in a log. |
+| `ANALYZE <item>` | 6 | Put something you hold, or a copy sent to you, through your department's laboratory. Each department reads a thing its own way (Biological Sciences a sample, Advanced Materials a fragment, Information Systems a log, Applied Physics a power ledger); the report is evidence in your Case File. If your department has nothing to add, the clerk says whose work it is. Where `EXAMINE` is the close reading anyone can do, `ANALYZE` is what a laboratory adds, and why departments trade copies. |
 | `RESEARCH <subject>` | 10 | Read up on a subject in the company library, the county records and the newspaper morgue. A Research Brief is filed in your Case File, under Research, by morning: what a diligent reader could have found in 1977, and a note of what the shelves do not hold. Intelligence, never evidence. One brief per subject. |
 | `TRAVEL <place>` | 5 | Go somewhere off campus (Minot, Tagus, Split Rock Basin, a ranch). Other orders that round take place there. |
 | `MEET <person>` | 3 | Talk in person. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. |
@@ -586,6 +587,7 @@ Command lines (start of a line, any email to the game):
   ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU
   ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU
   ORDER: RECRUIT <name> / DISMISS <name>   an informant; 10 AU, then 2 a round
+  ORDER: ANALYZE <item>                   your department's laboratory report; 6 AU
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

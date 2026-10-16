@@ -24,7 +24,11 @@ export type DocumentDef = {
   from?: string; written?: string;
   notice?: boolean;              // Security learns who asked
   logKey?: string;               // a log the engine appends to: lines from facts log.<key>.* (equipment.ts)
+  analyses?: Analysis[];         // what a department's laboratory makes of it (ANALYZE); none = nothing a lab could add
 };
+
+/* One department's reading of a document or object, delivered as a laboratory report (evidence). Data, never prose from a model. */
+export type Analysis = { department: string; text: string; grants: string[] };
 
 export type Sighting = { episode?: number; rounds: [number, number]; text: string; grants: string; restricted?: boolean };   // rounds are days of that episode
 

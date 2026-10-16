@@ -29,6 +29,7 @@ const VERBS: Record<string, string> = {
   requisition: "sign equipment out of Procurement stores: a camera, a cassette recorder, a motor pool truck for the night, a temporary badge",
   protect: "spend the night guarding your desk, one item, a file your department keeps, or your own movements",
   recruit: "ask a staff member or local who knows you to pass along what they see and hear, for 2 AU a round",
+  analyze: "put something you hold through your department's laboratory; a report by morning if the department has something to say about it",
 };
 
 type Facts = {
@@ -76,6 +77,7 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   requisition: (w) => `Sign out ${w}`,
   protect: (w) => `Guard ${w}`,
   recruit: (w) => `Recruit ${w}`,
+  analyze: (w) => `Analyze ${w}`,
 };
 
 /* The line the player reads is the action and its target, built from the verb;

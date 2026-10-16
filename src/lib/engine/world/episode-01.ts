@@ -25,6 +25,9 @@ export const DOCUMENTS: DocumentDef[] = [
     holder: "personnel-administration", access: { clearance: 1 }, notice: true,
     grants: ["b7.maintenance_billed_to_applied_physics", "b7.no_listed_occupant"],
     wrongDetail: { text: "every entry for Building 7 is billed to Applied Physics, but the occupant column reads NONE LISTED for all of 1977", grants: "b7.occupant_none_listed_noticed" },
+    analyses: [
+      { department: "applied-physics", text: "A power draw check at 0200 is ordered when a building's draw trips a monitor. For a building with no listed occupant to trip one at that hour it must draw on the order of a laboratory under load, not a store. Somebody is running equipment in Building 7 at night, and Applied Physics is paying for it.", grants: ["b7.power_draw_laboratory_scale_noticed"] },
+    ],
     from: "Facilities Management", written: "October 1977",
     body: "**ROYCE INDUSTRIES · FACILITIES MANAGEMENT**\n**MAINTENANCE LEDGER — BUILDING 7 — 1977 (copy)**\n\n| Date | Work | Crew | Billed to | Occupant |\n|---|---|---|---|---|\n| 14 Mar | Valve repair, north service door | Haugen, Pike | Applied Physics | NONE LISTED |\n| 2 Jun | Replace lock cylinder, sub-level stair | Haugen | Applied Physics | NONE LISTED |\n| 29 Sep | Floor sealed, room 7-B; smell reported | Pike | Applied Physics | NONE LISTED |\n| 4 Oct | Power draw check, 0200 | (initials smeared) | Applied Physics | NONE LISTED |\n\nRequests for Building 7 records are logged with Corporate Security. — F.M.",
   },
@@ -67,6 +70,10 @@ export const DOCUMENTS: DocumentDef[] = [
     holder: "procurement-logistics", access: { clearance: 2, department: ["procurement-logistics"], via: "voss" }, notice: true,
     grants: ["pgs.invoices_1974_exist", "pgs.concrete_delivered_to_tagus"],
     wrongDetail: { text: "Dakota Concrete of Minot billed eleven loads to the Halvorsen parcel near Tagus, where no building has ever stood", grants: "pgs.concrete_to_empty_parcel_noticed" },
+    analyses: [
+      { department: "advanced-materials", text: "Eleven loads of Class A is roughly 90 cubic yards: a pad forty feet square would be four feet thick, which no agricultural instrument needs. That volume is a footing for something heavy, or a collar around an opening in the ground.", grants: ["pgs.concrete_volume_excessive_noticed"] },
+      { department: "procurement-logistics", text: "Three vendors, one approver, no purchase orders referenced, and the well driller paid for mobilisation only: he came, and was sent away before he drilled. The payables were approved by one person and never went through the department.", grants: ["pgs.invoices_bypassed_department_noticed"] },
+    ],
     from: "Procurement & Logistics", written: "1974",
     body: "**PRAIRIE GEOLOGICAL SERVICES — PAYABLES, 1974**\n\n| Vendor | Item | Site | Amount | Approved |\n|---|---|---|---|---|\n| Dakota Concrete, Minot | 11 loads, Class A | Halvorsen parcel, Tagus | $4,180.00 | G.V. |\n| Minot Electric Supply | cable, 600 ft | Halvorsen parcel | $612.40 | G.V. |\n| Hanson Well Drilling | mobilisation only | Halvorsen parcel | $900.00 | G.V. |",
   },
@@ -83,6 +90,10 @@ export const DOCUMENTS: DocumentDef[] = [
     aliases: ["test log", "flight log", "flight test log", "77-on", "nightjar log", "flight records"],
     holder: "bradley", access: { clearance: 4, department: ["aerospace-systems"], via: "bradley" }, notice: true,
     grants: ["flight.77on_log_exists"], wrongDetail: { text: "the log records a forced landing at Minot AFB that the base's own log, quoted on the facing page, does not show", grants: "flight.77on_landing_unrecorded_noticed" },
+    analyses: [
+      { department: "aerospace-systems", text: "A 40\u00b0 compass disagreement at the logged time and heading, with the strip's position, puts the aircraft over the Halvorsen parcel and not in the corridor at all. The VHF coordinate pair, if it is read as the pilot wrote it, is the parcel's centre.", grants: ["flight.77on_over_halvorsen_noticed"] },
+      { department: "information-systems", text: "The coordinate pair repeated on the VHF resolves to a point four miles south of Tagus. Plotted, it is the centre of the Halvorsen parcel.", grants: ["flight.77on_over_halvorsen_noticed"] },
+    ],
     from: "Prairie Meridian Aviation", written: "October 1977",
     body: "**PRAIRIE MERIDIAN AVIATION — FLIGHT TEST LOG — 77-ON**\n\n0112 depart strip. 0131 compasses disagree, 40°. 0144 VHF: voice, repeating a coordinate pair, four miles south of Tagus. 0152 corridor abandoned; forced landing Minot AFB, 0207. Base log (facing page): no landing recorded 0200–0230. — T. Bradley, Capt.",
   },
@@ -108,6 +119,10 @@ export const DOCUMENTS: DocumentDef[] = [
     holder: "building-2-lockers", access: { clearance: 3, department: ["corporate-security"], sealed: true }, notice: true,
     grants: ["greeley.notebook_geometric_drawings", "greeley.corresponded_with_religious_group", "greeley.last_entry_describes_test"],
     wrongDetail: { text: "the last entry is dated 12 July and describes a test on the night of the 12th; the incident report says he died before midnight on the 11th", grants: "greeley.date_conflict_noticed" },
+    analyses: [
+      { department: "information-systems", text: "The counted steps in the margins are not idle: they total eleven on every page where they appear, in the same hand, and the last entry gives eleven minutes. He was counting the same thing each time, and it was always eleven.", grants: ["greeley.eleven_counted_noticed"] },
+      { department: "applied-physics", text: "The nested figures are drawn to scale with a draughtsman's care; the innermost is always the same proportion of the outermost, and the proportion is one that appears in the sub-level instrumentation drawings Applied Physics holds.", grants: ["greeley.figures_match_sublevel_drawings_noticed"] },
+    ],
     from: "P. Greeley", written: "1977",
     body: "**NOTEBOOK — P. GREELEY — 1977 (pages photographed)**\n\nGeometric drawings, nested figures, counted steps in the margins. Three letters pasted in from a group signing itself 'the Congregation', about light and descent. Last entry, 12 July: *Ran it alone. Eleven minutes. It answered.*",
   },
@@ -125,6 +140,9 @@ export const DOCUMENTS: DocumentDef[] = [
     holder: "information-systems", access: { clearance: 2, department: ["information-systems"] },
     grants: ["is.future_dated_jobs_exist", "is.future_jobs_run_from_console_0300"],
     wrongDetail: { text: "every future-dated job was run from terminal 00 (the console) at 0300 under batch authority J-T, while the operator shift log for those nights lists nobody on duty", grants: "is.future_jobs_unattended_noticed" },
+    analyses: [
+      { department: "information-systems", text: "The system accounting file for each 0300 job is empty: no CPU seconds, no I/O, no tape mounts, no spool. A job that runs leaves accounting even when it is killed. These were stamped as having run without having run, and the 1984 stamp is in the same condition as the others.", grants: ["is.future_jobs_left_no_accounting_trace"] },
+    ],
     from: "Information Systems", written: "October 1977",
     body: "**ROYCE INDUSTRIES · INFORMATION SYSTEMS · JOB LOG (printout, Oct 1977)**\n\n| Date | Time | Term | Job | Auth |\n|---|---|---|---|---|\n| 10/07/77 | 1412 | 04 | PAYROLL-W40 | M.H. |\n| 10/08/77 | 0300 | 00 | CHR-RECON-7 | J-T |\n| 10/24/77 | 0300 | 00 | CHR-RECON-8 | J-T |\n| 10/31/77 | 0300 | 00 | CHR-RECON-9 | J-T |\n| 03/17/84 | 0300 | 00 | CHR-RECON-0 | J-T |\n| 10/10/77 | 0915 | 02 | INVENTORY-Q4 | G.V. |\n\nThe printer stamps the date the job ran. Nobody has explained the stamps.",
   },

@@ -17,7 +17,7 @@ import { findLoot, guardOf, guardsTonight, layProtection, takeLoot, watchfulIn, 
 import { dismiss, recruit } from "./informants";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -33,7 +33,7 @@ export type Ctx = {
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -83,6 +83,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
+    [/\b(analy[sz]e|analysis|run (?:it|the sample|a sample|tests) |lab test|test the sample|under the microscope|assay|correlate|cross[ -]?reference|put .* through the lab|have the lab)\b/, "analyze"],
     [/\b(examine|study|read closely|look closely|compare|inspect|check the)\b/, "examine"],
     [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat|introduce|approach|walk up to)\b/, "interview"],
     [/\b(request|pull|get the|obtain|copy of|file|files|records|ledger|log|logs|report|invoices|authorizations|memo)\b/, "request_files"],
@@ -93,6 +94,14 @@ export function inferVerb(text: string): { verb: string; target: string } {
   return { verb: "unknown", target: text };
 }
 
+const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
+const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
+/* The item, or any copy of it (sent on, taken, found), in the character's Case File. */
+async function holdsCopy(db: SupabaseClient, ctx: Ctx, slug: string): Promise<boolean> {
+  if (ctx.dry) return true;
+  const { data } = await db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("status", "held").or(`slug.eq.${slug},slug.like.${slug}-from-%,slug.like.${slug}-taken-%`).limit(1);
+  return Boolean(data?.length);
+}
 async function learn(db: SupabaseClient, ctx: Ctx, keys: string[], source: string, ref: string | null) {
   if (ctx.dry || !keys.length) return;
   await db.from("knowledge").insert(keys.map((k) => ({ character_id: ctx.character.id, fact_key: k, value: { true: true, round: ctx.roundNo }, confidence: 0.8, source_kind: source, source_ref: ref, learned_round: ctx.roundNo })));
@@ -233,12 +242,28 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     const d = docs[0]; const item = await deliver(db, ctx, d, `Found in ${p.name}.`);
     return { ...base, kind: "found", summary: `In ${p.name}, ${ctx.character.name} found "${d.title}" and took it. It is in the Case File.`, learned: d.grants, item, noticed: p.restricted, presence: [...(base.presence ?? []), { kind: "document", slug: d.slug, name: d.title, verb: "search", covert: true }] };
   }
+  if (verb === "analyze") {
+    // ANALYZE <item>: a department's laboratory reading of something held, from the item's own data; a report, evidence grade.
+    const d = findDocument(text, episode);
+    if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned.`);
+    base.target = d.slug;
+    if (!(await holdsCopy(db, ctx, d.slug))) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; a laboratory needs the thing itself, or a copy.`);
+    if (!d.analyses?.length) return ruled(`There is nothing a laboratory could add to "${d.title}"; the page is what it is. Units returned. EXAMINE it instead.`);
+    const mine = d.analyses.find((a) => a.department === ctx.character.division);
+    if (!mine) return ruled(`"${d.title}" is work for ${d.analyses.map((a) => deptName(a.department)).join(" or ")}, not ${deptName(ctx.character.division)}. Units returned. SEND a copy to someone there.`);
+    const slug = `analysis-${d.slug}`.slice(0, 44) + `-${(ctx.character.division ?? "x").slice(0, 10)}`;
+    const { data: have } = ctx.dry ? { data: null } : await db.from("case_items").select("id").eq("character_id", ctx.character.id).eq("slug", slug).maybeSingle();
+    if (have) return ruled(`${deptName(ctx.character.division)} has already reported on "${d.title}"; the report is in the Case File. Units returned.`);
+    if (!ctx.dry) await db.from("case_items").insert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug, kind: "report", drawer: "documents", title: `Laboratory report: ${d.title} (${deptName(ctx.character.division)})`, from_label: `${deptName(ctx.character.division)}, Royce Industries`, written_label: gameDate(ctx.roundNo), body: `**${deptName(ctx.character.division).toUpperCase()} — LABORATORY REPORT — ${gameDate(ctx.roundNo)}**\n\n*Subject: ${d.title}. Submitted by ${ctx.character.name}.*\n\n${mine.text}`, round_received: ctx.roundNo, how_obtained: `Analyzed in ${deptName(ctx.character.division)} at ${ctx.character.name}'s request.`, copy_note: "The laboratory's typed report; the bench copy stays with the department.", grade: "evidence", status: "held" });
+    await learn(db, ctx, mine.grants, "inferred", null);
+    return { ...base, kind: "analyzed", summary: `${deptName(ctx.character.division)} put "${d.title}" through the laboratory. The report is in the Case File: ${mine.text.split(". ")[0]}.`, learned: mine.grants, item: slug };
+  }
   if (verb === "examine") {
     const d = findDocument(text, episode);
     if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned.`);
     base.target = d.slug;
-    const { data: held } = ctx.dry ? { data: [{ slug: d.slug }] } : await db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("slug", d.slug);
-    if (!held?.length) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; request it first.`);
+    const held = await holdsCopy(db, ctx, d.slug);
+    if (!held) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; request it first.`);
     if (!d.wrongDetail) return { ...base, kind: "examined", summary: `A close reading of "${d.title}" found nothing beyond what it says.` };
     await learn(db, ctx, [d.wrongDetail.grants], "inferred", null);
     return { ...base, kind: "examined", summary: `A close reading of "${d.title}": ${d.wrongDetail.text}.`, learned: [d.wrongDetail.grants] };
