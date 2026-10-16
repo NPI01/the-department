@@ -5,7 +5,8 @@
    Models narrate; they never decide outcomes, and nothing secret reaches them. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chat, type LedgerRow } from "@/lib/cobble";
-import { gameDate } from "@/lib/email/letter";
+import { gameDate, letterLinks } from "@/lib/email/letter";
+import { dispatchBallotLines, loadBallots } from "@/lib/game/ballots";
 import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
@@ -209,8 +210,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string }; if (e.kind === "goal.met") arrived.push(`Personnel recorded one of the player's Personal Goals as ${v.partial ? "partly " : ""}met, worth ${v.awarded} points; the player will read the particulars on their file`); if (e.kind === "goal.failed") arrived.push(`Personnel recorded one of the player's Personal Goals as not met by the end of the episode`); if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`the ballot on ${v.number ?? "a motion"} "${v.title ?? ""}" closed: ${v.passed ? "carried" : "failed"}${(v as { finding?: string | null }).finding ? `; the body recorded a finding: ${(v as { finding?: string }).finding}` : ""}`); if (e.kind === "election.closed") arrived.push(`the election ${v.number ?? ""} closed: ${v.winner_name ? `${v.winner_name} takes the seat` : "no votes were cast; the seat stays empty"}`); }
   const { data: office } = await db.from("correspondence").select("subject, raw").eq("direction", "outbound").contains("to_characters", [ch.id]).is("from_character", null).gte("received_at", since).limit(8);
   for (const o of office ?? []) { const r = o.raw as { scripted?: string; office?: { office: string } | null } | null; if (r?.scripted) arrived.push(`a ${r.office ? `memo from ${r.office.office}` : "notice"}: "${o.subject ?? ""}"`); }
-  const { data: openMotions } = await db.from("motions").select("number, title, closes_round, organizations(name)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("opens_round", round.number);
-  for (const m of openMotions ?? []) { const org = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string } | null; arrived.push(`a ballot is open before the ${org?.name ?? "Board"}: ${m.number} "${m.title}", closing at the lock of Round ${m.closes_round}${m.closes_round === round.number ? " (tonight)" : ""}`); }
+  // Open ballots go in their own section, written by the engine, not the model: the exact line to send must survive.
+  const { ballots } = await loadBallots(db, round.campaign_id, ch.id);
+  const ballotLines = dispatchBallotLines(ballots, letterLinks(player.file_token).file ?? null);
   const { data: beatDoc } = await db.from("canon_docs").select("content").eq("path", "canon/secret/09-episode-01-beats.md").maybeSingle();
   const epNo = ep?.number ?? episodeOf(round.number);
   const scheduled = epNo === 1 && beatDoc ? beatsFor(beatDoc.content as string, round.episode_round ?? round.number) : [];
@@ -222,7 +224,7 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const out = await composeDispatch(facts, onLedger);
   await recordMenu(db, round.campaign_id, round.id, ch.id, out.menu);
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");
-  const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), "", "## Your orders for tonight", menuBlock].join("\n");
+  const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), "", "## Your orders for tonight", menuBlock].join("\n");
   const subject = `${facts.date} — Round ${round.number} of ${Number(await rule(db, round.campaign_id, "episode.rounds", 14))} — ${facts.episodeTitle}`;
   const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu, rejected: out.rejected } }).select("id").single();
   if (error) throw new Error(error.message);

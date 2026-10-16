@@ -1,7 +1,7 @@
 "use server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { characterForToken, currentRound, letterKey, type CaseNote } from "@/lib/game/case-file";
+import { ballotNotices, characterForToken, currentRound, letterKey, type CaseNote } from "@/lib/game/case-file";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { fileWithCommittee } from "@/lib/game/filing";
 
@@ -25,7 +25,8 @@ async function heldKeys(db: ReturnType<typeof supabaseAdmin>, characterId: strin
     db.from("correspondence").select("id").eq("campaign_id", campaignId).not("from_character", "is", null)
       .or(`from_character.eq.${characterId},to_characters.cs.{${characterId}},cc_characters.cs.{${characterId}}`).limit(500),
   ]);
-  return new Set([...(items ?? []).map((i) => i.slug as string), ...(letters ?? []).map((l) => letterKey(l.id as string))]);
+  const { data: notices } = await ballotNotices(db, campaignId, characterId);
+  return new Set([...(items ?? []).map((i) => i.slug as string), ...[...(letters ?? []), ...(notices ?? [])].map((l) => letterKey(l.id as string))]);
 }
 
 export async function addNote(input: z.input<typeof Note>): Promise<{ note?: CaseNote; error?: string }> {

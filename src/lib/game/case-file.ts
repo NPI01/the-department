@@ -84,7 +84,15 @@ type ItemRow = {
   body: string | null; image_path: string | null; caption: string | null; round_received: number | null; how_obtained: string | null; copy_note: string | null;
   grade: Grade; status: ItemStatus; status_note: string | null; status_round: number | null; created_at: string;
 };
-type LetterRow = { id: string; subject: string | null; body_text: string; from_character: string; to_characters: string[]; cc_characters: string[]; raw: { letter_kind?: string; classification?: string } | null; round_id: string | null; received_at: string };
+type LetterRow = { id: string; subject: string | null; body_text: string; from_character: string | null; to_characters: string[]; cc_characters: string[]; raw: { letter_kind?: string; classification?: string; office?: { office: string } | null; ballot?: string } | null; round_id: string | null; received_at: string };
+
+/* Ballot notices are office letters (no in-world sender) that a player needs
+   to keep, so they are filed with the correspondence. Other game notices
+   (dispatches, receipts) are not. */
+export function ballotNotices(db: SupabaseClient, campaignId: string, characterId: string) {
+  return db.from("correspondence").select("id, subject, body_text, from_character, to_characters, cc_characters, raw, round_id, received_at")
+    .eq("campaign_id", campaignId).is("from_character", null).not("raw->>ballot", "is", null).contains("to_characters", [characterId]).limit(100);
+}
 
 export async function loadCaseFile(db: SupabaseClient, character: { id: string; campaignId: string; name: string }): Promise<CaseFile> {
   const me = character.id;
@@ -99,6 +107,7 @@ export async function loadCaseFile(db: SupabaseClient, character: { id: string; 
     db.from("rounds").select("id, number, opens_at").eq("campaign_id", character.campaignId).order("number"),
     currentRound(db, character.campaignId),
   ]);
+  const { data: noticeRows } = await ballotNotices(db, character.campaignId, me);
 
   const roundById = new Map(((rounds ?? []) as { id: string; number: number }[]).map((r) => [r.id, r.number]));
   const roundAt = (iso: string) => {
@@ -107,8 +116,8 @@ export async function loadCaseFile(db: SupabaseClient, character: { id: string; 
     return n;
   };
   // A form filed from the hosted page is a document (its own Case File item), not a letter.
-  const letters = ((letterRows ?? []) as LetterRow[]).filter((l) => l.raw?.letter_kind !== "form");
-  const people = new Set(letters.flatMap((l) => [l.from_character, ...l.to_characters]));
+  const letters = [...((letterRows ?? []) as LetterRow[]).filter((l) => l.raw?.letter_kind !== "form"), ...((noticeRows ?? []) as LetterRow[])].sort((a, b) => a.received_at.localeCompare(b.received_at));
+  const people = new Set(letters.flatMap((l) => [l.from_character, ...l.to_characters]).filter((x): x is string => !!x));
   const { data: chars } = people.size ? await db.from("characters").select("id, name, title").in("id", [...people]) : { data: [] };
   const who = new Map(((chars ?? []) as { id: string; name: string; title: string | null }[]).map((c) => [c.id, c.id === me ? "You" : c.title ? `${c.name}, ${c.title}` : c.name]));
 
@@ -117,10 +126,10 @@ export async function loadCaseFile(db: SupabaseClient, character: { id: string; 
     const mine = l.from_character === me;
     const round = (l.round_id ? roundById.get(l.round_id) : undefined) ?? roundAt(l.received_at);
     const day = gameDay(round);
-    const kind = l.raw?.letter_kind === "memo" ? "memo" : "letter";
+    const kind = l.raw?.ballot ? "notice" : l.raw?.letter_kind === "memo" ? "memo" : "letter";
     return {
       key: letterKey(l.id), kind, drawer: "correspondence", title: l.subject?.trim() || "(no subject)",
-      from: who.get(l.from_character) ?? "Unknown", to: l.to_characters.map((t) => who.get(t) ?? "Unknown").join("; ") || null,
+      from: l.from_character ? who.get(l.from_character) ?? "Unknown" : l.raw?.office?.office ?? "Royce Industries", to: l.to_characters.map((t) => who.get(t) ?? "Unknown").join("; ") || null,
       writtenLabel: day.label, writtenOn: day.iso, body: mine ? stripQuoted(l.body_text) : l.body_text,
       image: null, caption: null, round, receivedAt: l.received_at,
       how: mine ? "You wrote it. This is your carbon." : "Delivered to you through the mail room.",

@@ -3,6 +3,7 @@ import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { heartbeat } from "@/lib/engine/heartbeat";
 import { openNextRound, queueMorningDispatches } from "@/lib/engine/rounds";
 import { deliverScheduledMail } from "@/lib/engine/scripted";
+import { deliverBallotNotices } from "@/lib/engine/ballots";
 import { startDueCohorts } from "@/lib/game/cohorts";
 import { issueInvitations } from "@/lib/engine/societies";
 import { episodeOf } from "@/lib/engine/world";
@@ -25,9 +26,10 @@ export async function GET(req: NextRequest) {
       const { round, opened } = await openNextRound(db, cid);
       const { data: ep } = round.episode_id ? await db.from("episodes").select("number").eq("id", round.episode_id).maybeSingle() : { data: null };
       const mail = await deliverScheduledMail(db, cid, { id: round.id, number: round.number, episodeRound: round.episode_round ?? round.number, episodeNumber: (ep?.number as number | undefined) ?? 1 });
+      const notices = await deliverBallotNotices(db, cid, { id: round.id, number: round.number });
       const invited = await issueInvitations(db, cid, { id: round.id, number: round.number, episode: (ep?.number as number | undefined) ?? episodeOf(round.number), episodeRound: round.episode_round ?? round.number });
       const queued = await queueMorningDispatches(db, cid, round.id);
-      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, invited, queued });
+      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, ballots: notices.sent, invited, queued });
     }
     return { ok: true, started, campaigns: out };
   });

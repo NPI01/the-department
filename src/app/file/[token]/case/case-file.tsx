@@ -165,14 +165,16 @@ function Folder({ item: i, notes, onOpen }: { item: CaseItem; notes: number; onO
 
 /* ---------- one item ---------- */
 
-function Body({ md }: { md: string }) {
-  const soft = (t: string) => t.replace(/\s*\n\s*/g, " ");
+/* Canon documents are hard-wrapped, so single line breaks join up; letters are
+   written a line at a time (a ballot, an order list), so they keep them. */
+function Body({ md, hard = false }: { md: string; hard?: boolean }) {
+  const soft = (t: string) => (hard ? t : t.replace(/\s*\n\s*/g, " "));
   return (
     <div className="type max-w-[66ch] space-y-3 text-[15px] leading-[1.65]">
       {parseBlocks(md).map((b, k) => {
         switch (b.type) {
           case "heading": return <p key={k} className="pt-1 font-bold">{inline(b.text)}</p>;
-          case "para": return <p key={k}>{inline(soft(b.text))}</p>;
+          case "para": return <p key={k} className={hard ? "whitespace-pre-line" : undefined}>{inline(soft(b.text))}</p>;
           case "quote": return <blockquote key={k} className="ml-4 italic">{inline(soft(b.text))}</blockquote>;
           case "hr": return <hr key={k} className="border-dashed border-rule" />;
           case "code": return <pre key={k} className="type overflow-x-auto border-y border-dashed border-rule py-2 text-[13px] leading-snug">{b.text}</pre>;
@@ -254,7 +256,7 @@ function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close, pe
           <p className="mb-6 mt-1 text-xs text-ink-2">{[i.from && `From ${i.from}`, i.to && `To ${i.to}`, i.writtenLabel].filter(Boolean).join(" · ")}</p>
           {i.image && <figure className="mb-6">{/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URLs expire hourly; nothing to optimize or cache */}
             <img src={i.image} alt={i.caption ?? i.title} className="block w-full max-w-xl border-[10px] border-[#fbf7ee] outline outline-1 outline-rule grayscale contrast-110 sepia-[.15]" />{i.caption && <figcaption className="type mt-2 text-sm text-ink-2">{i.caption}</figcaption>}</figure>}
-          {i.body && <Body md={i.body} />}
+          {i.body && <Body md={i.body} hard={i.drawer === "correspondence"} />}
           <section className="mt-8 border-t-2 border-ink pt-3">
             <h3 className="display text-base font-medium tracking-[0.06em]">Provenance</h3>
             <dl className="mt-2 text-xs">
