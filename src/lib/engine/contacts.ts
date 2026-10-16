@@ -20,6 +20,7 @@ import { surnameKey } from "@/lib/email/inbound";
 import { documentsFor, placesFor } from "./world";
 import { guardsTonight, selfGuarded } from "./custody";
 import { leaveSet } from "./leave";
+import { graceSet } from "./grace";
 import type { DocumentDef, PlaceDef } from "./world/types";
 
 type Db = SupabaseClient;
@@ -173,6 +174,7 @@ export async function contactReports(db: Db, round: { campaignId: string; id: st
   const guarded = selfGuarded(await guardsTonight(db, round.campaignId, round.number));   // PROTECT myself: not listed tonight
   const covertFor = (r: PresenceRow) => r.covert || guarded.has(r.character_id) || people.get(r.character_id)?.specialization === "operative";
   const security = await securityIds(db, round.campaignId);
+  const inGrace = await graceSet(db, round.campaignId, round.number, [...new Set(((rows ?? []) as PresenceRow[]).map((r) => r.character_id))].filter((id) => people.get(id)?.player));
   const knowledge: Record<string, unknown>[] = []; const events: Record<string, unknown>[] = [];
   let seen = 0, watched = 0, passed = 0;
 
@@ -195,8 +197,8 @@ export async function contactReports(db: Db, round: { campaignId: string; id: st
       knowledge.push({ character_id: a.character_id, fact_key: `seen:${who.slug}:${round.number}:${b.target_kind}:${b.target_slug}`, value: { kind: "seen", text, who: who.id, who_name: who.name, what: b.target_name, verb: b.verb, round: round.number }, confidence: 0.9, source_kind: "witnessed", source_ref: null, learned_round: round.number });
       events.push({ campaign_id: round.campaignId, round_id: round.id, phase: "strategic", kind: "contact.seen", payload: { by: a.character_id, who: who.id, who_name: who.name, what: b.target_name, kind: b.target_kind, verb: b.verb, text, round: round.number }, idempotency_key: `seen:${round.id}:${key}`, visible_to: [a.character_id] });
       seen++;
-      // A hostile attitude passes the sighting to Corporate Security the same night, unasked.
-      if (attitude.get(`${a.character_id}:${b.character_id}`) === "hostile" && security.length) {
+      // A hostile attitude passes the sighting to Corporate Security the same night, unasked; not for a new hire in grace.
+      if (attitude.get(`${a.character_id}:${b.character_id}`) === "hostile" && security.length && !inGrace.has(b.character_id)) {
         const note = `${me.name} reports that ${text}, Round ${round.number}.`;
         for (const s of security) knowledge.push({ character_id: s, fact_key: `noticed:${who.slug}:${hash(note).toString(36)}`, value: { kind: "noticed", text: note, from: who.id, from_name: who.name, reported_by: me.id, round: round.number }, confidence: 1, source_kind: "told", source_ref: null, learned_round: round.number });
         passed++;

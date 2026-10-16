@@ -50,6 +50,7 @@ export type GrammarAct =
   | { kind: "leave"; rounds: number }
   | { kind: "agreement"; name: string; withNames: string[]; terms: string[]; agreementKind: "formal" | "political" | "secret" }
   | { kind: "return" }
+  | { kind: "waive_grace" }
   | { kind: "declare"; what: "authorize" | "revoke" | "attitude"; to: string; attitude?: "friendly" | "neutral" | "hostile" }
   | { kind: "accept"; agreement: string }
   | { kind: "reject"; agreement: string }
@@ -66,7 +67,7 @@ const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go wi
 
 /* The lines after an ORDER: line that belong to it: up to a blank line, a
    quoted line, another command, or a sign-off. Indexes into `lines`. */
-const COMMAND_START = /^(?:ORDER\s*:|STANDING\b|CANCEL\b|PROXY\s|LEAVE\b|RETURN\b|AGREEMENT\s*:|TERMS\s*:|KIND\s*:|FALLBACK|AUTHORIZE\s|REVOKE\s|ATTITUDE\s|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
+const COMMAND_START = /^(?:ORDER\s*:|STANDING\b|CANCEL\b|PROXY\s|LEAVE\b|RETURN\b|WAIVE\b|AGREEMENT\s*:|TERMS\s*:|KIND\s*:|FALLBACK|AUTHORIZE\s|REVOKE\s|ATTITUDE\s|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
 const SIGN_OFF = /^(?:thanks|thank you|best|regards|cheers|sincerely|yours|--|—|sent from)\b/i;
 export function orderContinuation(lines: string[], i: number): number[] {
   const out: number[] = [];
@@ -132,6 +133,7 @@ export function parseGrammar(text: string): GrammarAct[] {
       acts.push({ kind: "agreement", name: m[1].trim(), withNames, terms, agreementKind }); continue;
     }
     if (/^RETURN(?:\s+(?:TO\s+)?(?:WORK|DUTY|STATION\s+R|THE\s+CAMPUS))?\.?$/i.test(line)) { acts.push({ kind: "return" }); continue; }
+    if (/^WAIVE\s+(?:MY\s+|THE\s+)?(?:GRACE|PROTECTION|INDUCTION(?:\s+GRACE)?)\.?$/i.test(line)) { acts.push({ kind: "waive_grace" }); continue; }
     if ((m = line.match(/^(?:ORDER\s*:?\s*)?(DIRECTORY|HELP|RESIGN)\.?$/i))) { acts.push({ kind: "command", name: m[1].toLowerCase() as "directory" | "help" | "resign" }); continue; }
     // A doubled letter ("CC") makes the morning's option C a standing order.
     if ((m = line.match(/^([A-G])\1\.?$/i))) { acts.push({ kind: "standing", then: { kind: "select", code: m[1].toUpperCase() } }); continue; }

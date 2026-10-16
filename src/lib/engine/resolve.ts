@@ -18,6 +18,7 @@ import { dismiss, recruit } from "./informants";
 import { writeLog } from "./equipment";
 import { findTown } from "./world/towns";
 import { parseMotion, sponsorMotion } from "./motions";
+import { endGrace, underGrace } from "./grace";
 import { curfew, holdsEmergencyAuthority, issueDirective, opened, parseDirective, sealed, type Directive } from "./directives";
 
 export type Outcome = {
@@ -205,6 +206,9 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     const who = findPerson(text, people.filter((p) => p.player));
     if (!who) return ruled(`The clerk could not tell whom "${text}" names. Units returned. Use a colleague's surname.`);
     base.target = who.slug;
+    // The induction grace: a new hire cannot be reported, and reporting ends the reporter's own.
+    if (!ctx.dry && (await underGrace(db, ctx.campaignId, who.id, ctx.roundNo))) return ruled(`${who.name} is still in induction; Security does not take reports on new hires in their first days. Units returned.`);
+    if (!ctx.dry) await endGrace(db, ctx.campaignId, ctx.character.id, ctx.roundNo, `reported ${who.name}`);
     if (!ctx.dry) {
       const { data: sec } = await db.from("characters").select("id, divisions!inner(slug)").eq("campaign_id", ctx.campaignId).is("player_id", null).eq("divisions.slug", "corporate-security");
       for (const s of sec ?? []) await db.from("knowledge").insert({ character_id: s.id, fact_key: `reported:${who.slug}:${hash(ctx.character.id).toString(36)}`, value: { kind: "reported", text: `${ctx.character.name} reported ${who.name} to Security`, from: ctx.character.id, from_name: ctx.character.name, about: who.id, round: ctx.roundNo }, confidence: 1, source_kind: "told", learned_round: ctx.roundNo });
@@ -435,6 +439,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
       if (!loot) return ruled(`${victim.name} holds nothing the clerk could match to "${want}". Units returned.`);
       base.target = victim.slug;
       const lootSlug = loot.kind === "case" ? loot.slug : loot.def.slug; const lootName = loot.kind === "case" ? loot.title : loot.name;
+      if (!ctx.dry && (await underGrace(db, ctx.campaignId, victim.id, ctx.roundNo))) return ruled(`${victim.name} is still in induction; their desk is in the induction wing, with a Personnel clerk at the door. Units returned.`);
+      if (!ctx.dry) await endGrace(db, ctx.campaignId, ctx.character.id, ctx.roundNo, `took from ${victim.name}'s desk`);
       const guard = guardOf(guards, { ownerId: victim.id, itemSlug: lootSlug });
       const tell = async (kind: string, text: string, who: string | null) => { if (ctx.dry) return; await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind, payload: { by: victim.id, who, who_name: who ? ctx.character.name : null, what: lootName, text, round: ctx.roundNo }, idempotency_key: `${kind}:${ctx.roundId}:${victim.id}:${ctx.character.id}:${lootSlug}`, visible_to: [victim.id] }); await db.from("knowledge").insert({ character_id: victim.id, fact_key: `${kind.replace(".", ":")}:${ctx.character.slug}:${ctx.roundNo}:${lootSlug}`, value: { kind, text, who, who_name: who ? ctx.character.name : null, what: lootName, round: ctx.roundNo }, confidence: 1, source_kind: "witnessed", source_ref: null, learned_round: ctx.roundNo }); };
       if (guard) { await tell("contact.theft_failed", `${thiefName} tried your desk for "${lootName}" last night and found it guarded`, operative ? null : ctx.character.id); return { ...base, kind: "refused", summary: `${victim.name}'s "${lootName}" was watched; ${ctx.character.name} could not get near it${operative ? "" : ", and was seen trying"}.`, presence: [{ kind: "person", slug: victim.slug, name: victim.name, verb: "obtain", covert: true }] }; }

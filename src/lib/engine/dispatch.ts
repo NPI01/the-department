@@ -123,6 +123,7 @@ export function renderHelp(first: string) {
     ``,
     `OTHER`,
     `  LEAVE <rounds> / RETURN          away up to five rounds, no penalty; back early`,
+    `  WAIVE GRACE                      end your induction grace early (it never returns)`,
     `  DIRECTORY                        who you can write to`,
     `  HELP                             this letter`,
     `  RESIGN                           leave the game`,

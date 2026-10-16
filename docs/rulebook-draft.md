@@ -142,6 +142,13 @@ starts at 1.
 | 4 | department heads, DSRD liaisons | other departments' files; DSRD coordination memos; the north installation |
 | 5 | executives | OMEGA; Sublevel Nine; SENTINEL correspondence |
 
+**4.5 The induction grace.** [PROPOSED numbers.] For your first five rounds nobody can
+take from your desk (§6.3, `OBTAIN`) or report you to Corporate Security, and a hostile
+colleague's sightings of you (§7.10) are not passed on; you can do none of those things
+either. The grace ends on its own after five rounds, the first time you take from a
+colleague, report one, or declare one hostile, or when you send `WAIVE GRACE`. It never
+comes back. Your dispatch says how long yours runs.
+
 Clearance is granted by the Research Committee on a department head's recommendation, or
 by the Board. Corporate Security can suspend a clearance for up to two rounds while it
 investigates; the Safety Committee then decides. Reaching above your clearance is
@@ -609,6 +616,7 @@ Command lines (start of a line, any email to the game):
   ACCEPT AGREEMENT <id> / REJECT AGREEMENT <id>
   TRANSFER <n> AU TO <name>
   LEAVE <rounds> / RETURN                 away up to five rounds; back early
+  WAIVE GRACE                             end the induction grace early (§4.5)
 
 Clock: dispatch 9:00 AM ET · lock 8:00 PM ET · 14 rounds an episode
 AU:    +20 a round · cap 60 · start 10 · hold +5 · standing order 2/round

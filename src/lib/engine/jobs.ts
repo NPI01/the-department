@@ -43,6 +43,7 @@ import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_U
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
 import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
 import { agreementsOf, announceActive, enforceAgreements, proposeAgreement } from "@/lib/engine/agreements";
+import { endGrace } from "@/lib/engine/grace";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -114,7 +115,7 @@ export function letterBody(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
-  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|LEAVE(?:\s.*)?|RETURN(?:\s.*)?|TRANSFER\s.*|(?:SEND|GIVE|FORWARD)\s.+\sTO\s.*|FILE\s.+\sWITH\s.*|FORM\s+[A-Z0-9-]+|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|LEAVE(?:\s.*)?|RETURN(?:\s.*)?|WAIVE\s.*|TRANSFER\s.*|(?:SEND|GIVE|FORWARD)\s.+\sTO\s.*|FILE\s.+\sWITH\s.*|FORM\s+[A-Z0-9-]+|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -325,6 +326,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         continue;
       }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
+      if (a.kind === "waive_grace") {
+        recorded.push((await endGrace(db, c.campaign_id, c.from_character, round.number, "waived")) ? "WAIVED the induction grace — from tonight you can be taken from and reported, and can do both; it does not come back" : "WAIVE GRACE — you were not under it");
+        continue;
+      }
       if (a.kind === "agreement") {
         // AGREEMENT: "<title>" WITH <names> + TERMS: lines: numbered, parties told, in force on the last ACCEPT (agreements.ts).
         const { data: me } = await db.from("characters").select("name").eq("id", c.from_character).single();
@@ -384,6 +389,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const who = findInRoster(a.to, roster.filter((x) => x.player && x.id !== c.from_character));
         if (!who) { ignored.push(`${a.what.toUpperCase()} ${a.to} — no one in your cohort by that name`); continue; }
         const d = await setDeclaration(db, { campaignId: c.campaign_id, from: c.from_character, to: who.id, round: round.number }, a.what === "authorize" ? { authorized: true } : a.what === "revoke" ? { authorized: false, attitude: "neutral" } : { attitude: a.attitude ?? "neutral" });
+        if (d.attitude === "hostile" && (await endGrace(db, c.campaign_id, c.from_character, round.number, `hostile toward ${who.name}`))) recorded.push("Your induction grace ended with that declaration; it does not come back.");
         recorded.push(a.what === "authorize" ? `AUTHORIZED ${who.name} — may pull your department's files as if one of you, until you REVOKE; they are not told`
           : a.what === "revoke" ? `REVOKED ${who.name} — no longer pulls your department's files; they are not told`
           : `ATTITUDE ${who.name}: ${d.attitude.toUpperCase()} — ${d.attitude === "friendly" ? "may pull your department's files, and your watch lets them pass" : d.attitude === "hostile" ? "any sighting of them in your reports goes to Security the same night; any authorization is withdrawn" : "nothing automatic either way"}; they are not told`);
@@ -537,7 +543,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN|TRANSFERRED|AGREEMENT)/.test(r)), ...(await agreementsOf(db, c.campaign_id, c.from_character)).map((l) => `AGREEMENT ${l}`)], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN|TRANSFERRED|AGREEMENT|WAIVED)/.test(r)), ...(await agreementsOf(db, c.campaign_id, c.from_character)).map((l) => `AGREEMENT ${l}`)], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }

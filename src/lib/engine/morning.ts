@@ -16,6 +16,7 @@ import { listStanding, STANDING_UPKEEP } from "./standing";
 import { proxiesOf } from "./proxies";
 import { onLeave } from "./leave";
 import { agreementsOf } from "./agreements";
+import { underGrace } from "./grace";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -226,13 +227,14 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
   }
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
-  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed", "informant.lapsed", "directive.issued", "proxy.given", "transfer.received", "agreement.proposed", "agreement.active", "agreement.breached", "agreement.fulfilled"]).limit(20);
+  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed", "informant.lapsed", "directive.issued", "proxy.given", "transfer.received", "agreement.proposed", "agreement.active", "agreement.breached", "agreement.fulfilled", "grace.ended"]).limit(20);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string; text?: string; condition?: string; issue?: string };
     if (e.kind === "contact.seen") arrived.push(`a contact report: ${v.text} (the player saw this themselves last night)`);
     if (e.kind === "contact.watch") arrived.push(`from the player's own desk, while they held: ${v.text}`);
     if (e.kind === "condition.fired") arrived.push(`the player's conditional order fired because ${v.condition}`);
     if (e.kind === "research.briefed") arrived.push(`the company library filed a Research Brief on "${(v as { subject?: string }).subject ?? "the subject asked for"}" in the player's Case File, under Research`);
     if (e.kind === "contact.theft" || e.kind === "contact.theft_failed") arrived.push(`from the player's own desk: ${v.text}`);
+    if (e.kind === "grace.ended") arrived.push(`Personnel closed the player's induction file (${(v as { why?: string }).why ?? "the grace ran out"}): from now on they can be taken from and reported like anyone, and can do both`);
     if (e.kind === "agreement.proposed") arrived.push(`agreement ${(v as { number?: string }).number ?? ""} "${(v as { name?: string }).name ?? ""}" was proposed between its parties; the player's answer is ACCEPT AGREEMENT or REJECT AGREEMENT with its number`);
     if (e.kind === "agreement.active" || e.kind === "agreement.breached" || e.kind === "agreement.fulfilled") arrived.push(`${v.text ?? ""}`);
     if (e.kind === "transfer.received") arrived.push(`${v.text ?? "something was handed to the player"}`);
@@ -267,7 +269,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const leave = await onLeave(db, round.campaign_id, ch.id);
   if (leave) facts.mode = "leave";
   const agreements = await agreementsOf(db, round.campaign_id, ch.id);
+  const grace = await underGrace(db, round.campaign_id, ch.id, round.number);
   const standingLines = [
+    ...(grace ? [`• Induction grace until Round ${grace.until}: nobody can take from your desk or report you, hostile colleagues' sightings of you are not passed on, and you can do none of those things either. It ends early the first time you do, or on WAIVE GRACE, and does not come back.`] : []),
     ...(leave ? [`• You are on leave${leave.until ? ` through the lock of Round ${leave.until}` : ""}${leave.kind === "absence" ? " (placed by Personnel after three days without word; after seven the position is reassigned)" : ""}. Your desk, holdings and seat are kept; a seat abstains; informants wait. RETURN, or any order, brings you back.`] : []),
     ...proxies.map((p) => `• Your proxy on ${p.motion} is with ${p.to_name}; a VOTE of your own takes it back, or PROXY ${p.motion} TO NOBODY.`),
     ...agreements.map((l) => `• Agreement ${l}`),
