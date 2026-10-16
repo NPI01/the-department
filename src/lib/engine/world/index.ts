@@ -12,7 +12,9 @@ const ALL_DOCUMENTS: DocumentDef[] = [...DOCUMENTS, ...DOCUMENTS_02, ...DOCUMENT
 const ALL_PLACES: PlaceDef[] = [...PLACES, ...PLACES_02, ...PLACES_03];
 const ALL_PRESSURE: PressureTier[] = [...PRESSURE.map((t) => ({ episode: 1, ...t })), ...PRESSURE_02, ...PRESSURE_03];
 
-export const documentsFor = (episode: number) => ALL_DOCUMENTS.filter((d) => (d.episode ?? 1) <= episode);
+let LIVE_DOCUMENTS: DocumentDef[] = [];
+export function setLiveDocuments(docs: DocumentDef[]) { LIVE_DOCUMENTS = docs; }
+export const documentsFor = (episode: number) => [...ALL_DOCUMENTS, ...LIVE_DOCUMENTS.filter((l) => !ALL_DOCUMENTS.some((d) => d.slug === l.slug))].filter((d) => (d.episode ?? 1) <= episode);
 /* Places the engine wrote overnight (world_places, status live). Loaded by
    setLivePlaces() at the start of each lock phase and each intake, so the
    deterministic rules see them without every caller becoming async. */

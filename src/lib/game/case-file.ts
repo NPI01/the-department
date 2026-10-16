@@ -116,7 +116,7 @@ export async function loadCaseFile(db: SupabaseClient, character: { id: string; 
     return n;
   };
   // A form filed from the hosted page is a document (its own Case File item), not a letter.
-  const letters = [...((letterRows ?? []) as LetterRow[]).filter((l) => l.raw?.letter_kind !== "form"), ...((noticeRows ?? []) as LetterRow[])].sort((a, b) => a.received_at.localeCompare(b.received_at));
+  const letters = [...((letterRows ?? []) as LetterRow[]).filter((l) => l.raw?.letter_kind !== "form" && l.raw?.letter_kind !== "initiative"), ...((noticeRows ?? []) as LetterRow[])].sort((a, b) => a.received_at.localeCompare(b.received_at));
   const people = new Set(letters.flatMap((l) => [l.from_character, ...l.to_characters]).filter((x): x is string => !!x));
   const { data: chars } = people.size ? await db.from("characters").select("id, name, title").in("id", [...people]) : { data: [] };
   const who = new Map(((chars ?? []) as { id: string; name: string; title: string | null }[]).map((c) => [c.id, c.id === me ? "You" : c.title ? `${c.name}, ${c.title}` : c.name]));

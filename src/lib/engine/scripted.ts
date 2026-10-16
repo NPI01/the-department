@@ -44,7 +44,11 @@ export async function deliverScheduledMail(db: SupabaseClient, campaignId: strin
   for (const e of done ?? []) { const v = e.payload as { key: string; character: string }; delivered.set(v.key, [...(delivered.get(v.key) ?? []), v.character]); }
   let n = 0;
   // Everything due on or before today, in order, so a late joiner still gets the pack.
-  for (const item of items.filter((i) => i.round <= round.episodeRound).sort((a, b) => a.round - b.round)) {
+  // The room may move a scheduled item by a day or two (rules beat.shift.<key>, move beat_shift).
+  const { data: shifts } = await db.from("rules").select("key, value").eq("campaign_id", campaignId).like("key", "beat.shift.%");
+  const shift = new Map((shifts ?? []).map((r) => [(r.key as string).slice("beat.shift.".length), Number(r.value)]));
+  const due = (i: { key: string; round: number }) => i.round + (shift.get(i.key) ?? 0);
+  for (const item of items.filter((i) => due(i) <= round.episodeRound).sort((a, b) => due(a) - due(b))) {
     const to = await recipients(db, campaignId, item.route, pcs, delivered);
     for (const pc of to) {
       if ((delivered.get(item.key) ?? []).includes(pc.id)) continue;

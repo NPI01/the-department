@@ -15,6 +15,7 @@ export const NAV = [
   { href: "/admin/players", label: "Players" },
   { href: "/admin/cohorts", label: "Cohorts" },
   { href: "/admin/world", label: "Overnight additions" },
+  { href: "/admin/room", label: "Season log" },
   { href: "/admin/engine", label: "Engine Health" },
 ];
 

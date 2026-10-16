@@ -16,15 +16,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chat, chatJson, type LedgerRow } from "@/lib/cobble";
 import type { CastSheet } from "./npc";
 import { inferVerb } from "./resolve";
-import { episodeOf, placesFor, setLivePlaces } from "./world";
-import type { PlaceDef } from "./world/types";
+import { episodeOf, placesFor, setLiveDocuments, setLivePlaces } from "./world";
+import type { DocumentDef, PlaceDef } from "./world/types";
 
 type Db = SupabaseClient;
 export type WorldRequest = RequestRow;
 export type RequestKind = "person_at_place" | "place";
 type RequestRow = { id: string; campaign_id: string; round_id: string | null; round: number; order_id: string | null; character_id: string | null; kind: RequestKind; place_slug: string | null; clause: string; verb: string };
 
-const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b|\bharvest\b|\blantern\b|recovery north|\bchamber\b/i;
+export const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b|\bharvest\b|\blantern\b|recovery north|\bchamber\b/i;
 /* Real people from the bibles: background only, never a generated character or relative. */
 const REAL_PEOPLE = /berkowitz|\bcarr\b|arlis perry|maurice strong|teilhard/i;
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -33,8 +33,9 @@ const surname = (name: string) => norm(name).split(" ").pop() ?? "";
 
 /* ---------- live places into the index ---------- */
 export async function loadLivePlaces(db: Db) {
-  const { data } = await db.from("world_places").select("def").eq("status", "live");
-  setLivePlaces(((data ?? []) as { def: PlaceDef }[]).map((r) => r.def));
+  const [{ data: places }, { data: docs }] = await Promise.all([db.from("world_places").select("def").eq("status", "live"), db.from("world_documents").select("def").eq("status", "live")]);
+  setLivePlaces(((places ?? []) as { def: PlaceDef }[]).map((r) => r.def));
+  setLiveDocuments(((docs ?? []) as { def: DocumentDef }[]).map((r) => r.def));
 }
 
 /* ---------- opening requests at the lock ---------- */
@@ -87,7 +88,7 @@ const HOUSE = `You are in the writers' room for THE DEPARTMENT, a correspondence
 
 You write DEPTH, not plot. The people and places you write are real to the world and have something small to want and to hide, but they know nothing about the company's secrets, hold no documents, sit on no committee, and decide nothing. Never coin a name that echoes a name you are given. Never use a real person. Write plainly: specific nouns, short sentences.`;
 
-async function publicContext(db: Db, campaignId: string) {
+export async function publicContext(db: Db, campaignId: string) {
   const [{ data: dir }, { data: divs }, { data: chars }, { data: world }] = await Promise.all([
     db.from("canon_docs").select("content").eq("path", "canon/02-personnel-directory.md").maybeSingle(),
     db.from("divisions").select("slug, name").eq("campaign_id", campaignId),
@@ -183,7 +184,7 @@ async function review(draft: string, req: RequestRow, secret: string, names: str
 }
 
 /* Hard limits no model crosses. Returns what is wrong, or nothing. */
-function limitsPerson(d: PersonDraft, ctx: Awaited<ReturnType<typeof publicContext>>): string[] {
+export function limitsPerson(d: PersonDraft, ctx: Awaited<ReturnType<typeof publicContext>>): string[] {
   const bad: string[] = [];
   if (!d?.name || !/^[A-Za-z'.\- ]{4,40}$/.test(d.name) || d.name.trim().split(/\s+/).length < 2) bad.push("name");
   const sn = surname(d.name ?? "");

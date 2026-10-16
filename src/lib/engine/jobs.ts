@@ -27,6 +27,7 @@ import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { episodeOf } from "@/lib/engine/world";
 import { growRound, loadLivePlaces, openWorldRequests } from "@/lib/engine/grow";
+import { moves as roomMoves, triage as roomTriage } from "@/lib/engine/room";
 import { judgeGoals } from "@/lib/game/goal-predicates";
 import { campaignForPlayer } from "@/lib/game/cohorts";
 import { acceptInvitation, declineInvitation, outstandingInvitations, securityPurge, societyByName } from "@/lib/engine/societies";
@@ -512,7 +513,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     try {
       const batch = [...merged, { id, subject: c.subject as string | null, body_text: c.body_text as string, received_at: cSelf?.received_at as string }].sort((a, b) => a.received_at.localeCompare(b.received_at));
       // Earlier letters between the two: the latest six, oldest first.
-      const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).not("id", "in", `(${batch.map((b) => b.id).join(",")})`)
+      const { data: prior } = await db.from("correspondence").select("from_character, body_text, received_at").eq("campaign_id", c.campaign_id).not("id", "in", `(${batch.map((b) => b.id).join(",")})`).or("raw->>letter_kind.is.null,raw->>letter_kind.neq.initiative")
         .or(`and(from_character.eq.${c.from_character},to_characters.cs.{${npcId}}),and(from_character.eq.${npcId},to_characters.cs.{${c.from_character}})`).order("received_at", { ascending: false }).limit(6);
       const thread = (prior ?? []).reverse().map((x) => ({ from: x.from_character === npcId ? npc.name : pc.name, body: (x.body_text as string).slice(0, 1200) }));
       const salute = parseSalutation(c.body_text as string);
@@ -525,8 +526,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       for (const f of filedEv ?? []) { const v = f.payload as { form: string; index: string; missing?: number[] }; memory.filed!.push(`Form ${v.form} (${v.index})${v.missing?.length ? ", incomplete" : ""}`); }
       const thisForm = parseFormSubmission(c.body_text as string);
       const { data: cRaw } = await db.from("correspondence").select("raw").eq("id", id).single();
-      const inPerson = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind === "interview";
-      const formNote = inPerson
+      const letterKind = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind;
+      const inPerson = letterKind === "interview";
+      const formNote = letterKind === "initiative"
+        ? `this is not a letter from them: it is the note above, from the showrunner, that you have decided to write to this person first. They have not written to you. Write that first letter: why you are writing, what you want, and nothing beyond what the day allows. Do not thank them for a letter they did not send.`
+        : inPerson
         ? `this was not a letter: the writer came to see you in person last night and asked what the line above says. Write the short note you would send them the next morning about that conversation: what you were willing to say to their face, and nothing you would not put on paper. If you would send nothing, write one line saying so.`
         : thisForm && Object.keys(thisForm.answers).length ? `this letter is a completed Form ${thisForm.form}; the clerk has filed it and sent the writer a receipt${thisForm.missing.length ? `; questions ${thisForm.missing.join(", ")} were left unanswered` : ""}. You may acknowledge it, pick at an answer, or ask for what is missing.` : null;
       for (const k of (known ?? []) as { source_kind: string; value: KV }[]) {
@@ -593,6 +597,12 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     if (phase === "grow") {
       await growRound(db, { id: roundId, campaignId: round.campaign_id, number: round.number }, ledger(db));
+    }
+    if (phase === "triage" || phase === "moves") {
+      // The Showrunner's Room. Never blocks the night: an error here is logged and the phase is done.
+      const r = { id: roundId, campaignId: round.campaign_id, number: round.number, episodeRound: round.episode_round ?? round.number };
+      try { const out = phase === "triage" ? await roomTriage(db, r, ledger(db)) : await roomMoves(db, r, ledger(db)); await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: `room.${phase}`, payload: out, idempotency_key: `room:${roundId}:${phase}` }); }
+      catch (e) { await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "room.error", payload: { phase, error: (e as Error).message.slice(0, 300) }, idempotency_key: `room:${roundId}:${phase}:error` }); }
     }
     if (phase === "strategic") {
       await loadLivePlaces(db);

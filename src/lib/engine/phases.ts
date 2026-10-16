@@ -5,10 +5,12 @@
 export const PHASES = [
   "validate",    // authorization, dependencies, costs; reserve resources; rulings on rejected orders
   "grow",        // the living world: people and places written for the gaps tonight's orders opened (src/lib/engine/grow.ts)
+  "triage",      // the Showrunner's Room decides what is waiting: held drafts, proposals, goals (src/lib/engine/room.ts)
   "governance",  // close ballots, appointments, funding, rule amendments taking effect
   "diplomatic",  // execute formal agreements whose conditions are met; mark breaches
   "strategic",   // contested actions in rules-defined sub-order: defend → move → intercept → investigate
   "world",       // NPC moves, projects, pressure clocks, economy, decay
+  "moves",       // the Showrunner's Room reads the night and moves the story, then writes the season log
   "narrate",     // personal dispatches (model, with templated fallback)
   "send",        // deliver mail; open the next round
 ] as const;
