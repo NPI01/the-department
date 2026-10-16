@@ -61,6 +61,7 @@ async function Content({ params }: { params: PageProps<"/file/[token]/help">["pa
           <li>Your Action Units, goals and standing declarations are on your <Link href={`/file/${token}`} className="text-red underline">personnel file</Link> and in every morning dispatch.</li>
           <li>Everything you obtain is in the <Link href={`/file/${token}/case`} className="text-red underline">Case File</Link>, with buttons for SEND and FILE on each item.</li>
           <li>Open ballots and the lines to vote on them are under <Link href={`/file/${token}/ballots`} className="text-red underline">Ballots</Link>.</li>
+          <li>Every issue of the Minot Daily News your cohort has received is under <Link href={`/file/${token}/news`} className="text-red underline">News</Link>.</li>
           <li>The full <Link href="/rules" className="text-red underline">rulebook</Link> and the <Link href="/guide" className="text-red underline">field guide</Link> are public pages.</li>
         </ul>
       </section>

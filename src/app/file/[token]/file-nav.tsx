@@ -3,12 +3,13 @@ import Link from "next/link";
 /* The tabs across the top of every page in a player's file, drawn as the
    tabs on a row of manila folders. The token is the only key, as everywhere
    under /file. */
-export type FileTab = "file" | "directory" | "case" | "ballots" | "help" | "standings";
+export type FileTab = "file" | "directory" | "case" | "news" | "ballots" | "help" | "standings";
 
 const TABS: { key: FileTab; label: string; short?: string; path: string }[] = [
   { key: "file", label: "Personnel file", short: "File", path: "" },
   { key: "directory", label: "Directory", path: "/directory" },
   { key: "case", label: "Case File", path: "/case" },
+  { key: "news", label: "News", path: "/news" },
   { key: "ballots", label: "Ballots", path: "/ballots" },
   { key: "help", label: "Help", path: "/help" },
   { key: "standings", label: "Standings", path: "/standings" },

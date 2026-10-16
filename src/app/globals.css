@@ -105,3 +105,38 @@ body {
   .kenburns, .marquee, .scanline, .grain::after, .flicker, .caret { animation: none !important; }
   .reveal, .reveal-wipe, .reveal-ink { transition: none; opacity: 1; transform: none; clip-path: none; filter: none; letter-spacing: 0; }
 }
+
+/* ---------- the Minot Daily News (file/[token]/news) ----------
+   Newsprint: a yellower stock than the site's paper, a fold down the middle,
+   hairline column rules, Playfair for the masthead and heads, Old Standard
+   for the body; drop caps, a jump line, and "30" at the end of a story. */
+.np-sheet {
+  --np: #e9dfc3; --np-2: #e2d6b5;
+  background:
+    linear-gradient(90deg, rgba(20,18,16,0) 49.4%, rgba(20,18,16,.10) 50%, rgba(20,18,16,0) 50.6%),
+    radial-gradient(120% 80% at 50% 0%, var(--np) 0%, var(--np-2) 100%);
+  color: var(--ink);
+  border: 1px solid #b9ad90;
+  box-shadow: 0 1px 0 #fff8e8 inset, 8px 10px 0 0 rgba(20,18,16,.12), 10px 12px 0 0 #c9bea4;
+  font-family: "Old Standard TT", "Times New Roman", Georgia, serif;
+}
+.np-masthead { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-size: clamp(2rem, 11vw, 3.6rem); letter-spacing: -.01em; line-height: .95; white-space: nowrap; }
+.np-ear { font-size: 10px; line-height: 1.35; color: var(--ink-2); border: 1px solid var(--ink); padding: 4px 6px; max-width: 11rem; }
+@media (min-width: 768px) { .np-masthead { font-size: 3.2rem; } .np-ear { width: 7.5rem; max-width: 7.5rem; } }
+.np-ear-head { font-family: "Playfair Display", Georgia, serif; font-weight: 700; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; color: var(--ink); margin-bottom: 2px; }
+.np-dateline { font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 500; font-size: 10px; letter-spacing: .28em; text-transform: uppercase; }
+.np-head-lead { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-size: clamp(1.6rem, 4.6vw, 2.9rem); line-height: 1.02; letter-spacing: -.01em; text-transform: uppercase; }
+.np-head { font-family: "Playfair Display", Georgia, serif; font-weight: 700; font-size: 1.15rem; line-height: 1.12; margin-bottom: .35rem; break-after: avoid; }
+.np-byline { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 9px; letter-spacing: .25em; text-transform: uppercase; margin-top: .5rem; color: var(--ink-2); }
+.np-body { font-size: 14.5px; line-height: 1.42; text-align: justify; hyphens: auto; margin: 0 0 .55rem 0; text-indent: 1.2em; }
+.np-body:first-of-type, .np-dropcap { text-indent: 0; }
+.np-dropcap::first-letter { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-size: 3.1em; float: left; line-height: .82; padding: .06em .08em 0 0; }
+.np-columns-2 { column-count: 1; column-gap: 1.6rem; column-rule: 1px solid var(--ink); }
+.np-columns-3 { column-count: 1; column-gap: 1.4rem; column-rule: 1px solid var(--ink); }
+@media (min-width: 640px) { .np-columns-2 { column-count: 2; } .np-columns-3 { column-count: 3; } }
+.np-story { break-inside: avoid; margin-bottom: 1rem; }
+.np-jump { font-family: "Oswald", sans-serif; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; text-align: right; color: var(--ink-2); margin-top: .2rem; }
+.np-end { font-family: "Oswald", sans-serif; font-size: 9px; letter-spacing: .3em; text-align: center; color: var(--ink-2); margin: .2rem 0 0; }
+.np-rack { font-family: "Oswald", sans-serif; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; }
+
+
