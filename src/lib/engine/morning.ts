@@ -27,6 +27,7 @@ const VERBS: Record<string, string> = {
   attend: "be present at a meeting, a test, a service",
   research: "read up on a subject in the company library and the county records; a Research Brief by morning",
   requisition: "sign equipment out of Procurement stores: a camera, a cassette recorder, a motor pool truck for the night, a temporary badge",
+  protect: "spend the night guarding your desk, one item, a file your department keeps, or your own movements",
 };
 
 type Facts = {
@@ -72,6 +73,7 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   attend: (w) => `Attend ${w}`,
   research: (w) => `Research ${w}`,
   requisition: (w) => `Sign out ${w}`,
+  protect: (w) => `Guard ${w}`,
 };
 
 /* The line the player reads is the action and its target, built from the verb;
@@ -212,12 +214,13 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
   }
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
-  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized"]).limit(16);
+  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed"]).limit(16);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string; text?: string; condition?: string; issue?: string };
     if (e.kind === "contact.seen") arrived.push(`a contact report: ${v.text} (the player saw this themselves last night)`);
     if (e.kind === "contact.watch") arrived.push(`from the player's own desk, while they held: ${v.text}`);
     if (e.kind === "condition.fired") arrived.push(`the player's conditional order fired because ${v.condition}`);
     if (e.kind === "research.briefed") arrived.push(`the company library filed a Research Brief on "${(v as { subject?: string }).subject ?? "the subject asked for"}" in the player's Case File, under Research`);
+    if (e.kind === "contact.theft" || e.kind === "contact.theft_failed") arrived.push(`from the player's own desk: ${v.text}`);
     if (e.kind === "equipment.returned") arrived.push(`the ${(v as { name?: string }).name ?? "equipment"} the player had signed out went back to stores at the end of its loan`);
     if (e.kind === "equipment.seized") arrived.push(`the ${(v as { name?: string }).name ?? "equipment"} the player held was collected: ${(v as { note?: string }).note ?? "seized"}`);
     if (e.kind === "bulletin.published") arrived.push(`the ${v.issue ?? "Minot Daily News"} came out this morning; a copy is in the player's Case File`); if (e.kind === "goal.met") arrived.push(`Personnel recorded one of the player's Personal Goals as ${v.partial ? "partly " : ""}met, worth ${v.awarded} points; the player will read the particulars on their file`); if (e.kind === "goal.failed") arrived.push(`Personnel recorded one of the player's Personal Goals as not met by the end of the episode`); if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`the ballot on ${v.number ?? "a motion"} "${v.title ?? ""}" closed: ${v.passed ? "carried" : "failed"}${(v as { finding?: string | null }).finding ? `; the body recorded a finding: ${(v as { finding?: string }).finding}` : ""}`); if (e.kind === "election.closed") arrived.push(`the election ${v.number ?? ""} closed: ${v.winner_name ? `${v.winner_name} takes the seat` : "no votes were cast; the seat stays empty"}`); }

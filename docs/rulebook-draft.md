@@ -182,7 +182,7 @@ changes what an order produces rather than adding an order of its own:
 
 Loans (the truck, the badge) go back on their own. Anything you hold can be collected:
 Corporate Security takes everything signed out in your name when it summons you (Episode
-3), and a colleague may take it by `OBTAIN` [PROPOSED, not built].
+3), and a colleague may take it by `OBTAIN` unless you `PROTECT` it (§6.3).
 
 **5.3 Standing.** Relationships matter more than AU. Staff remember whether you kept
 your word, whom you reported, and whom you protected. There is no number for this on
@@ -247,8 +247,8 @@ could not be done is refunded in the morning.
 | `MEET <person>` | 3 | Talk in person. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. |
 | `CONTACT <person or organization>` | 4 | Reach someone outside the company who has not written to you. They may not answer. |
 | `SURVEIL <person or place>` | 8 | Watch who comes and goes and who writes to whom. Shows connections, never letter contents. Can be standing. |
-| `PROTECT <person, place or item>` | 4 | Guard against surveillance, theft and interference. Can be standing. |
-| `OBTAIN <item>` | 8 | Take or copy a document or object you are not entitled to. Risky; it may be noticed. |
+| `PROTECT my desk \| <item> \| <file> \| myself` | 4 | A guard for one night, laid before anything else moves (§6.6). *My desk* covers everything you hold and your department's files; an item, or a file your department keeps, covers that one thing; *myself* keeps your movements out of every contact report (§6.7). Write it again to keep it. |
+| `OBTAIN <file>` / `OBTAIN <item> FROM <name>` | 8 | Take a file the index keeps behind clearance from wherever it is kept, or take a document or a piece of equipment from a colleague's desk. Against a guard it fails and the guard learns who tried. Against a colleague who held or sent nothing it succeeds, and they see who. Otherwise it is simply missing in the morning. Security hears of it when the file is sealed, logged, kept by a person, or in a restricted place. An Operative (§4.3) is never named. |
 | `RECRUIT <person>` | 10 | Turn a contact into an informant who reports to you each round. Needs an existing relationship. |
 | `FILE <evidence> WITH <body>` | 2 | Submit evidence to a committee so it can rule on it (§9). |
 | `SPONSOR_MOTION <body> "<title>" CLOSES <round>` | 5 | Put a motion before a committee (§8.3). |
@@ -320,9 +320,10 @@ TRANSFER <holding> TO <name>    [PROPOSED for holdings]
    done and say why.
 2. **Governance.** Close votes, make appointments, apply rule changes.
 3. **Agreements.** Carry out formal agreements whose conditions are met; mark breaches.
-4. **Actions.** Defend, then move, then intercept, then investigate. Protection laid
-   tonight works against surveillance attempted tonight; a traveller reaches a place
-   before investigating it.
+4. **Actions.** Defend, then move, then intercept, then investigate. Every `PROTECT`
+   resolves before any other order, so protection laid tonight works against theft
+   attempted tonight; a traveller reaches a place before investigating it; conditional
+   orders (§6.4) are judged last.
 5. **The world.** Staff act, projects advance, pressures build, holdings decay.
 6. **Dispatch.** Your report is written and sent for 9:00 AM.
 
@@ -582,6 +583,8 @@ Command lines (start of a line, any email to the game):
   ORDER: LEAK <item>                      to the Minot Daily News; 6 AU, +2 per repeat
   ORDER: RESEARCH <subject>               the library's brief in your Case File by morning; 10 AU
   ORDER: REQUISITION <item>               camera 4 · recorder 4 · truck 3 · badge 6; on your file by morning
+  ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU
+  ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

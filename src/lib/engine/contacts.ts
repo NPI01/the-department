@@ -18,6 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { surnameKey } from "@/lib/email/inbound";
 import { documentsFor, placesFor } from "./world";
+import { guardsTonight, selfGuarded } from "./custody";
 import type { DocumentDef, PlaceDef } from "./world/types";
 
 type Db = SupabaseClient;
@@ -168,7 +169,8 @@ export async function contactReports(db: Db, round: { campaignId: string; id: st
   ]);
   const people = new Map<string, Person>(((chars ?? []) as unknown as { id: string; slug: string; name: string; player_id: string | null; specialization: string | null; divisions: { slug: string } | { slug: string }[] | null }[]).map((c) => [c.id, { id: c.id, slug: c.slug, name: c.name, player: Boolean(c.player_id), specialization: c.specialization, division: (Array.isArray(c.divisions) ? c.divisions[0] : c.divisions)?.slug ?? null }]));
   const attitude = new Map<string, "friendly" | "neutral" | "hostile">((decls ?? []).map((d) => [`${d.from_character}:${d.to_character}`, d.attitude as "friendly" | "neutral" | "hostile"]));
-  const covertFor = (r: PresenceRow) => r.covert || people.get(r.character_id)?.specialization === "operative";
+  const guarded = selfGuarded(await guardsTonight(db, round.campaignId, round.number));   // PROTECT myself: not listed tonight
+  const covertFor = (r: PresenceRow) => r.covert || guarded.has(r.character_id) || people.get(r.character_id)?.specialization === "operative";
   const security = await securityIds(db, round.campaignId);
   const knowledge: Record<string, unknown>[] = []; const events: Record<string, unknown>[] = [];
   let seen = 0, watched = 0, passed = 0;

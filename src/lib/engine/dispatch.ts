@@ -82,6 +82,8 @@ export function renderHelp(first: string) {
     `                                   <ballot number> passes / fails`,
     `  ORDER: RESEARCH <subject>        the library's brief, in your Case File by morning`,
     `  ORDER: REQUISITION <item>        a camera, a recorder, a truck or a badge from stores`,
+    `  ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU`,
+    `  ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU`,
     `  FALLBACK: <order>                done only if the order above it fails`,
     `  HOLD                             keep your units, +5 AU; while you hold you`,
     `                                   learn who pulled your department's files`,

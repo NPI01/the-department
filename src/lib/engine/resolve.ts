@@ -13,9 +13,10 @@ import { acceptInvitation, accessRestricted, outstandingInvitations } from "./so
 import type { Presence } from "./contacts";
 import { researchSlug, researchSubject } from "./research";
 import { findEquipment, holdingsFor, holds, logLines, requisition, type Holding } from "./equipment";
+import { findLoot, guardOf, guardsTonight, layProtection, takeLoot, watchfulIn, type Scope } from "./custody";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -27,11 +28,11 @@ export type Outcome = {
 
 export type Ctx = {
   campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
-  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[] };   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
+  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[]; specialization?: string | null };   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -74,6 +75,8 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(leak|to the (?:paper|press|newspaper|reporter|minot daily news)|tip off (?:the paper|haugen|the press))\b/, "leak"],
     [/\b(research|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
     [/\b(requisition|sign out (?!log)|sign for a|check out a|borrow|a camera|the camera|tape recorder|a recorder|a truck|a pickup|the truck|a vehicle|a badge|temporary badge|visitor badge)\b/, "requisition"],
+    [/\b(protect|guard|lock up|lock away|hide|keep .* safe|secure my|cover my tracks|keep my head down)\b/, "protect"],
+    [/\b(obtain|steal|lift|pinch|swipe|get hold of|take .* (?:from|off|out of)|make off with|help myself to)\b/, "obtain"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
@@ -284,6 +287,72 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
       await db.from("relationships").upsert({ campaign_id: ctx.campaignId, from_character: who.id, to_character: ctx.character.id, obligation: 0.1, updated_at: new Date().toISOString() }, { onConflict: "from_character,to_character", ignoreDuplicates: true });
     }
     return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person${lobbyNote}. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
+  }
+  if (verb === "protect") {
+    // PROTECT: a guard for one night over my desk, one item, a document my department keeps, or myself. Laid before anything else moves (jobs.ts).
+    const t = norm(text);
+    let scope: Scope | null = null;
+    if (/\b(myself|my movements|me|my tracks|my head down)\b/.test(t)) scope = { kind: "self" };
+    else if (/\b(my desk|my files|everything|my case file|my things|my office|my holdings|my department s files|the department s files|our files)\b/.test(t) || t === "protect") scope = { kind: "all" };
+    else {
+      const d = findDocument(text, episode);
+      if (d && d.holder === ctx.character.division) scope = { kind: "doc", slug: d.slug, title: d.title };
+      else if (!ctx.dry) {
+        const mine = await findLoot(db, ctx.character.id, text);
+        if (mine) scope = { kind: "item", slug: mine.kind === "case" ? mine.slug : mine.def.slug, title: mine.kind === "case" ? mine.title : mine.name };
+        else if (d) return ruled(`"${d.title}" is not kept by ${ctx.character.division?.replace(/-/g, " ") ?? "your department"}; ${ctx.character.name} cannot guard it. Units returned.`);
+      }
+    }
+    if (!scope) return ruled(`The clerk could not tell what "${text}" is to be protected. Units returned. Say "my desk", name an item you hold or a file your department keeps, or say "myself".`);
+    if (!ctx.dry) await layProtection(db, { campaignId: ctx.campaignId, roundNo: ctx.roundNo, characterId: ctx.character.id, division: ctx.character.division }, scope);
+    const what = scope.kind === "self" ? "their own movements: nobody's report lists where they went tonight" : scope.kind === "all" ? `everything on their desk and ${ctx.character.division ? `${ctx.character.division.replace(/-/g, " ")}'s files` : "their files"}` : `"${scope.title}"`;
+    return { ...base, kind: "protected", summary: `${ctx.character.name} spent the night guarding ${what}. Anyone who tried the drawer will have found it watched.` };
+  }
+  if (verb === "obtain") {
+    // OBTAIN: a document the index keeps behind clearance, or an item from a colleague's desk.
+    const guards = ctx.dry ? [] : await guardsTonight(db, ctx.campaignId, ctx.roundNo);
+    const operative = ctx.character.specialization === "operative";
+    const thiefName = operative ? "someone" : ctx.character.name;
+    const colleagues = people.filter((p) => p.player && p.id !== ctx.character.id);
+    const fromM = text.match(/\b(?:from|off|out of)\s+(.+?)(?:'s\s+(?:desk|office|cabinet|drawer|file|case file))?\s*$/i);
+    const possM = text.match(/\b([A-Z][\w.-]+(?:\s+[A-Z][\w.-]+)?)'s\s+(.+)$/);   // "Okafor's camera"
+    const victim = fromM ? findPerson(fromM[1], colleagues) : possM ? findPerson(possM[1], colleagues) : null;
+    if (victim) {
+      const want = (fromM ? text.replace(fromM[0], "") : possM![2]).replace(/^\s*(?:obtain|steal|lift|pinch|swipe|take|get hold of|make off with|help myself to)\s+/i, "").trim();
+      const loot = ctx.dry ? null : await findLoot(db, victim.id, want);
+      if (!loot) return ruled(`${victim.name} holds nothing the clerk could match to "${want}". Units returned.`);
+      base.target = victim.slug;
+      const lootSlug = loot.kind === "case" ? loot.slug : loot.def.slug; const lootName = loot.kind === "case" ? loot.title : loot.name;
+      const guard = guardOf(guards, { ownerId: victim.id, itemSlug: lootSlug });
+      const tell = async (kind: string, text: string, who: string | null) => { if (ctx.dry) return; await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind, payload: { by: victim.id, who, who_name: who ? ctx.character.name : null, what: lootName, text, round: ctx.roundNo }, idempotency_key: `${kind}:${ctx.roundId}:${victim.id}:${ctx.character.id}:${lootSlug}`, visible_to: [victim.id] }); await db.from("knowledge").insert({ character_id: victim.id, fact_key: `${kind.replace(".", ":")}:${ctx.character.slug}:${ctx.roundNo}:${lootSlug}`, value: { kind, text, who, who_name: who ? ctx.character.name : null, what: lootName, round: ctx.roundNo }, confidence: 1, source_kind: "witnessed", source_ref: null, learned_round: ctx.roundNo }); };
+      if (guard) { await tell("contact.theft_failed", `${thiefName} tried your desk for "${lootName}" last night and found it guarded`, operative ? null : ctx.character.id); return { ...base, kind: "refused", summary: `${victim.name}'s "${lootName}" was watched; ${ctx.character.name} could not get near it${operative ? "" : ", and was seen trying"}.`, presence: [{ kind: "person", slug: victim.slug, name: victim.name, verb: "obtain", covert: true }] }; }
+      const { data: vp } = ctx.dry ? { data: null } : await db.from("order_packets").select("mode").eq("round_id", ctx.roundId).eq("character_id", victim.id).maybeSingle();
+      const watchful = vp?.mode === "hold" || vp?.mode === "missed";
+      const got = ctx.dry ? lootName : await takeLoot(db, { campaignId: ctx.campaignId, roundNo: ctx.roundNo, thief: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name }, victim: { id: victim.id, slug: victim.slug, name: victim.name } }, loot);
+      await tell("contact.theft", watchful ? `${thiefName} took "${got}" from your desk last night; you were there and saw it go` : `"${got}" is missing from your desk this morning`, watchful && !operative ? ctx.character.id : null);
+      return { ...base, kind: "obtained", summary: `${ctx.character.name} took "${got}" from ${victim.name}'s desk. It is in the Case File${loot.kind === "equipment" ? " and under Holdings" : ""}.${watchful ? ` ${victim.name} was at their desk${operative ? " and saw someone" : " and saw who"}.` : ""}`, presence: [{ kind: "person", slug: victim.slug, name: victim.name, verb: "obtain", covert: true }] };
+    }
+    const d = findDocument(text, episode);
+    if (!d) return ruled(`The clerk could not match "${text}" to a file on the index or to anything a colleague holds. Units returned. Name the file, or say what and from whom.`);
+    base.target = d.slug;
+    if (allowed(d.access, ctx.character) && !d.access.via && !placesFor(episode).some((pl) => pl.slug === d.holder)) return ruled(`${ctx.character.name} is entitled to "${d.title}"; ask Records for it. Units returned.`);
+    const keeper = people.find((p) => p.slug === d.holder) ?? (d.access.via ? people.find((p) => p.slug === d.access.via) : null);
+    const keptAt = placesFor(episode).find((pl) => pl.slug === d.holder);
+    const holderDivision = !keeper && !keptAt ? d.holder : null;
+    const guard = guardOf(guards, { docSlug: d.slug, holderDivision });
+    if (guard) {
+      const g = people.find((p) => p.id === guard.by);
+      if (!ctx.dry && g) { await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "contact.theft_failed", payload: { by: g.id, who: operative ? null : ctx.character.id, who_name: operative ? null : ctx.character.name, what: d.title, text: `${thiefName} tried for "${d.title}" last night and found it guarded`, round: ctx.roundNo }, idempotency_key: `theft_failed:${ctx.roundId}:${g.id}:${ctx.character.id}:${d.slug}`, visible_to: [g.id] }); }
+      return { ...base, kind: "refused", summary: `"${d.title}" was watched tonight; ${ctx.character.name} could not get near it${operative ? "" : ", and was seen trying"}.`, presence: [{ kind: "document", slug: d.slug, name: d.title, verb: "obtain", covert: true }] };
+    }
+    const where = keeper ? `${keeper.name}'s office` : keptAt ? keptAt.name : `the ${String(d.holder).replace(/-/g, " ")} files`;
+    const item = await deliver(db, ctx, d, `Taken from ${where}, Round ${ctx.roundNo}, without authorization.`);
+    const loud = Boolean(d.access.sealed || d.notice || keeper || keptAt?.restricted);
+    if (loud) await notify(db, ctx, `"${d.title}" went missing from ${where} on the night of Round ${ctx.roundNo}${operative ? "" : `; ${ctx.character.name} was seen near it`}.`);
+    if (keeper && !ctx.dry) await db.from("knowledge").insert({ character_id: keeper.id, fact_key: `told:${ctx.character.slug}:took:${d.slug}`, value: { kind: "info_share", text: `"${d.title}" was taken from my office on the night of Round ${ctx.roundNo}${operative ? "" : `; ${ctx.character.name} was seen near it`}`, from: ctx.character.id, from_name: ctx.character.name, round: ctx.roundNo }, confidence: operative ? 0.5 : 1, source_kind: "witnessed", source_ref: null, learned_round: ctx.roundNo });
+    // A watchful colleague in the department that keeps it learns who, unless the thief is an Operative.
+    if (holderDivision && !ctx.dry) for (const w of await watchfulIn(db, ctx.roundId, holderDivision)) { if (w.id === ctx.character.id) continue; await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "contact.watch", payload: { by: w.id, who: operative ? null : ctx.character.id, who_name: operative ? null : ctx.character.name, what: d.title, verb: "obtain", text: `${thiefName} took "${d.title}" from ${holderDivision.replace(/-/g, " ")}'s files while you were at your desk`, round: ctx.roundNo }, idempotency_key: `watch:${ctx.roundId}:${w.id}:obtain:${d.slug}:${ctx.character.id}`, visible_to: [w.id] }); }
+    return { ...base, kind: "obtained", summary: `${ctx.character.name} took "${d.title}" from ${where}. It is in the Case File, and it will be missed${loud ? "; Security has the report already" : ""}.`, learned: d.grants, item, noticed: loud, presence: [{ kind: "document", slug: d.slug, name: d.title, verb: "obtain", covert: true }] };
   }
   if (verb === "requisition") {
     // REQUISITION <item>: signed out from Procurement stores tonight, on the personnel file by morning, and in a log.

@@ -24,7 +24,7 @@ import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { renderDirectoryLetter } from "@/lib/email/directory";
 import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
-import { advancePressure, resolveOrder, VERB_COST, type Ctx } from "@/lib/engine/resolve";
+import { advancePressure, inferVerb, resolveOrder, VERB_COST, type Ctx } from "@/lib/engine/resolve";
 import { authorizedDivisions, conditionLabel, conditionMet, contactReports, findInRoster, parseCondition, recordPresence, setDeclaration, type Condition, type Roster } from "@/lib/engine/contacts";
 import { episodeOf } from "@/lib/engine/world";
 import { growRound, loadLivePlaces, openWorldRequests } from "@/lib/engine/grow";
@@ -656,11 +656,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       await loadLivePlaces(db);
       const episode = episodeOf(round.number);
       // Each funded order meets the verb rules; the outcome is written down for the morning.
-      const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, divisions(slug))").eq("round_id", roundId);
+      const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, specialization, divisions(slug))").eq("round_id", roundId);
       type Live = { id: string; ctx: Ctx };
       const live: Live[] = [];
       for (const pk of packets ?? []) {
-        const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
+        const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; specialization: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
         const division = (Array.isArray(chRaw.divisions) ? chRaw.divisions[0]?.slug : chRaw.divisions?.slug) ?? null;
         const { data: socs } = await db.from("memberships").select("organizations!inner(name, kind)").eq("character_id", chRaw.id).eq("organizations.kind", "society");
@@ -668,7 +668,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         // Files a colleague's AUTHORIZE or friendship opens (contacts.ts).
         const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
         const holdings = await holdingsFor(db, chRaw.id);
-        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings } } });
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization } } });
       }
       const credit = async (characterId: string, refund: number) => {
         if (!refund) return;
@@ -692,11 +692,21 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           return cost;
         }
       };
-      // Pass one: every unconditional order, in the order given.
+      // Pass zero: every PROTECT, so a guard laid tonight stops a theft attempted tonight (rulebook §6.6: defend first).
+      type Row = { id: string; seq: number; verb: string; args: Record<string, unknown> };
+      const isGuard = (o: Row) => o.verb === "protect" || ((o.args.steps as { verb: string }[] | undefined)?.[0]?.verb === "protect") || (o.verb === "freeform" && !(o.args.steps as unknown[] | undefined)?.length && inferVerb(String(o.args.text ?? "")).verb === "protect");
+      const unconditional = new Map<string, Row[]>();
       for (const pk of live) {
         const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").is("condition", null).order("seq");
+        unconditional.set(pk.id, (orders ?? []) as Row[]);
         let refund = 0;
-        for (const o of orders ?? []) refund += await run(pk, o as { id: string; seq: number; verb: string; args: Record<string, unknown> }, null);
+        for (const o of unconditional.get(pk.id)!.filter(isGuard)) refund += await run(pk, o, null);
+        await credit(pk.ctx.character.id, refund);
+      }
+      // Pass one: every other unconditional order, in the order given.
+      for (const pk of live) {
+        let refund = 0;
+        for (const o of unconditional.get(pk.id)!.filter((o) => !isGuard(o))) refund += await run(pk, o, null);
         await credit(pk.ctx.character.id, refund);
       }
       // Pass two: conditional orders, judged against the first pass (the presence
