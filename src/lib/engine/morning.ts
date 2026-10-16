@@ -15,6 +15,7 @@ import { standingFor } from "./contacts";
 import { listStanding, STANDING_UPKEEP } from "./standing";
 import { proxiesOf } from "./proxies";
 import { onLeave } from "./leave";
+import { agreementsOf } from "./agreements";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -225,13 +226,15 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
   }
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
-  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed", "informant.lapsed", "directive.issued", "proxy.given", "transfer.received"]).limit(16);
+  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed", "informant.lapsed", "directive.issued", "proxy.given", "transfer.received", "agreement.proposed", "agreement.active", "agreement.breached", "agreement.fulfilled"]).limit(20);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string; text?: string; condition?: string; issue?: string };
     if (e.kind === "contact.seen") arrived.push(`a contact report: ${v.text} (the player saw this themselves last night)`);
     if (e.kind === "contact.watch") arrived.push(`from the player's own desk, while they held: ${v.text}`);
     if (e.kind === "condition.fired") arrived.push(`the player's conditional order fired because ${v.condition}`);
     if (e.kind === "research.briefed") arrived.push(`the company library filed a Research Brief on "${(v as { subject?: string }).subject ?? "the subject asked for"}" in the player's Case File, under Research`);
     if (e.kind === "contact.theft" || e.kind === "contact.theft_failed") arrived.push(`from the player's own desk: ${v.text}`);
+    if (e.kind === "agreement.proposed") arrived.push(`agreement ${(v as { number?: string }).number ?? ""} "${(v as { name?: string }).name ?? ""}" was proposed between its parties; the player's answer is ACCEPT AGREEMENT or REJECT AGREEMENT with its number`);
+    if (e.kind === "agreement.active" || e.kind === "agreement.breached" || e.kind === "agreement.fulfilled") arrived.push(`${v.text ?? ""}`);
     if (e.kind === "transfer.received") arrived.push(`${v.text ?? "something was handed to the player"}`);
     if (e.kind === "proxy.given") arrived.push(`${(v as { from_name?: string }).from_name ?? "a colleague"} gave the player their proxy on ${(v as { motion?: string }).motion ?? "a ballot"}: unless they vote themselves, their vote follows the player's`);
     if (e.kind === "directive.issued") arrived.push(`an emergency directive, ${(v as { number?: string }).number ?? ""}, was issued by ${(v as { by_name?: string }).by_name ?? "an officer"}: ${(v as { label?: string }).label ?? ""}; it reached every desk as a memo`);
@@ -263,9 +266,11 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const proxies = await proxiesOf(db, round.campaign_id, ch.id);
   const leave = await onLeave(db, round.campaign_id, ch.id);
   if (leave) facts.mode = "leave";
+  const agreements = await agreementsOf(db, round.campaign_id, ch.id);
   const standingLines = [
     ...(leave ? [`• You are on leave${leave.until ? ` through the lock of Round ${leave.until}` : ""}${leave.kind === "absence" ? " (placed by Personnel after three days without word; after seven the position is reassigned)" : ""}. Your desk, holdings and seat are kept; a seat abstains; informants wait. RETURN, or any order, brings you back.`] : []),
     ...proxies.map((p) => `• Your proxy on ${p.motion} is with ${p.to_name}; a VOTE of your own takes it back, or PROXY ${p.motion} TO NOBODY.`),
+    ...agreements.map((l) => `• Agreement ${l}`),
     ...sos.map((s) => `• Standing ${s.seq}: ${s.label} — ${STANDING_UPKEEP} AU a round; CANCEL STANDING ${s.seq} ends it.`),
     ...(where ? [`• You are in ${where.name} (since Round ${where.round}). Orders there cost no further trip; any order on campus, or TRAVEL back, brings you home. Nobody is watching your desk while you are away.`] : []),
     ...(st.friendly.length ? [`• Friendly toward ${st.friendly.join(", ")}: they may pull ${department ?? "your department"}'s files, and your watch lets them pass.`] : []),

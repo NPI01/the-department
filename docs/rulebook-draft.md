@@ -424,7 +424,13 @@ The game numbers it (e.g. `A-77-002`) in the next dispatch. It takes effect when
 party has sent `ACCEPT AGREEMENT A-77-002`, and lapses if anyone sends `REJECT`. Kinds:
 *formal* (enforced where possible), *political* (public, not enforced), *secret* (known
 only to the parties, not enforced). Breaking any of them has consequences with the people
-involved.
+involved. The clerk reads three kinds of term and carries them out: a vote pledged on a
+ballot (cast at the lock unless the party has voted; a breach if they voted otherwise), units
+to be transferred by a round, and a document or piece of equipment to be handed over by a
+round. Any other term is recorded as a party's word and never enforced. A breach is known to
+every party, and to everyone for a political agreement. Your dispatch lists the agreements
+you are in, and `TERMS:` and `KIND:` lines (formal, political or secret) follow the
+`AGREEMENT:` line.
 
 **7.9 Out of character.** [PROPOSED] Questions about the rules, bugs and real-life
 matters go to `showrunner@weird.delivery`. That mailbox is outside the fiction and never
@@ -599,7 +605,7 @@ Command lines (start of a line, any email to the game):
   CANCEL STANDING <n> / CANCEL ORDERS
   VOTE <motion>: FOR | AGAINST | ABSTAIN
   PROXY <motion> TO <member> / TO NOBODY   a member carries your vote
-  AGREEMENT: "<title>" WITH <names>  + TERMS: lines                [PROPOSED]
+  AGREEMENT: "<title>" WITH <names>  + TERMS: lines [+ KIND: formal|political|secret]
   ACCEPT AGREEMENT <id> / REJECT AGREEMENT <id>
   TRANSFER <n> AU TO <name>
   LEAVE <rounds> / RETURN                 away up to five rounds; back early
@@ -668,6 +674,6 @@ missed-turn defaults, motion tallying. Not built yet:
   sealed addresses in each dispatch.
 - Alias sending; group mailboxes; subject-line correspondence kinds; the `showrunner@`
   out-of-character mailbox; `APPEAL`.
-- Agreements: a way to *create* one. The grammar can accept or reject an agreement but
-  nothing proposes it. Suggested: `AGREEMENT: "<title>" WITH <names>` followed by
-  `TERMS:` lines, in a letter copied to every party, which the game numbers `A-77-nnn`.
+- Built 2026-10-16: `AGREEMENT:` with `TERMS:` and `KIND:` lines, numbering, notices to the
+  parties, and the diplomatic phase that casts pledged votes, hands over units and items, and
+  records breaches (src/lib/engine/agreements.ts).

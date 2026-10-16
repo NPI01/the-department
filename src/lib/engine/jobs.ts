@@ -42,6 +42,7 @@ import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
 import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
+import { agreementsOf, announceActive, enforceAgreements, proposeAgreement } from "@/lib/engine/agreements";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -324,6 +325,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         continue;
       }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
+      if (a.kind === "agreement") {
+        // AGREEMENT: "<title>" WITH <names> + TERMS: lines: numbered, parties told, in force on the last ACCEPT (agreements.ts).
+        const { data: me } = await db.from("characters").select("name").eq("id", c.from_character).single();
+        const r = await proposeAgreement(db, { campaignId: c.campaign_id, roundId: round.id, round: round.number, correspondenceId: id, proposer: { id: c.from_character, name: me?.name ?? "" }, name: a.name, withNames: a.withNames, termTexts: a.terms, kind: a.agreementKind, roster });
+        if (r.ok) recorded.push(r.line); else ignored.push(`AGREEMENT "${a.name}" — ${r.error}`);
+        continue;
+      }
       if (a.kind === "leave") {
         // LEAVE <rounds>: away on purpose from tonight's lock, up to MAX_LEAVE rounds; tonight's orders are set aside.
         const lv = await startLeave(db, { campaignId: c.campaign_id, characterId: c.from_character, round: round.number, rounds: a.rounds });
@@ -399,8 +407,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const { data: ag } = await db.from("agreements").select("id, accepted_by, parties, status").eq("campaign_id", c.campaign_id).eq("title", a.agreement).maybeSingle();
         if (ag && ag.status === "proposed" && ag.parties.includes(c.from_character)) {
           if (a.kind === "reject") await db.from("agreements").update({ status: "withdrawn" }).eq("id", ag.id);
-          else { const accepted = [...new Set([...ag.accepted_by, c.from_character])]; await db.from("agreements").update({ accepted_by: accepted, status: accepted.length >= ag.parties.length ? "active" : "proposed" }).eq("id", ag.id); }
-          recorded.push(`${a.kind.toUpperCase()} AGREEMENT ${a.agreement}`);
+          else { const accepted = [...new Set([...ag.accepted_by, c.from_character])]; const active = accepted.length >= ag.parties.length; await db.from("agreements").update({ accepted_by: accepted, status: active ? "active" : "proposed" }).eq("id", ag.id); if (active) await announceActive(db, c.campaign_id, round.id, round.number, ag.id as string); }
+          recorded.push(`${a.kind.toUpperCase()} AGREEMENT ${a.agreement}${a.kind === "accept" ? ([...new Set([...ag.accepted_by, c.from_character])].length >= ag.parties.length ? " — every party has accepted; it is in force from tonight" : " — waiting on the other parties") : " — withdrawn"}`);
         }
       } else if (a.kind === "transfer" || a.kind === "transfer_holding") {
         // TRANSFER <n> AU TO <name> / TRANSFER <item> TO <name>: free, at once; the receiver is told (equipment.ts).
@@ -529,7 +537,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN|TRANSFERRED)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN|TRANSFERRED|AGREEMENT)/.test(r)), ...(await agreementsOf(db, c.campaign_id, c.from_character)).map((l) => `AGREEMENT ${l}`)], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -805,6 +813,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Who saw whom tonight, and what the watchful learned.
       const contacts = await contactReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number, episode });
       await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "contacts.reported", payload: contacts, idempotency_key: `contacts:${roundId}` });
+    }
+    if (phase === "diplomatic") {
+      // Formal agreements: carry out what can be carried out; mark breaches (agreements.ts).
+      const ag = await enforceAgreements(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "agreements.enforced", payload: ag, idempotency_key: `agreements:${roundId}` });
     }
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.

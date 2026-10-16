@@ -113,6 +113,7 @@ export function renderHelp(first: string) {
     `  TRANSFER <n> AU TO <name>        units, at once; TRANSFER <item> TO <name> for equipment`,
     `  FILE <item> WITH <committee>     evidence before a body, on the record`,
     `  FORM 14-B                        a blank company form`,
+    `  AGREEMENT: "<title>" WITH <names> + TERMS: lines   a formal agreement; ACCEPT AGREEMENT <n>`,
     `  ACCEPT INVITATION / DECLINE INVITATION`,
     ``,
     `THE PRESS`,
