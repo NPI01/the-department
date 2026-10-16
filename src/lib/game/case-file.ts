@@ -8,7 +8,7 @@ import { stripQuoted } from "@/lib/email/inbound";
    Nothing here touches facts or secret canon. Notes are the player's alone:
    no character, model or job reads case_notes. */
 
-export type Drawer = "correspondence" | "documents" | "photographs" | "maps" | "findings";
+export type Drawer = "correspondence" | "documents" | "photographs" | "maps" | "research" | "findings";
 export type Grade = "intelligence" | "evidence" | "finding";
 export type ItemStatus = "held" | "handed_over" | "seized" | "stolen" | "destroyed";
 
@@ -45,7 +45,7 @@ export type CaseFile = {
 };
 
 export const KINDS = ["letter", "memo", "document", "report", "photograph", "map", "diagram", "object", "testimony", "finding"] as const;
-export const DRAWERS: Drawer[] = ["correspondence", "documents", "photographs", "maps", "findings"];
+export const DRAWERS: Drawer[] = ["correspondence", "documents", "photographs", "maps", "research", "findings"];
 export const GRADES: Grade[] = ["intelligence", "evidence", "finding"];
 export const STATUSES: ItemStatus[] = ["held", "handed_over", "seized", "stolen", "destroyed"];
 export const BUCKET = "case-file";

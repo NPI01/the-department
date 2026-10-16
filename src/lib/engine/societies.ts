@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
 import { gameDate } from "@/lib/email/letter";
+import { seizeHoldings } from "./equipment";
 
 type Trigger = { w: number } & ({ knows: string } | { holds: string } | { wrote_to: string } | { form_q11: true } | { noticed_by_security: number });
 
@@ -155,8 +156,10 @@ export async function securityPurge(db: SupabaseClient, campaignId: string, roun
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", `summons:${pc.id}`).maybeSingle();
     if (dup) continue;
     await db.from("facts").upsert({ campaign_id: campaignId, key: `purge.${pc.id}.restricted_until`, value: { round: round.number + 2 }, established_round: round.number, secret: true }, { onConflict: "campaign_id,key" });
+    // Everything signed out in their name is collected (equipment.ts).
+    const seized = await seizeHoldings(db, { campaignId, characterId: pc.id as string, round: round.number, roundId: round.id, by: "corporate-security", note: "Collected by Corporate Security pending interview." });
     const email = ((Array.isArray(pc.players) ? pc.players[0] : pc.players) as { email: string } | null)?.email ?? null;
-    const { data: row } = await db.from("correspondence").insert({ campaign_id: campaignId, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: sloane?.id ?? null, to_characters: [pc.id], to_addresses: email ? [email] : [], subject: "Summons to interview", body_text: `${pc.name},\n\nYou are named for interview by Corporate Security under the review announced to all staff. Report to Building 1, Room 112, at 0900 on the next working day. Your access to Records and to restricted areas is suspended until the interview is complete. Do not discuss this summons.\n\nH. Sloane, Director`, raw: { letter_kind: "memo", classification: "Limited Distribution", summons: true } }).select("id").single();
+    const { data: row } = await db.from("correspondence").insert({ campaign_id: campaignId, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: sloane?.id ?? null, to_characters: [pc.id], to_addresses: email ? [email] : [], subject: "Summons to interview", body_text: `${pc.name},\n\nYou are named for interview by Corporate Security under the review announced to all staff. Report to Building 1, Room 112, at 0900 on the next working day. Your access to Records and to restricted areas is suspended until the interview is complete.${seized.length ? ` Equipment signed out in your name (${seized.join(", ")}) has been collected from your desk.` : ""} Do not discuss this summons.\n\nH. Sloane, Director`, raw: { letter_kind: "memo", classification: "Limited Distribution", summons: true } }).select("id").single();
     if (row && email) await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
     await db.from("events").insert({ campaign_id: campaignId, round_id: round.id, phase: "world", kind: "security.summons", payload: { character: pc.id, round: round.number, restricted_until: round.number + 2 }, idempotency_key: `summons:${pc.id}`, visible_to: [pc.id] });
     named.push(pc.name as string);

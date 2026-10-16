@@ -23,6 +23,7 @@ export type DocumentDef = {
   body: string;                  // the player's copy
   from?: string; written?: string;
   notice?: boolean;              // Security learns who asked
+  logKey?: string;               // a log the engine appends to: lines from facts log.<key>.* (equipment.ts)
 };
 
 export type Sighting = { episode?: number; rounds: [number, number]; text: string; grants: string; restricted?: boolean };   // rounds are days of that episode

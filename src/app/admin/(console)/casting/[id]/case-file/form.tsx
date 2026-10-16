@@ -4,7 +4,7 @@ import { DRAWERS, GRADES, KINDS } from "@/lib/game/case-file";
 import { fileItem } from "./actions";
 
 const input = "mt-1 w-full border border-rule bg-paper-2 px-2.5 py-1.5 text-sm outline-none focus:border-accent";
-const DEFAULT_DRAWER: Record<string, string> = { letter: "correspondence", memo: "correspondence", photograph: "photographs", map: "maps", diagram: "documents", finding: "findings" };
+const DEFAULT_DRAWER: Record<string, string> = { letter: "correspondence", memo: "correspondence", photograph: "photographs", map: "maps", diagram: "documents", report: "research", finding: "findings" };
 
 export function FileItemForm({ characterId }: { characterId: string }) {
   const [state, action, pending] = useActionState(fileItem, undefined);

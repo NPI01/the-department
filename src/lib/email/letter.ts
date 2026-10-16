@@ -32,7 +32,7 @@ export type Letter = {
   links: LetterLinks;
 };
 
-export type LetterLinks = { file?: string | null; rules: string; guide: string };
+export type LetterLinks = { file?: string | null; help?: string | null; rules: string; guide: string };
 
 export function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://weird.delivery").replace(/\/$/, "");
@@ -40,7 +40,7 @@ export function siteUrl() {
 
 export function letterLinks(fileToken?: string | null): LetterLinks {
   const base = siteUrl();
-  return { file: fileToken ? `${base}/file/${fileToken}` : null, rules: `${base}/rules`, guide: `${base}/guide` };
+  return { file: fileToken ? `${base}/file/${fileToken}` : null, help: fileToken ? `${base}/file/${fileToken}/help` : null, rules: `${base}/rules`, guide: `${base}/guide` };
 }
 
 /* Round 1 of Season One is Monday, October 10, 1977; one game day per round. */
@@ -133,7 +133,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
 
   // A recipient with a personnel file is a player; anyone else (an applicant) gets the plain footer.
   const playing = Boolean(l.links.file);
-  const links = [l.links.file ? link(l.links.file, "Your personnel file") : null, link(l.links.rules, "Rulebook"), link(l.links.guide, "Field guide")].filter(Boolean);
+  const links = [l.links.file ? link(l.links.file, "Your personnel file") : null, l.links.help ? link(l.links.help, "Help") : null, link(l.links.rules, "Rulebook"), link(l.links.guide, "Field guide")].filter(Boolean);
 
   const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -249,6 +249,7 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     rule,
     "OUT OF CHARACTER · The Department, a play-by-mail game from Weird.Delivery",
     l.links.file ? `Your personnel file: ${l.links.file}` : null,
+    l.links.help ? `Help:                ${l.links.help}` : null,
     `Rulebook:            ${l.links.rules}`,
     `Field guide:         ${l.links.guide}`,
     "",

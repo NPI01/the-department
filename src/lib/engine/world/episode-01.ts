@@ -4,6 +4,21 @@
 import type { DocumentDef, PlaceDef, PressureTier } from "./types";
 
 export const DOCUMENTS: DocumentDef[] = [
+  // Logs the engine appends to as equipment is signed out (equipment.ts). PROPOSED 2026-10-16.
+  {
+    slug: "procurement-requisition-log", title: "Equipment requisition log, Procurement stores (October 1977)", kind: "document",
+    aliases: ["requisition log", "equipment log", "procurement log", "stores log", "the requisitions", "requisitions log"],
+    holder: "procurement-logistics", access: { clearance: 2, department: ["procurement-logistics"] }, logKey: "requisitions",
+    grants: [], wrongDetail: null, from: "Procurement & Logistics", written: "October 1977",
+    body: "**PROCUREMENT STORES — EQUIPMENT REQUISITIONS — OCTOBER 1977**\n\n| Date | Item | Signed by | Note |\n|---|---|---|---|\n| 3 Oct | Cassette recorder, 3 tapes | Greeley, A. | not returned |\n| 5 Oct | 35mm camera, 2 rolls | Fisk, L. | returned 6 Oct |",
+  },
+  {
+    slug: "security-badge-register", title: "Temporary badge register, Corporate Security (October 1977)", kind: "document",
+    aliases: ["badge register", "badge log", "temporary badges", "visitor badges", "the badge book"],
+    holder: "corporate-security", access: { clearance: 3, department: ["corporate-security"] }, logKey: "badges", notice: true,
+    grants: [], wrongDetail: null, from: "Corporate Security", written: "October 1977",
+    body: "**CORPORATE SECURITY — TEMPORARY BADGES ISSUED — OCTOBER 1977**\n\n| Date | Badge | Issued to | Term |\n|---|---|---|---|\n| 4 Oct | T-31 | PMA crew (3) | 24h |\n| 9 Oct | T-44 | (blank) | 24h |",
+  },
   {
     slug: "facilities-ledger-b7", title: "Facilities maintenance ledger, Building 7 (1977)", kind: "document",
     aliases: ["facilities ledger", "building 7 ledger", "ledger for building 7", "building 7", "b7 ledger", "maintenance ledger"],

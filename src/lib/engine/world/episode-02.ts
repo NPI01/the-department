@@ -53,7 +53,7 @@ export const DOCUMENTS_02: DocumentDef[] = [
   {
     slug: "motor-pool-log-oct-77", episode: 2, title: "Motor pool sign-out log, October 1977", kind: "document",
     aliases: ["motor pool", "motor pool log", "vehicle log", "sign-out log", "truck log", "the trucks"],
-    holder: "personnel-administration", access: { clearance: 1 },
+    holder: "personnel-administration", access: { clearance: 1 }, logKey: "motor-pool",
     grants: ["motorpool.mp14_out_9_oct_no_name"], wrongDetail: { text: "truck MP-14 is signed out on Sunday 9 October to 'PGS' with no driver's name and returned at 0330 with 61 more miles on the clock than the Tagus round trip", grants: "motorpool.mp14_mileage_noticed" },
     from: "Facilities Management", written: "October 1977",
     body: "**MOTOR POOL — SIGN-OUT — OCTOBER 1977**\n\n| Date | Vehicle | Out | In | Driver | Miles |\n|---|---|---|---|---|---|\n| 7 Oct | MP-03 | 0800 | 1700 | Okafor, M. | 42 |\n| 9 Oct | MP-14 | 2100 | 0330 | PGS | 143 |\n| 11 Oct | MP-14 | 0900 | 1200 | Pike | 18 |",

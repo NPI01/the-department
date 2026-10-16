@@ -7,6 +7,7 @@
    told. Priced when the letter arrives, so the receipt can say what it costs;
    the steps priced are the steps carried out (resolve.ts). Deterministic. */
 import { VERB_COST, inferVerb } from "./resolve";
+import { findEquipment } from "./equipment";
 import { placesFor } from "./world";
 
 export const TRAVEL_COST = 5;
@@ -16,7 +17,7 @@ export const UNREAD_COST = 5;
 
 const VERB_NAME: Record<string, string> = {
   request_files: "files", interview: "a conversation", surveil: "a night's watch", visit: "a visit", examine: "a close reading",
-  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", submit_manifest: "a manifest", approve_overtime: "overtime",
+  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", research: "research", requisition: "a requisition", submit_manifest: "a manifest", approve_overtime: "overtime",
   reconcile_maps: "reconciling maps", approve_corridors: "corridors", clear_invoices: "invoices", issue_statement: "a statement", report: "a report to Security",
 };
 
@@ -31,6 +32,8 @@ export type Priced = { steps: { verb: string; cost: number; clause: string }[]; 
 export function splitClauses(text: string): string[] {
   return text
     .replace(/\s+/g, " ")
+    // "Dr. Ely" is a name, not the end of a clause.
+    .replace(/\b(Dr|Mr|Mrs|Ms|Miss|St|Col|Sgt|Lt|Capt|Rev|Prof|Jr|Sr)\.\s/g, "$1 ")
     .split(/(?:[.;!?]+\s+|,\s*(?:and\s+)?(?:then\s+)?|\s+(?:and then|then|and|after that|afterwards|before that)\s+)/i)
     .map((c) => c.trim().replace(/^(i want to|i'd like to|i would like to|i will|i'll|i plan to|i'm going to|i am going to|try to|i want|please)\s+/i, "").trim())
     .filter(Boolean);
@@ -45,7 +48,7 @@ export function priceFreeform(text: string, episode = 1): Priced {
     const { verb } = inferVerb(clause);
     if (verb === "unknown" || !VERB_COST[verb] || steps.some((s) => s.verb === verb)) continue;
     if (steps.length >= MAX_STEPS) { left.push(clause); continue; }
-    steps.push({ verb, cost: VERB_COST[verb], clause });
+    steps.push({ verb, cost: verb === "requisition" ? (findEquipment(clause)?.cost ?? VERB_COST.requisition) : VERB_COST[verb], clause });
   }
   // The trip is charged when the order goes somewhere beyond the fence, not when it merely mentions it:
   // a clause that visits, searches, watches or attends there, or one that travels there.

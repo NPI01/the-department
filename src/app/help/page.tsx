@@ -31,7 +31,7 @@ B instead of C.
 ORDER: Ask the night guard at Gate 2 who signs for the helicopter.
 
 H                               ← hold: keep your units this round`}</Code>
-      <P>Letters pick from the morning's list. A line starting with ORDER: is a free-form attempt at anything else; its cost is ruled in the morning. Anything else you write is treated as a note and is not acted on. A new reply replaces your earlier orders for the night unless it says "also", "add", or "plus", in which case it adds to them.</P>
+      <P>Letters pick from the morning's list. A line starting with ORDER: is a free-form attempt at anything else; its cost is ruled in the morning. <code>ORDER: RESEARCH &lt;subject&gt;</code> sends the company librarian to the shelves, the county records and the newspaper morgue, and files a Research Brief in your Case File by morning. Anything else you write is treated as a note and is not acted on. A new reply replaces your earlier orders for the night unless it says "also", "add", or "plus", in which case it adds to them.</P>
 
       <H>Trip-wires: IF and FALLBACK</H>
       <P>An order can wait on something another player does tonight. It costs what it would cost, and the units come back in the morning if the condition never came about. Everyone's ordinary orders resolve first; then every IF line is judged against that night; a fired order cannot set off anyone else's IF line.</P>

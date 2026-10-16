@@ -11,9 +11,11 @@ import { newMessageId, gameMailbox } from "@/lib/email/resend";
 import { applyLobby } from "./governance";
 import { acceptInvitation, accessRestricted, outstandingInvitations } from "./societies";
 import type { Presence } from "./contacts";
+import { researchSlug, researchSubject } from "./research";
+import { findEquipment, holdingsFor, holds, logLines, requisition, type Holding } from "./equipment";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -25,13 +27,14 @@ export type Outcome = {
 
 export type Ctx = {
   campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
-  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[] };   // authorizedDivisions: files opened by a colleague's AUTHORIZE
+  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[] };   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
 function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
 
 function findDocument(text: string, episode = 1): DocumentDef | null {
@@ -69,6 +72,8 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(statement to the county|issue a statement|press statement|statement to the press|official statement)\b/, "issue_statement"], [/\b(clear the invoices|clear invoices|pay the invoices|settle the invoices)\b/, "clear_invoices"], [/\b(approve the corridors?|flight corridors?)\b/, "approve_corridors"],
     [/\b(report .* to security|report .* to corporate security|turn in|inform security|tell security about)\b/, "report"],
     [/\b(leak|to the (?:paper|press|newspaper|reporter|minot daily news)|tip off (?:the paper|haugen|the press))\b/, "leak"],
+    [/\b(research|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
+    [/\b(requisition|sign out (?!log)|sign for a|check out a|borrow|a camera|the camera|tape recorder|a recorder|a truck|a pickup|the truck|a vehicle|a badge|temporary badge|visitor badge)\b/, "requisition"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
@@ -94,7 +99,10 @@ async function notify(db: SupabaseClient, ctx: Ctx, text: string) {
 }
 async function deliver(db: SupabaseClient, ctx: Ctx, d: DocumentDef, how: string): Promise<string> {
   const slug = `${d.slug}`;
-  if (!ctx.dry) await db.from("case_items").upsert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug, kind: d.kind === "map" ? "map" : d.kind === "letter" ? "letter" : d.kind === "memo" ? "memo" : d.kind === "report" ? "report" : d.kind === "object" ? "object" : "document", drawer: d.kind === "map" ? "maps" : "documents", title: d.title, from_label: d.from ?? null, written_label: d.written ?? null, body: d.body, round_received: ctx.roundNo, how_obtained: how, copy_note: "A copy; the original stays where it was.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
+  // A log the engine keeps: the lines equipment left since the printed page (equipment.ts).
+  const extra = d.logKey && !ctx.dry ? await logLines(db, ctx.campaignId, d.logKey) : [];
+  const body = extra.length ? `${d.body}\n\n*Entries added since the page was typed:*\n${extra.map((l) => `- ${l}`).join("\n")}` : d.body;
+  if (!ctx.dry) await db.from("case_items").upsert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug, kind: d.kind === "map" ? "map" : d.kind === "letter" ? "letter" : d.kind === "memo" ? "memo" : d.kind === "report" ? "report" : d.kind === "object" ? "object" : "document", drawer: d.kind === "map" ? "maps" : "documents", title: d.title, from_label: d.from ?? null, written_label: d.written ?? null, body, round_received: ctx.roundNo, how_obtained: how, copy_note: "A copy; the original stays where it was.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
   await learn(db, ctx, d.grants, "document", null);
   return slug;
 }
@@ -115,15 +123,18 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
     let out = await resolveOne(db, ctx, { ...order, verb: st.verb, args: { ...order.args, text: st.clause, cost } });
     if (out.kind === "ruling" && out.refund > 0 && st.clause !== whole) out = await resolveOne(db, ctx, { ...order, verb: st.verb, args: { ...order.args, text: whole, cost } });
     outs.push(out);
+    // Stores first, the road after: a truck signed out in this order carries the rest of it.
+    if (out.kind === "requisitioned" && !ctx.dry) ctx.character.holdings = await holdingsFor(db, ctx.character.id);
   }
   const travel = Number(order.args.travel ?? 0);
   const allBack = outs.every((o) => o.kind === "ruling" && o.refund > 0);
+  const truck = travel > 0 && !allBack && holds(ctx.character.holdings ?? [], "vehicle");   // a motor pool truck in hand: the trip costs nothing
   const lead = outs.find((o) => o.kind !== "ruling") ?? outs[0];
   return {
     kind: lead.kind, verb: outs.map((o) => o.verb).join("+"), target: lead.target,
-    summary: dedupeSentences(outs.map((o) => o.summary).join(" ")),
+    summary: dedupeSentences(outs.map((o) => o.summary).join(" ") + (truck ? " The motor pool truck took the trip; nothing was charged for the road." : "")),
     learned: outs.flatMap((o) => o.learned), item: outs.find((o) => o.item)?.item,
-    noticed: outs.some((o) => o.noticed), refund: outs.reduce((n, o) => n + o.refund, 0) + (allBack ? travel : 0),
+    noticed: outs.some((o) => o.noticed), refund: outs.reduce((n, o) => n + o.refund, 0) + (allBack || truck ? travel : 0),
     presence: outs.flatMap((o) => o.presence ?? []),
   };
 }
@@ -187,22 +198,31 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!p) return ruled(`The clerk could not place "${text}". Units returned. Name a building, a gate, a road, or a property.`);
     base.target = p.slug;
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb, covert: verb === "surveil" }];
-    if (verb === "visit") { if (p.restricted) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted }; }
+    const pass = holds(ctx.character.holdings ?? [], "pass");
+    if (verb === "visit") { if (p.restricted && !pass) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}${pass && p.restricted ? ", badge on the lapel, and nobody looked twice" : ""}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted && !pass }; }
     const s = p.surveil.find((x) => (x.episode ?? 1) === episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]) ?? p.surveil.find((x) => (x.episode ?? 1) < episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
     const seen = hash(`${ctx.roundId}:${ctx.character.id}:${p.slug}`) % 4 !== 0;   // one night in four shows nothing
     if (!s || !seen) return { ...base, kind: "nothing", summary: `A night on ${p.name}: cold, quiet, nothing that would go in a report. ${p.restricted ? "A patrol truck slowed as it passed." : ""}`.trim(), noticed: p.restricted };
     if (s.restricted || p.restricted) await notify(db, ctx, `${ctx.character.name} spent the night of Round ${ctx.roundNo} watching ${p.name}.`);
     await learn(db, ctx, [s.grants], "witnessed", null);
-    return { ...base, kind: "sighting", summary: `A night watching ${p.name}: ${s.text}.`, learned: [s.grants], noticed: s.restricted || p.restricted };
+    // A camera in hand: the sighting is a photograph in the Case File, evidence rather than a story.
+    const camera = holds(ctx.character.holdings ?? [], "photograph");
+    let photo: string | undefined;
+    if (camera && !ctx.dry) {
+      photo = `photo-${p.slug}-r${ctx.roundNo}`;
+      await db.from("case_items").upsert({ campaign_id: ctx.campaignId, character_id: ctx.character.id, slug: photo, kind: "photograph", drawer: "photographs", title: `Photograph: ${p.name}, night of ${gameDate(ctx.roundNo)}`, from_label: ctx.character.name, written_label: gameDate(ctx.roundNo), body: `*35mm, pushed two stops, grain like sand.* ${s.text}.`, round_received: ctx.roundNo, how_obtained: `Taken by ${ctx.character.name} with a Procurement camera.`, copy_note: "The negative is yours.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
+    }
+    return { ...base, kind: "sighting", summary: `A night watching ${p.name}: ${s.text}.${camera ? " The camera has it; the print is in the Case File." : ""}`, learned: [s.grants], noticed: s.restricted || p.restricted, item: photo };
   }
   if (verb === "search") {
     const p = findPlace(text, episode);
     if (!p) return ruled(`The clerk could not place "${text}". Units returned.`);
     base.target = p.slug;
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb: "search" }];
-    if (!allowed(p.searchAccess, ctx.character)) { await notify(db, ctx, `${ctx.character.name} tried to get into ${p.name} on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is locked, sealed or watched; ${ctx.character.name} could not get in and was probably seen trying.`, noticed: true }; }
+    const pass = holds(ctx.character.holdings ?? [], "pass");
+    if (!allowed(p.searchAccess, ctx.character) && !pass) { await notify(db, ctx, `${ctx.character.name} tried to get into ${p.name} on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is locked, sealed or watched; ${ctx.character.name} could not get in and was probably seen trying.`, noticed: true }; }
     const docs = (p.contains ?? []).map((s) => documentsFor(episode).find((d) => d.slug === s)).filter((d): d is DocumentDef => Boolean(d));
-    if (p.restricted) await notify(db, ctx, `${ctx.character.name} was in ${p.name} after hours, Round ${ctx.roundNo}.`);
+    if (p.restricted && !pass) await notify(db, ctx, `${ctx.character.name} was in ${p.name} after hours, Round ${ctx.roundNo}.`);
     if (!docs.length) return { ...base, kind: "nothing", summary: `A search of ${p.name} turned up nothing that could be carried away. ${p.visit}`, noticed: p.restricted };
     const d = docs[0]; const item = await deliver(db, ctx, d, `Found in ${p.name}.`);
     return { ...base, kind: "found", summary: `In ${p.name}, ${ctx.character.name} found "${d.title}" and took it. It is in the Case File.`, learned: d.grants, item, noticed: p.restricted, presence: [...(base.presence ?? []), { kind: "document", slug: d.slug, name: d.title, verb: "search", covert: true }] };
@@ -256,11 +276,40 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     }
     if (!ctx.dry) {
       // The conversation happened; the person writes the note they would send the next morning (or declines in a line).
-      const { data: row } = await db.from("correspondence").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, direction: "inbound", message_id: newMessageId(), from_character: ctx.character.id, from_address: null, to_characters: [who.id], to_addresses: [gameMailbox().address], subject: verb === "lobby" ? `In person: ${ctx.character.name} on the motion` : `In person: ${text.slice(0, 60)}`, body_text: `[In person, ${gameDate(ctx.roundNo)}.] ${ctx.character.name} came to see ${who.name}${verb === "lobby" ? ` about the motion before the Board, and asked for their vote${lobbyNote}` : ` and asked about: ${text}`}.`, trusted: true, raw: { letter_kind: "interview", verb, source: "order" } }).select("id").single();
+      const recorder = holds(ctx.character.holdings ?? [], "transcript");
+      const { data: row } = await db.from("correspondence").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, direction: "inbound", message_id: newMessageId(), from_character: ctx.character.id, from_address: null, to_characters: [who.id], to_addresses: [gameMailbox().address], subject: verb === "lobby" ? `In person: ${ctx.character.name} on the motion` : `In person: ${text.slice(0, 60)}`, body_text: `[In person, ${gameDate(ctx.roundNo)}.] ${ctx.character.name} came to see ${who.name}${verb === "lobby" ? ` about the motion before the Board, and asked for their vote${lobbyNote}` : ` and asked about: ${text}`}.${recorder ? " A cassette recorder sat on the desk between them." : ""}`, trusted: true, raw: { letter_kind: "interview", verb, source: "order", recorded: Boolean(recorder) } }).select("id").single();
+      // The person remembers the machine; what they said comes back as a transcript (jobs.ts npc_reply).
+      if (recorder) await db.from("knowledge").insert({ character_id: who.id, fact_key: `told:${ctx.character.slug}:recorded:${ctx.roundNo}`, value: { kind: "info_share", text: `${ctx.character.name} brought a tape recorder to the conversation on ${gameDate(ctx.roundNo)}`, from: ctx.character.id, from_name: ctx.character.name, round: ctx.roundNo }, confidence: 1, source_kind: "told", source_ref: row?.id ?? null, learned_round: ctx.roundNo });
       if (row) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: row.id, character_id: who.id }, run_after: new Date(Date.now() + 60_000).toISOString() });
       await db.from("relationships").upsert({ campaign_id: ctx.campaignId, from_character: who.id, to_character: ctx.character.id, obligation: 0.1, updated_at: new Date().toISOString() }, { onConflict: "from_character,to_character", ignoreDuplicates: true });
     }
     return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person${lobbyNote}. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
+  }
+  if (verb === "requisition") {
+    // REQUISITION <item>: signed out from Procurement stores tonight, on the personnel file by morning, and in a log.
+    const item = findEquipment(text);
+    if (!item) return ruled(`Procurement stores could not match "${text}" to anything on the shelf. Units returned. The shelf holds: ${EQUIPMENT_NAMES}.`);
+    base.target = item.slug;
+    if (item.departments && !(ctx.character.division && item.departments.includes(ctx.character.division))) return ruled(`A ${item.name.toLowerCase()} is signed for by ${item.departments.map((d) => d.replace(/-/g, " ")).join(" or ")} only. Units returned.`);
+    if (item.clearance && ctx.character.clearance < item.clearance) return ruled(`A ${item.name.toLowerCase()} needs clearance ${item.clearance}. Units returned.`);
+    if (paid < item.cost) return ruled(`A ${item.name.toLowerCase()} costs ${item.cost} AU to sign out; ${paid} were committed. Units returned.`);
+    if (ctx.dry) return { ...base, kind: "requisitioned", summary: `(dry) ${item.name}` };
+    const r = await requisition(db, { campaignId: ctx.campaignId, characterId: ctx.character.id, characterSlug: ctx.character.slug, characterName: ctx.character.name, round: ctx.roundNo }, item);
+    if (!r.ok) return ruled(`${r.error} Units returned.`);
+    if (item.notice) await notify(db, ctx, `${ctx.character.name} was issued a ${item.name.toLowerCase()} on Round ${ctx.roundNo}.`);
+    return { ...base, kind: "requisitioned", summary: `Procurement stores signed a ${item.name.toLowerCase()} out to ${ctx.character.name}${r.returns ? `, due back by the morning of Round ${r.returns}` : ""}. It is on the personnel file under Holdings, and in the ${item.log.key.replace(/-/g, " ")} log.`, noticed: Boolean(item.notice), refund: Math.max(0, paid - item.cost) };
+  }
+  if (verb === "research") {
+    // RESEARCH <subject>: the library takes the request tonight; the brief is drafted
+    // by a job (research.ts) and is in the Case File by morning. Nothing is noticed.
+    const subject = researchSubject(text);
+    if (!subject || subject.length < 3) return ruled(`The librarian could not tell what "${text}" is to be researched. Units returned. Name a subject: a place, a company, a year, a question.`);
+    const slug = researchSlug(subject);
+    base.target = slug;
+    const { data: have } = ctx.dry ? { data: null } : await db.from("case_items").select("id").eq("character_id", ctx.character.id).eq("slug", slug).maybeSingle();
+    if (have) return ruled(`The library already gave ${ctx.character.name} a brief on "${subject}"; it is in the Case File. Units returned.`);
+    if (!ctx.dry) await db.from("jobs").insert({ kind: "research_brief", payload: { campaign_id: ctx.campaignId, round_id: ctx.roundId, round: ctx.roundNo, character_id: ctx.character.id, subject, slug, order_id: order.id } });
+    return { ...base, kind: "research", summary: `The company library took ${ctx.character.name}'s request on "${subject}"; the librarian pulls the county records and the newspaper morgue overnight, and a Research Brief is in the Case File by morning.`, learned: [] };
   }
   if (verb === "leak") {
     // LEAK <item>: a copy of something held goes to the Minot Daily News for its next

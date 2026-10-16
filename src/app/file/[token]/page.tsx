@@ -12,6 +12,7 @@ import { OfficeCalendar } from "./calendar";
 import { goalsFor, scoreOf, standings } from "@/lib/game/goals";
 import { GOAL_BRIEFS } from "@/lib/game/goal-briefs";
 import { saveBio } from "./actions";
+import { holdingsPage } from "@/lib/engine/equipment";
 
 /* A player's personnel file, reached by the private link in every letter the
    game sends them. No login: the token is the key, so the page shows nothing a
@@ -51,13 +52,14 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
     );
   }
 
-  const [p, { data: campaign }, { data: divisions }, { data: resources }, { data: assets }, { data: memberships }] = await Promise.all([
+  const [p, { data: campaign }, { data: divisions }, { data: resources }, { data: assets }, { data: memberships }, holdings] = await Promise.all([
     particulars(db, me),
     db.from("campaigns").select("title").eq("id", me.campaign_id).maybeSingle(),
     db.from("divisions").select("id, name, slug").eq("campaign_id", me.campaign_id),
     db.from("resources").select("kind, balance, cap").eq("character_id", me.id),
     db.from("assets").select("name, kind, tier").eq("holder_id", me.id).order("created_at"),
     db.from("memberships").select("role, organizations(name)").eq("character_id", me.id),
+    holdingsPage(db, me.id),
   ]);
   const bio = bioFrom(me.sheet, me.public_profile);
   const [goals, table] = await Promise.all([goalsFor(db, me.id), standings(db, me.campaign_id)]);
@@ -162,11 +164,18 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
       </section>
 
       <h2 className="display mt-12 text-2xl">Holdings</h2>
-      {(assets ?? []).length ? (
-        <ul className="mt-3 space-y-1 text-sm">
-          {((assets ?? []) as { name: string; kind: string; tier: string | null }[]).map((a, i) => <li key={i}>■ {a.name} <span className="text-xs text-ink-2">{a.kind}{a.tier ? ` · ${a.tier}` : ""}</span></li>)}
+      <p className="mt-2 text-sm text-ink-2">Equipment signed out in your name. <code>ORDER: REQUISITION a camera</code> signs something out of Procurement stores; it is here by morning and in a log somebody can pull. Loans go back on their own. Security can collect anything on this list.</p>
+      {holdings.held.length || (assets ?? []).some((a) => a.kind !== "equipment") ? (
+        <ul className="mt-3 space-y-2 text-sm">
+          {holdings.held.map((h, i) => <li key={`h${i}`} className="border-2 border-ink bg-paper-2 px-4 py-3"><span className="type text-[15px]">■ {h.name}</span><span className="block text-xs text-ink-2">{h.since ? `Signed out Round ${h.since}` : ""}{h.returns ? ` · due back by the morning of Round ${h.returns}` : ""}</span>{h.blurb && <span className="mt-1 block text-xs text-ink-2">{h.blurb}</span>}</li>)}
+          {((assets ?? []) as { name: string; kind: string; tier: string | null }[]).filter((a) => a.kind !== "equipment").map((a, i) => <li key={`a${i}`}>■ {a.name} <span className="text-xs text-ink-2">{a.kind}{a.tier ? ` · ${a.tier}` : ""}</span></li>)}
         </ul>
-      ) : <p className="mt-3 text-sm text-ink-2">Nothing on file yet.</p>}
+      ) : <p className="mt-3 text-sm text-ink-2">Nothing signed out at present.</p>}
+      {holdings.gone.length > 0 && (
+        <ul className="mt-3 space-y-1 text-xs text-ink-2">
+          {holdings.gone.map((g, i) => <li key={i}>□ {g.name} · {g.status}{g.round ? `, Round ${g.round}` : ""}{g.note ? ` · ${g.note}` : ""}</li>)}
+        </ul>
+      )}
 
       <Link href={`/file/${token}/directory`} className="mt-12 flex items-center justify-between gap-4 border-2 border-ink bg-paper-2 px-5 py-4 hover:border-red hover:text-red">
         <span><span className="display block text-3xl">Personnel Directory</span><span className="mt-1 block text-sm text-ink-2">Everyone you can write to, by department, and how to reach them.</span></span>

@@ -166,8 +166,23 @@ Voting, correspondence, accepting agreements and transfers cost nothing. Orders 
 
 **5.2 Holdings.** What you accumulate and keep: files and documents, evidence (§9),
 informants and contacts you have recruited, equipment, access you have been granted, and
-aliases. Holdings appear in your dispatch. Some can be handed to another character
-(`TRANSFER`, §6.5); some can be lost (seized, stolen, revoked, or simply gone).
+aliases. Equipment is listed on your personnel file under *Holdings*. Some holdings can
+be handed to another character (`TRANSFER`, §6.5); some can be lost (seized, stolen,
+revoked, or simply gone).
+
+**Equipment** is signed out of Procurement stores with `REQUISITION` (§6.3). An item
+changes what an order produces rather than adding an order of its own:
+
+| Item | AU | What it does | The paper it leaves |
+|---|---|---|---|
+| 35mm camera | 4 | A night's `SURVEIL` that shows something becomes a photograph in your Case File: evidence, not a story. | the requisition log |
+| Cassette recorder | 4 | A conversation in person comes back as a transcript you can file. The person may notice the machine, and remembers it. | the requisition log |
+| Motor pool truck (one night) | 3 | The trip beyond the fence costs nothing that night. | the motor pool log |
+| Temporary badge (one night) | 6 | One restricted place, one night, without a patrol truck slowing down. Security or Personnel only, clearance 2; Security knows who holds it. | the badge register |
+
+Loans (the truck, the badge) go back on their own. Anything you hold can be collected:
+Corporate Security takes everything signed out in your name when it summons you (Episode
+3), and a colleague may take it by `OBTAIN` [PROPOSED, not built].
 
 **5.3 Standing.** Relationships matter more than AU. Staff remember whether you kept
 your word, whom you reported, and whom you protected. There is no number for this on
@@ -226,6 +241,8 @@ could not be done is refunded in the morning.
 | `INVESTIGATE <subject>` | 6 | Look into a person, place, event or rumour. Returns intelligence: what people say, what is on file, what does not add up. |
 | `REQUEST_FILES <records>` | 4 | Pull records you are cleared for. Above your clearance, the request goes to whoever can approve it, and they may ask why. |
 | `EXAMINE <item>` | 3 | Study a document or object you hold. Can turn intelligence into evidence (§9). |
+| `REQUISITION <item>` | by item | Sign equipment out of Procurement stores (§5.2): a camera, a cassette recorder, a motor pool truck for the night, a temporary badge. On your personnel file by morning, and in a log. |
+| `RESEARCH <subject>` | 10 | Read up on a subject in the company library, the county records and the newspaper morgue. A Research Brief is filed in your Case File, under Research, by morning: what a diligent reader could have found in 1977, and a note of what the shelves do not hold. Intelligence, never evidence. One brief per subject. |
 | `TRAVEL <place>` | 5 | Go somewhere off campus (Minot, Tagus, Split Rock Basin, a ranch). Other orders that round take place there. |
 | `MEET <person>` | 3 | Talk in person. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. |
 | `CONTACT <person or organization>` | 4 | Reach someone outside the company who has not written to you. They may not answer. |
@@ -563,6 +580,8 @@ Command lines (start of a line, any email to the game):
   AUTHORIZE <name> / REVOKE <name>        your department's files, as if one of you
   ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE
   ORDER: LEAK <item>                      to the Minot Daily News; 6 AU, +2 per repeat
+  ORDER: RESEARCH <subject>               the library's brief in your Case File by morning; 10 AU
+  ORDER: REQUISITION <item>               camera 4 · recorder 4 · truck 3 · badge 6; on your file by morning
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

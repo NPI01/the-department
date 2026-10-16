@@ -10,7 +10,7 @@ import { addNote, deleteNote, editNote, fileWith, sendCopy } from "./actions";
    the URL hash so the back button and a bookmark both work. */
 
 type DrawerKey = "all" | Drawer | "removed";
-const DRAWER_LABEL: Record<DrawerKey, string> = { all: "Everything", correspondence: "Correspondence", documents: "Documents", photographs: "Photographs", maps: "Maps & plans", findings: "Findings", removed: "No longer held" };
+const DRAWER_LABEL: Record<DrawerKey, string> = { all: "Everything", correspondence: "Correspondence", documents: "Documents", photographs: "Photographs", maps: "Maps & plans", research: "Research", findings: "Findings", removed: "No longer held" };
 const GRADE_LABEL: Record<Grade, string> = { intelligence: "Intelligence", evidence: "Evidence", finding: "Finding" };
 const GRADE_HELP: Record<Grade, string> = {
   intelligence: "Believed relevant, not yet tied to a source. EXAMINE it to try to make it evidence.",
@@ -121,6 +121,7 @@ export function CaseFileView({ token, file, people = [] }: { token: string; file
             {list.length ? list.map((i) => <Folder key={i.key} item={i} notes={notes.filter((n) => n.itemKey === i.key).length} onOpen={() => go(i.key)} />) : (
               <p className="col-span-full border-[1.5px] border-dashed border-rule p-6 text-sm leading-relaxed text-ink-2">
                 {file.items.length === 0 ? "Your cabinet is empty. Letters you send and receive are filed here automatically, along with any documents, photographs and maps that come into your hands."
+                  : drawer === "research" ? "No Research Briefs yet. ORDER: RESEARCH <subject> sends the company librarian to the shelves, the county records and the newspaper morgue; the brief is filed here by morning."
                   : drawer === "findings" ? "No findings yet. When a committee formally accepts evidence you filed (FILE … WITH …, then a vote), the finding is filed here."
                   : "Nothing here matches."}
               </p>

@@ -35,6 +35,8 @@ import { acceptInvitation, declineInvitation, outstandingInvitations, securityPu
 import { committeeByName, fileWithCommittee } from "@/lib/game/filing";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
+import { fileResearchBrief } from "@/lib/engine/research";
+import { findEquipment, holdingsFor, returnDue } from "@/lib/engine/equipment";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -56,7 +58,7 @@ type Job = { id: number; kind: string; payload: Record<string, unknown>; attempt
 /* Fast work first. A slow model call must never hold up routing, orders or
    receipts (measured 2026-10-12: one extraction claimed in a batch of five
    locked the other four for ten minutes). */
-const PRIORITY = ["route", "fetch_body", "grammar", "send", "tick_phase", "morning_dispatch", "npc_reply", "extract"];
+const PRIORITY = ["route", "fetch_body", "grammar", "send", "tick_phase", "morning_dispatch", "npc_reply", "research_brief", "extract"];
 
 /* Claim one job: the highest-priority due job whose lock is free or stale.
    The lock is taken with a conditional update so two workers cannot both win. */
@@ -263,7 +265,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return { verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` };
       }
       const priced = t.verb === "freeform" ? priceFreeform(t.args, episode) : null;
-      const cost = priced ? priced.total : (VERB_COST[t.verb] ?? 5);
+      const cost = priced ? priced.total : t.verb === "requisition" ? (findEquipment(t.args)?.cost ?? VERB_COST.requisition) : (VERB_COST[t.verb] ?? 5);
       return { verb: t.verb, args: { text: t.args, freeform: t.verb === "freeform", cost, ...(priced ? { steps: priced.steps.map((x) => ({ verb: x.verb, clause: x.clause })), travel: priced.travel, price: describePrice(priced) } : {}) }, label: `ORDER: ${t.verb === "freeform" ? t.args : `${t.verb.toUpperCase()}${t.args ? " " + t.args : ""}`} — ${priced ? describePrice(priced) : `${cost} AU`}` };
     };
     for (const a of acts) {
@@ -593,6 +595,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       if (error) throw new Error(error.message);
       await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
       replied = true;
+      // A recorded conversation: what they put in writing is also a transcript in the player's Case File (equipment.ts).
+      if ((cRaw?.raw as { recorded?: boolean } | null)?.recorded) await db.from("case_items").upsert({ campaign_id: c.campaign_id, character_id: pc.id, slug: `transcript-${npc.slug}-r${roundNo}`, kind: "testimony", drawer: "documents", title: `Transcript: ${npc.name}, ${gameDate(roundNo)}`, from_label: npc.name, written_label: gameDate(roundNo), body: `*Cassette, transcribed by ${pc.name}. The machine was on the desk; ${npc.name} knew it was there.*\n\n${reply.body}`, round_received: roundNo, how_obtained: `Recorded in person by ${pc.name}.`, copy_note: "The tape is yours.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
       // Memory: the character remembers what they said and asked; the player's character now knows what they were told.
       const said = [...reply.shared.map((text) => ({ kind: "shared", text })), ...(reply.wants ? [{ kind: "asked", text: reply.wants }] : [])];
       if (said.length) {
@@ -663,7 +667,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const societies = (socs ?? []).map((m) => { const o = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string }; return /Vigil/.test(o.name) ? "vigil" : /Congregation/.test(o.name) ? "congregation" : o.name; });
         // Files a colleague's AUTHORIZE or friendship opens (contacts.ts).
         const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
-        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized } } });
+        const holdings = await holdingsFor(db, chRaw.id);
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings } } });
       }
       const credit = async (characterId: string, refund: number) => {
         if (!refund) return;
@@ -678,6 +683,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           const summary = fired ? `Because ${fired}: ${out.summary}` : out.summary;
           await db.from("orders").update({ status: "resolved", ruling: summary, args: { ...o.args, outcome: { ...out, summary } } }).eq("id", o.id);
           await recordPresence(db, { campaignId: round.campaign_id, roundId, characterId: chId }, out.presence ?? []);
+          if (out.kind === "requisitioned") pk.ctx.character.holdings = await holdingsFor(db, chId);   // the next order of the night has it
           await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "order.resolved", payload: { order_id: o.id, verb: out.verb, kind: out.kind, target: out.target, learned: out.learned, refund: out.refund, fired }, idempotency_key: `order:${o.id}:resolved`, visible_to: [chId] });
           return out.refund;
         } catch (e) {
@@ -727,6 +733,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.
       const perEpisode = Number(await rule(db, round.campaign_id, "episode.rounds", 14));
       await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
+      // Loans run out: a truck or a badge goes back on its own (equipment.ts).
+      await returnDue(db, round.campaign_id, round.number);
       // Income: every active player character draws the round's Action Units, to the cap.
       const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
@@ -789,6 +797,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     // strategic / world / narrate / diplomatic: rules land here as the Rules Lawyer task is promoted.
     await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "phase.done", payload: {}, idempotency_key: key });
+  },
+
+  /* RESEARCH: the librarian's brief, drafted under the Skeptic and filed in the Case File (research.ts). */
+  async research_brief(db, p) {
+    await fileResearchBrief(db, { campaignId: p.campaign_id as string, roundId: (p.round_id as string | null) ?? null, roundNo: Number(p.round ?? 1), characterId: p.character_id as string, subject: String(p.subject ?? ""), slug: String(p.slug ?? ""), orderId: (p.order_id as string | null) ?? null }, ledger(db));
   },
 
   async player_brief(db, p) {
