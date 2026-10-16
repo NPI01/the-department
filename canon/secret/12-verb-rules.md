@@ -11,10 +11,20 @@ and the rest, are skipped; a hold pays +5 AU); `strategic` resolves each funded 
 the rules below and writes an outcome; `world` advances the pressure clock and pays the
 round's 20 AU to the cap of 60. In the morning the dispatch narrates the outcomes.
 
-## Costs (menu options carry their own; free-form orders are costed by verb)
+## Costs (menu options carry their own; free-form orders are costed by step)
 request_files 6 · interview 4 · surveil 10 · visit 5 · examine 3 · search 8 · lobby 5 ·
 attend 4 · submit_manifest 4 · approve_overtime 4 · reconcile_maps 6 · approve_corridors 6 ·
 clear_invoices 6 · issue_statement 6. A ruling that nothing could be done returns the units.
+
+A free-form order (src/lib/engine/pricing.ts) is read a clause at a time; clauses that
+set a scene, a condition or a reason ("on my lunch break", "if I can find it", "so I
+can...") are skipped. Each distinct verb found is charged once at its price above, up to
+four; going beyond the fence (a place marked `offCampus`, or Tagus, Minot, a ranch) adds
+TRAVEL 5. An order with no readable action is held at 5 and ruled in the morning. The
+price is set at intake and named in the receipt; each priced step is resolved in turn,
+on its own clause first and then on the whole order, and refunded if it could not be
+done; the trip is refunded if nothing could be. An ORDER: line runs on over the lines
+after it until a blank line, another command or a sign-off (mail clients wrap).
 
 ## Verbs
 - **request_files <file>.** Matched against the document index by alias. Delivered (a

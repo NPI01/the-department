@@ -67,11 +67,11 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(report .* to security|report .* to corporate security|turn in|inform security|tell security about)\b/, "report"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
-    [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker)\b/, "search"],
+    [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
     [/\b(examine|study|read closely|look closely|compare|inspect|check the)\b/, "examine"],
-    [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat)\b/, "interview"],
+    [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat|introduce|approach|walk up to)\b/, "interview"],
     [/\b(request|pull|get the|obtain|copy of|file|files|records|ledger|log|logs|report|invoices|authorizations|memo)\b/, "request_files"],
-    [/\b(go to|visit|drive|walk to|look at|see the|check out)\b/, "visit"],
+    [/\b(go to|visit|drive|walk to|look at|see the|check out|go into|go inside|enter|travel to|head to|go out to|go back to)\b/, "visit"],
     [/\b(attend|sit in|be present)\b/, "attend"],
   ];
   for (const [re, verb] of rules) if (re.test(t)) return { verb, target: text };
@@ -95,7 +95,42 @@ async function deliver(db: SupabaseClient, ctx: Ctx, d: DocumentDef, how: string
   return slug;
 }
 
+/* A free-form order priced in steps (pricing.ts) is carried out step by step:
+   each step is tried on its own clause first, then on the whole order (so
+   "introduce myself" happens at the Building 7 named earlier). Each step's
+   units come back if it could not be done; the trip comes back if nothing
+   could be. */
 export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: string; verb: string; args: Record<string, unknown> }): Promise<Outcome> {
+  const steps = (order.args.steps as { verb: string; clause: string }[] | string[] | undefined) ?? [];
+  if (order.verb !== "freeform" || !steps.length) return resolveOne(db, ctx, order);
+  const whole = String(order.args.text ?? "");
+  const outs: Outcome[] = [];
+  for (const raw of steps) {
+    const st = typeof raw === "string" ? { verb: raw, clause: whole } : raw;
+    const cost = VERB_COST[st.verb] ?? 5;
+    let out = await resolveOne(db, ctx, { ...order, verb: st.verb, args: { ...order.args, text: st.clause, cost } });
+    if (out.kind === "ruling" && out.refund > 0 && st.clause !== whole) out = await resolveOne(db, ctx, { ...order, verb: st.verb, args: { ...order.args, text: whole, cost } });
+    outs.push(out);
+  }
+  const travel = Number(order.args.travel ?? 0);
+  const allBack = outs.every((o) => o.kind === "ruling" && o.refund > 0);
+  const lead = outs.find((o) => o.kind !== "ruling") ?? outs[0];
+  return {
+    kind: lead.kind, verb: outs.map((o) => o.verb).join("+"), target: lead.target,
+    summary: dedupeSentences(outs.map((o) => o.summary).join(" ")),
+    learned: outs.flatMap((o) => o.learned), item: outs.find((o) => o.item)?.item,
+    noticed: outs.some((o) => o.noticed), refund: outs.reduce((n, o) => n + o.refund, 0) + (allBack ? travel : 0),
+  };
+}
+
+/* Steps at the same place repeat its description; keep each sentence once. */
+function dedupeSentences(text: string) {
+  const seen = new Set<string>();
+  // Split after a full stop, but not after "St.", "Dr.", "Col." and the like.
+  return text.split(/(?<=(?<!\b(?:St|Mr|Mrs|Ms|Dr|Col|Ret|Sgt|Lt|Capt|Gen|Rev|No))[.!?]["”']?)\s+/).filter((x) => { const k = x.trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; }).map((x) => x.trim()).join(" ");
+}
+
+async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; verb: string; args: Record<string, unknown> }): Promise<Outcome> {
   const text = String(order.args.text ?? "");
   let verb = order.verb;
   if (verb === "freeform" || !VERB_COST[verb]) { const inf = inferVerb(text); verb = inf.verb; }

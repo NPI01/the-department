@@ -16,7 +16,8 @@ import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } f
 import { badgeNumber, bioForPrompt, bioFrom, particulars } from "@/lib/game/personnel";
 import { renderTemplate } from "@/lib/email/template-store";
 import { approveApplication, firstMemo } from "./onboarding";
-import { fetchReceived, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
+import { fetchReceived, orderContinuation, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
+import { describePrice, priceFreeform } from "@/lib/engine/pricing";
 import { generateStaffReply, loadDossier, type CastSheet, type Memory } from "@/lib/engine/npc";
 import { FORMS, formIsKnown, parseFormSubmission } from "@/lib/engine/forms";
 import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
@@ -303,7 +304,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         if (!opt) { ignored.push(`${a.code} — not on tonight's list`); continue; }
         orderRows.push({ verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` });
       } else if (a.kind === "order") {
-        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform" }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — cost ruled in the morning` });
+        // A free-form order is priced now, by what it asks for (pricing.ts), so the receipt can say what it costs.
+        const priced = a.verb === "freeform" ? priceFreeform(a.args, episodeOf(round.number)) : null;
+        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform", ...(priced ? { cost: priced.total, steps: priced.steps.map((x) => ({ verb: x.verb, clause: x.clause })), travel: priced.travel, price: describePrice(priced) } : {}) }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — ${priced ? describePrice(priced) : "cost ruled in the morning"}` });
       } else if (a.kind === "hold") hold = true;
       else if (a.kind === "vote") {
         const { data: m } = await db.from("motions").select("id, status, number, opens_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
@@ -349,13 +352,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const { data: pk } = await db.from("order_packets").select("id, mode").eq("round_id", round.id).eq("character_id", c.from_character).maybeSingle();
     const { data: rows } = pk ? await db.from("orders").select("verb, args").eq("packet_id", pk.id).eq("status", "pending").order("seq") : { data: [] };
     const onFile = (rows ?? []).map((r) => {
-      const a = r.args as { code?: string; text?: string; freeform?: boolean; cost?: number };
+      const a = r.args as { code?: string; text?: string; freeform?: boolean; cost?: number; price?: string };
       const opt = a.code ? menu.find((o) => o.code === a.code) : null;
-      return opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — cost ruled in the morning` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
+      return opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — ${a.price ?? "cost ruled in the morning"}` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
     });
-    // Action Units: menu costs are known; free-form orders carry an estimate
-    // until the morning ruling. Orders are funded in the order given; the
-    // first one that does not fit, and everything after it, is unfunded.
+    // Action Units: menu costs are known; free-form orders are priced at intake
+    // (older ones carry the flat estimate). Orders are funded in the order given;
+    // the first one that does not fit, and everything after it, is unfunded.
     const FREEFORM_EST = 5;
     const { data: au } = await db.from("resources").select("balance").eq("character_id", c.from_character).eq("kind", "au").maybeSingle();
     const balance = Number(au?.balance ?? 0);
@@ -363,10 +366,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const ledger: LedgerLine[] = (rows ?? []).map((r) => {
       const a = r.args as { code?: string; freeform?: boolean; cost?: number; text?: string };
       const opt = a.code ? menu.find((o) => o.code === a.code) : null;
-      const cost = opt ? opt.cost : FREEFORM_EST;
+      const cost = opt ? opt.cost : Number(a.cost ?? FREEFORM_EST);
       const label = opt ? `${opt.code}. ${opt.label}` : `ORDER: ${(a.text ?? "").slice(0, 40)}${(a.text ?? "").length > 40 ? "…" : ""}`;
       const funded = spent + cost <= balance; if (funded) spent += cost;
-      return { label, cost, estimated: !opt, funded };
+      return { label, cost, estimated: !opt && a.cost === undefined, funded };
     });
     if (pk && ledger.some((l) => !l.funded)) {
       // Flag unfunded orders on the rows so the lock phase skips them unless changed.
@@ -376,7 +379,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     await db.from("events").insert({ campaign_id: c.campaign_id, round_id: round.id, phase: "intake", kind: "grammar.recorded", payload: { acts, mode, added, replaced, ignored, onFile, recorded }, idempotency_key: key, visible_to: [c.from_character] });
 
     // The receipt. Count the lines that were not acts as notes.
-    const noteLines = (c.body_text as string).split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith(">") && parseGrammar(l).length === 0 && !/^(?:—|--|on .* wrote:)/i.test(l)).length;
+    const bodyLines = (c.body_text as string).split(/\r?\n/);
+    const continued = new Set(bodyLines.flatMap((l, i) => (/^ORDER\s*:/i.test(l.trim()) ? orderContinuation(bodyLines, i) : [])));
+    const noteLines = bodyLines.map((l) => l.trim()).filter((l, i) => l && !continued.has(i) && !l.startsWith(">") && parseGrammar(l).length === 0 && !/^(?:—|--|on .* wrote:)/i.test(l)).length;
     const { data: ch } = await db.from("characters").select("name, players(email, mail_token, display_name)").eq("id", c.from_character).single();
     const player = (ch as { players?: { email: string; mail_token: string; display_name: string | null } | null } | null)?.players;
     if (player?.email) {

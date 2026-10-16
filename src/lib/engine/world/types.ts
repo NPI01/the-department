@@ -33,6 +33,7 @@ export type PlaceDef = {
   name: string;
   aliases: string[];
   restricted?: boolean;          // being seen there is noticed by Security
+  offCampus?: boolean;           // beyond the fence: a free-form order going there pays for the trip (TRAVEL)
   visit: string;                 // what a daytime visit shows (player-safe)
   ask?: string;                  // what whoever is there will say to a stranger who asks
   surveil: Sighting[];           // what a night's watch may show, by round band

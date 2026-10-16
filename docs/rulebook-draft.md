@@ -208,6 +208,14 @@ running.
 **6.3 The orders.** [PROPOSED: list and costs.] Write the verb, then plain-language
 details. Be specific: who, what, where.
 
+[PROPOSED] **Orders in your own words.** You can also write an order the way you would
+say it: `ORDER: drive out to Tagus, go into the church and talk to the caretaker`. The
+clerk reads it a step at a time and charges each kind of action it asks for at its price,
+once, plus the trip if it takes you off campus. That example is a visit, a conversation
+and the trip. One order covers at most four kinds of action; send the rest as another
+order. The receipt tells you the price as soon as your letter arrives, and any step that
+could not be done is refunded in the morning.
+
 | Order | Cost | What it does |
 |---|---|---|
 | `INVESTIGATE <subject>` | 6 | Look into a person, place, event or rumour. Returns intelligence: what people say, what is on file, what does not add up. |

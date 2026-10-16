@@ -54,6 +54,20 @@ export function replyMode(text: string): "append" | "replace" {
 
 const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go with|go for|select|want|like|try|then|plus|and|instead|switch to|change to|also|letter|keep|keeping|stick with|stay with)\b/i;
 
+/* The lines after an ORDER: line that belong to it: up to a blank line, a
+   quoted line, another command, or a sign-off. Indexes into `lines`. */
+const COMMAND_START = /^(?:ORDER\s*:|STANDING ORDER|FALLBACK|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
+const SIGN_OFF = /^(?:thanks|thank you|best|regards|cheers|sincerely|yours|--|—|sent from)\b/i;
+export function orderContinuation(lines: string[], i: number): number[] {
+  const out: number[] = [];
+  for (let j = i + 1; j < lines.length; j++) {
+    const l = lines[j].trim();
+    if (!l || l.startsWith(">") || COMMAND_START.test(l) || SIGN_OFF.test(l) || /^On .{5,120} wrote:\s*$/.test(l)) break;
+    out.push(j);
+  }
+  return out;
+}
+
 export function parseGrammar(text: string): GrammarAct[] {
   const acts: GrammarAct[] = [];
   // A filled-in form is a block of numbered answers; none of its lines are acts.
@@ -62,7 +76,9 @@ export function parseGrammar(text: string): GrammarAct[] {
   const filled = form && Object.keys(form.answers).length > 0;
   if (form && !filled) acts.push({ kind: "form_request", form: form.form });
   const lines = text.split(/\r?\n/);
+  const consumed = new Set<number>();
   for (const [i, raw] of lines.entries()) {
+    if (consumed.has(i)) continue;
     if (form && i >= form.startLine && i <= (filled ? form.endLine : form.startLine)) continue;
     const line = raw.trim();
     if (line.startsWith(">")) continue; // quoted
@@ -96,9 +112,13 @@ export function parseGrammar(text: string): GrammarAct[] {
     else if ((m = line.match(/^ORDER\s*:\s*(.+)$/i))) {
       // "ORDER: REQUEST_FILES …" names an engine verb; "ORDER: I want to see
       // the directory" is prose and is kept whole for the morning ruling.
-      const sv = m[1].match(/^([A-Z][A-Z_]{2,})\b\s*(.*)$/);
+      // Mail clients wrap long lines, so an order runs on until a blank line,
+      // another command, or a sign-off.
+      let whole = m[1].trim();
+      for (const j of orderContinuation(lines, i)) { whole += " " + lines[j].trim(); consumed.add(j); }
+      const sv = whole.match(/^([A-Z][A-Z_]{2,})\b\s*(.*)$/);
       if (sv) acts.push({ kind: "order", verb: sv[1].toLowerCase(), args: sv[2].trim() });
-      else acts.push({ kind: "order", verb: "freeform", args: m[1].trim() });
+      else acts.push({ kind: "order", verb: "freeform", args: whole });
     }
     else if ((m = line.match(/^ACCEPT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "accept", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^REJECT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "reject", agreement: m[1].toUpperCase() });
