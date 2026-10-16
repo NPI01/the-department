@@ -254,7 +254,7 @@ could not be done is refunded in the morning.
 | `FILE <evidence> WITH <body>` | 2 | Submit evidence to a committee so it can rule on it (§9). |
 | `SPONSOR_MOTION <body> "<title>" CLOSES <round>` | 5 | Put a motion before the Board, the Research Committee or the Safety Committee (§8.3). Numbered tonight, announced with tomorrow's dispatch, open for two to five rounds, tallied at the lock of its closing round. A member sponsors outright; anyone else needs a member's countersignature, which a staff member gives if you have sat down with them; an Administrator may sponsor once an episode without one (§4.3). |
 | `ESTABLISH_ALIAS "<name>"` | 10 | Open a second identity with its own mailbox (§7.6). |
-| `EMERGENCY_DIRECTIVE "<text>"` | — | Only for officers who hold emergency authority (§8.5). |
+| `EMERGENCY_DIRECTIVE "<text>"` | — | Only for officers who hold emergency authority (§8.5): the Chairman, the Chair of the Safety Committee, or whoever the record names. The clerk gives effect to four kinds: seal a place; suspend a colleague's access; a curfew (nobody leaves the campus); open a file to every clearance. In force at once, on every desk as a memo, expired two rounds later unless a passed Safety Committee motion naming its number extends it. |
 
 The game may recognise other sensible verbs; if it cannot, the dispatch says so and
 refunds the AU. Your department, clearance and specialization decide how much an order
@@ -590,6 +590,7 @@ Command lines (start of a line, any email to the game):
   ORDER: ANALYZE <item>                   your department's laboratory report; 6 AU
   ORDER: TRAVEL <town or place>           beyond the fence, there until you come home; 5 AU
   ORDER: SPONSOR_MOTION <body> "<title>" CLOSES <round>   a motion before a committee; 5 AU
+  ORDER: EMERGENCY_DIRECTIVE "<text>"     officers only; seal, suspend, curfew, open; no charge
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

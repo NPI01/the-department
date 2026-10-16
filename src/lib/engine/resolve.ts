@@ -18,9 +18,10 @@ import { dismiss, recruit } from "./informants";
 import { writeLog } from "./equipment";
 import { findTown } from "./world/towns";
 import { parseMotion, sponsorMotion } from "./motions";
+import { curfew, holdsEmergencyAuthority, issueDirective, opened, parseDirective, sealed, type Directive } from "./directives";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "directed" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -34,9 +35,10 @@ export type Ctx = {
   campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
   character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[]; specialization?: string | null; location?: { slug: string; name: string; round: number } | null };   // location: away from campus since a TRAVEL (null = Station R)   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
   dry?: boolean;
+  directives?: Directive[];   // emergency directives in force tonight (directives.ts)
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, emergency_directive: 0, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -83,6 +85,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(recruit|as (?:an|my) informant|keep me informed|on retainer|pay .* to (?:report|tell me|keep)|be my eyes)\b/, "recruit"],
     [/\b(dismiss|release my informant|let .* go|stop paying|drop my informant|end the arrangement)\b/, "dismiss"],
     [/\b(obtain|steal|lift|pinch|swipe|get hold of|take .* (?:from|off|out of)|make off with|help myself to)\b/, "obtain"],
+    [/\b(emergency[ _]directive|by emergency authority|emergency order)\b/, "emergency_directive"],
     [/\b(sponsor(?:_| a |\s)motion|put a motion|move that|table a motion|bring a motion|propose a motion|a motion before|motion to)\b/, "sponsor_motion"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
@@ -187,7 +190,7 @@ function dedupeSentences(text: string) {
 async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; verb: string; args: Record<string, unknown> }): Promise<Outcome> {
   const text = String(order.args.text ?? "");
   let verb = order.verb;
-  if (verb === "freeform" || !VERB_COST[verb]) { const inf = inferVerb(text); verb = inf.verb; }
+  if (verb === "freeform" || VERB_COST[verb] === undefined) { const inf = inferVerb(text); verb = inf.verb; }
   const base = { learned: [] as string[], refund: 0, verb, target: null as string | null, presence: undefined as Presence[] | undefined };
   const { data: roster } = await db.from("characters").select("id, slug, name, player_id, divisions(slug)").eq("campaign_id", ctx.campaignId).eq("status", "active");
   const people: Person[] = (roster ?? []).map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, division: ((Array.isArray(r.divisions) ? r.divisions[0] : r.divisions) as { slug: string } | null)?.slug ?? null, player: Boolean(r.player_id) }));
@@ -228,7 +231,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (d.notice) await notify(db, ctx, `${ctx.character.name} requested "${d.title}" on the night of Round ${ctx.roundNo}.`);
     // Records logs every request, so anyone else asking for the same file this week hears the file is out.
     base.presence = [{ kind: "document", slug: d.slug, name: d.title, verb: "request_files" }];
-    if (allowed(d.access, ctx.character)) { const item = await deliver(db, ctx, d, "Requested through Records."); return { ...base, kind: "document", summary: `Records delivered a copy of "${d.title}". It is in the Case File.`, learned: d.grants, item, noticed: d.notice }; }
+    const op = opened(ctx.directives ?? [], d.slug);
+    if (allowed(d.access, ctx.character) || op) { const item = await deliver(db, ctx, d, op ? `Requested through Records under directive ${op.number}.` : "Requested through Records."); return { ...base, kind: "document", summary: `Records delivered a copy of "${d.title}"${op ? ` under directive ${op.number}` : ""}. It is in the Case File.`, learned: d.grants, item, noticed: d.notice }; }
     if (d.access.via) { const who = people.find((p) => p.slug === d.access.via); return { ...base, kind: "referred", summary: `Records does not hold "${d.title}"; it is kept by ${who?.name ?? d.access.via} personally. The request was logged and referred; a letter to them might do what a requisition cannot.`, noticed: d.notice }; }
     return { ...base, kind: "refused", summary: `Records refused "${d.title}": clearance ${d.access.clearance ?? 3} required${d.access.department ? ` (or a request from ${d.access.department.join(" or ")})` : ""}. The request was logged.`, noticed: d.notice };
   }
@@ -238,6 +242,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     base.target = p.slug;
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb, covert: verb === "surveil" }];
     if (!p.offCampus) await cameHome(db, ctx);
+    const sl = sealed(ctx.directives ?? [], p.slug);
+    if (sl) { await notify(db, ctx, `${ctx.character.name} was at ${p.name} under directive ${sl.number}, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is sealed under emergency directive ${sl.number}: a guard, a chain, a notice with the number on it. ${ctx.character.name} was seen there and turned away.`, noticed: true }; }
     const pass = holds(ctx.character.holdings ?? [], "pass");
     if (verb === "visit") { if (p.restricted && !pass) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}${pass && p.restricted ? ", badge on the lapel, and nobody looked twice" : ""}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted && !pass }; }
     const s = p.surveil.find((x) => (x.episode ?? 1) === episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]) ?? p.surveil.find((x) => (x.episode ?? 1) < episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
@@ -259,6 +265,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!p) return ruled(`The clerk could not place "${text}". Units returned.`);
     base.target = p.slug;
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb: "search" }];
+    const sl = sealed(ctx.directives ?? [], p.slug);
+    if (sl) { await notify(db, ctx, `${ctx.character.name} tried ${p.name} under directive ${sl.number}, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is sealed under emergency directive ${sl.number}; ${ctx.character.name} could not get in and was seen trying.`, noticed: true }; }
     const pass = holds(ctx.character.holdings ?? [], "pass");
     if (!allowed(p.searchAccess, ctx.character) && !pass) { await notify(db, ctx, `${ctx.character.name} tried to get into ${p.name} on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is locked, sealed or watched; ${ctx.character.name} could not get in and was probably seen trying.`, noticed: true }; }
     const docs = (p.contains ?? []).map((s) => documentsFor(episode).find((d) => d.slug === s)).filter((d): d is DocumentDef => Boolean(d));
@@ -354,6 +362,18 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!r.ok) return ruled(`${r.error} Units returned.`);
     return { ...base, kind: "recruited", summary: r.summary, noticed: r.noticed, presence: [{ kind: "person", slug: who.slug, name: who.name, verb: "interview" }] };
   }
+  if (verb === "emergency_directive") {
+    // EMERGENCY_DIRECTIVE "<text>": officers only; in force at once for two rounds; everyone is told (directives.ts).
+    const auth = ctx.dry ? { ok: true, as: "(dry)" } : await holdsEmergencyAuthority(db, ctx.campaignId, ctx.character.id);
+    if (!auth.ok) return ruled(`${ctx.character.name} holds no emergency authority; only the Chairman of the Board and the Chair of the Safety Committee do, or whoever the record names.`);
+    const quoted = text.match(/["\u201c]([^"\u201d]{4,400})["\u201d]/)?.[1] ?? text;
+    const pd = parseDirective(quoted, { episode, people, findPerson });
+    if ("error" in pd) return ruled(`The clerk could not give effect to the directive: ${pd.error}.`);
+    await cameHome(db, ctx);
+    const d = await issueDirective(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, by: { id: ctx.character.id, name: ctx.character.name, title: ctx.character.title }, as: auth.as ?? "officer", kind: pd.kind, target: pd.target, target_name: pd.target_name, label: pd.label, text: quoted, dry: ctx.dry });
+    base.target = d.number;
+    return { ...base, kind: "directed", summary: `${ctx.character.name}, as ${auth.as}, issued emergency directive ${d.number}: ${pd.label}. It is in force at once, on every desk by morning, and expires at the lock of Round ${d.until} unless the Safety Committee extends it.` };
+  }
   if (verb === "sponsor_motion") {
     // SPONSOR_MOTION <body> "<title>" CLOSES <round>: numbered tonight, announced tomorrow, open until its closing lock (motions.ts).
     const ask = parseMotion(text);
@@ -370,6 +390,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (home) { if (!ctx.character.location) return ruled(`${ctx.character.name} is already at Station R. Units returned.`); const was = ctx.character.location.name; await setLocation(db, ctx, null); return { ...base, kind: "travelled", summary: `${ctx.character.name} drove back from ${was} and signed in at Gate 2.` }; }
     const dest = destinationOf(text, episode);
     if (!dest) return ruled(`The clerk could not place "${text}". Units returned. Name a town (Tagus, Minot, Split Rock Basin, Stanley) or a place beyond the fence.`);
+    const cf = curfew(ctx.directives ?? []);
+    if (cf) { await notify(db, ctx, `${ctx.character.name} tried to leave by Gate 2 under directive ${cf.number}, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `Gate 2 is closed under emergency directive ${cf.number}; ${ctx.character.name} was turned back, and the guard wrote the name down.`, noticed: true }; }
     if (ctx.character.location?.slug === dest.slug) return ruled(`${ctx.character.name} is already in ${dest.name}. Units returned.`);
     base.target = dest.slug;
     await setLocation(db, ctx, dest);

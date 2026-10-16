@@ -38,6 +38,7 @@ import { sendDocumentCopy } from "@/lib/game/transfer";
 import { fileResearchBrief } from "@/lib/engine/research";
 import { findEquipment, holdingsFor, returnDue } from "@/lib/engine/equipment";
 import { informantReports } from "@/lib/engine/informants";
+import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -666,6 +667,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, specialization, divisions(slug))").eq("round_id", roundId);
       type Live = { id: string; ctx: Ctx };
       const live: Live[] = [];
+      const directives = await activeDirectives(db, round.campaign_id, round.number);
       for (const pk of packets ?? []) {
         const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; specialization: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
@@ -676,7 +678,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
         const holdings = await holdingsFor(db, chRaw.id);
         const { data: loc } = await db.from("facts").select("value").eq("campaign_id", round.campaign_id).eq("key", `location.${chRaw.id}`).maybeSingle();
-        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization, location: (loc?.value as { slug: string; name: string; round: number } | null) ?? null } } });
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, directives, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization, location: (loc?.value as { slug: string; name: string; round: number } | null) ?? null } } });
       }
       const credit = async (characterId: string, refund: number) => {
         if (!refund) return;
@@ -799,6 +801,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const quorum = counted.length >= Math.ceil(seats / 2);
         const passed = quorum && (t.method === "majority_of_seats" ? forW > seats / 2 : t.method === "supermajority" ? forW >= (t.fraction ?? 0.67) * (forW + againstW) && forW > 0 : forW > againstW);
         await db.from("motions").update({ status: passed ? "passed" : "failed" }).eq("id", m.id);
+        // A passed Safety motion naming an emergency directive extends it (directives.ts).
+        const orgRow = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string; slug: string } | null;
+        const extended = await extendByMotion(db, round.campaign_id, { number: m.number as string | null, title: m.title as string, passed, orgSlug: orgRow?.slug ?? null }, round.number);
+        if (extended) await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "directive.extended", payload: { directive: extended, motion: m.number }, idempotency_key: `extended:${m.id}` });
         const { data: everyone } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).not("player_id", "is", null);
         // A finding: what the body is held to have established by this decision. Recorded for the engine, told to every player.
         const fdef = (m as { finding?: { claim: string; on: "passed" | "failed" | "either"; text: string; false_text?: string } | null }).finding ?? null;
