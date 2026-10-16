@@ -252,7 +252,7 @@ could not be done is refunded in the morning.
 | `OBTAIN <file>` / `OBTAIN <item> FROM <name>` | 8 | Take a file the index keeps behind clearance from wherever it is kept, or take a document or a piece of equipment from a colleague's desk. Against a guard it fails and the guard learns who tried. Against a colleague who held or sent nothing it succeeds, and they see who. Otherwise it is simply missing in the morning. Security hears of it when the file is sealed, logged, kept by a person, or in a restricted place. An Operative (§4.3) is never named. |
 | `RECRUIT <person>` | 10 | Turn a staff member or local into an informant. They must know you (they have written more than once, or you have sat down together). They answer in their own words in the morning; from then on a short note each morning with what they saw from their post and what they heard, for 2 AU a round. Informants are listed under Holdings. Someone in Corporate Security reports the approach instead. `DISMISS <person>` (1 AU) ends it; Security's summons warns them off; an unpaid week ends it. |
 | `FILE <evidence> WITH <body>` | 2 | Submit evidence to a committee so it can rule on it (§9). |
-| `SPONSOR_MOTION <body> "<title>" CLOSES <round>` | 5 | Put a motion before a committee (§8.3). |
+| `SPONSOR_MOTION <body> "<title>" CLOSES <round>` | 5 | Put a motion before the Board, the Research Committee or the Safety Committee (§8.3). Numbered tonight, announced with tomorrow's dispatch, open for two to five rounds, tallied at the lock of its closing round. A member sponsors outright; anyone else needs a member's countersignature, which a staff member gives if you have sat down with them; an Administrator may sponsor once an episode without one (§4.3). |
 | `ESTABLISH_ALIAS "<name>"` | 10 | Open a second identity with its own mailbox (§7.6). |
 | `EMERGENCY_DIRECTIVE "<text>"` | — | Only for officers who hold emergency authority (§8.5). |
 
@@ -589,6 +589,7 @@ Command lines (start of a line, any email to the game):
   ORDER: RECRUIT <name> / DISMISS <name>   an informant; 10 AU, then 2 a round
   ORDER: ANALYZE <item>                   your department's laboratory report; 6 AU
   ORDER: TRAVEL <town or place>           beyond the fence, there until you come home; 5 AU
+  ORDER: SPONSOR_MOTION <body> "<title>" CLOSES <round>   a motion before a committee; 5 AU
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

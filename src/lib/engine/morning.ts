@@ -31,6 +31,7 @@ const VERBS: Record<string, string> = {
   recruit: "ask a staff member or local who knows you to pass along what they see and hear, for 2 AU a round",
   analyze: "put something you hold through your department's laboratory; a report by morning if the department has something to say about it",
   travel: "drive beyond the fence to a town or a place and stay there until an order brings you home; orders there cost no further trip",
+  sponsor_motion: "put a motion before the Board, the Research Committee or the Safety Committee; it opens with tomorrow's dispatch",
 };
 
 type Facts = {
@@ -80,6 +81,7 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   recruit: (w) => `Recruit ${w}`,
   analyze: (w) => `Analyze ${w}`,
   travel: (w) => `Drive to ${w}`,
+  sponsor_motion: (w) => `Sponsor a motion ${w}`,
 };
 
 /* The line the player reads is the action and its target, built from the verb;

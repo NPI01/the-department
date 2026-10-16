@@ -17,9 +17,10 @@ import { findLoot, guardOf, guardsTonight, layProtection, takeLoot, watchfulIn, 
 import { dismiss, recruit } from "./informants";
 import { writeLog } from "./equipment";
 import { findTown } from "./world/towns";
+import { parseMotion, sponsorMotion } from "./motions";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -35,7 +36,7 @@ export type Ctx = {
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -76,12 +77,13 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(statement to the county|issue a statement|press statement|statement to the press|official statement)\b/, "issue_statement"], [/\b(clear the invoices|clear invoices|pay the invoices|settle the invoices)\b/, "clear_invoices"], [/\b(approve the corridors?|flight corridors?)\b/, "approve_corridors"],
     [/\b(report .* to security|report .* to corporate security|turn in|inform security|tell security about)\b/, "report"],
     [/\b(leak|to the (?:paper|press|newspaper|reporter|minot daily news)|tip off (?:the paper|haugen|the press))\b/, "leak"],
-    [/\b(research|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
+    [/\b(research(?! committee)|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
     [/\b(requisition|sign out (?!log)|sign for a|check out a|borrow|a camera|the camera|tape recorder|a recorder|a truck|a pickup|the truck|a vehicle|a badge|temporary badge|visitor badge)\b/, "requisition"],
     [/\b(protect|guard|lock up|lock away|hide|keep .* safe|secure my|cover my tracks|keep my head down)\b/, "protect"],
     [/\b(recruit|as (?:an|my) informant|keep me informed|on retainer|pay .* to (?:report|tell me|keep)|be my eyes)\b/, "recruit"],
     [/\b(dismiss|release my informant|let .* go|stop paying|drop my informant|end the arrangement)\b/, "dismiss"],
     [/\b(obtain|steal|lift|pinch|swipe|get hold of|take .* (?:from|off|out of)|make off with|help myself to)\b/, "obtain"],
+    [/\b(sponsor(?:_| a |\s)motion|put a motion|move that|table a motion|bring a motion|propose a motion|a motion before|motion to)\b/, "sponsor_motion"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
@@ -351,6 +353,16 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     const r = await recruit(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, player: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name, division: ctx.character.division }, target: who, text });
     if (!r.ok) return ruled(`${r.error} Units returned.`);
     return { ...base, kind: "recruited", summary: r.summary, noticed: r.noticed, presence: [{ kind: "person", slug: who.slug, name: who.name, verb: "interview" }] };
+  }
+  if (verb === "sponsor_motion") {
+    // SPONSOR_MOTION <body> "<title>" CLOSES <round>: numbered tonight, announced tomorrow, open until its closing lock (motions.ts).
+    const ask = parseMotion(text);
+    if ("error" in ask) return ruled(`The clerk could not file the motion: ${ask.error}. Units returned.`);
+    await cameHome(db, ctx);
+    const r = await sponsorMotion(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, episode, sponsor: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name, specialization: ctx.character.specialization ?? null }, ask, dry: ctx.dry });
+    if (!r.ok) return ruled(`${r.error}. Units returned.`);
+    base.target = r.number;
+    return { ...base, kind: "sponsored", summary: r.summary };
   }
   if (verb === "travel") {
     // TRAVEL: the trip beyond the fence, made before anything else moves (jobs.ts). You are there until an order brings you home.

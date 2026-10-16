@@ -87,6 +87,7 @@ export function renderHelp(first: string) {
     `  ORDER: RECRUIT <name> / DISMISS <name>   an informant who knows you; 10 AU, then 2 a round`,
     `  ORDER: ANALYZE <item>            your department's laboratory report on something held; 6 AU`,
     `  ORDER: TRAVEL <town or place>    beyond the fence, and there until you come home; 5 AU`,
+    `  ORDER: SPONSOR_MOTION <body> "<title>" CLOSES <round>   a motion before a committee; 5 AU`,
     `  FALLBACK: <order>                done only if the order above it fails`,
     `  HOLD                             keep your units, +5 AU; while you hold you`,
     `                                   learn who pulled your department's files`,
