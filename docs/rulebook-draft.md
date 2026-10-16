@@ -295,15 +295,20 @@ fired order cannot set off anyone else's condition: two trip-wires set against e
 other both stay quiet. A condition the clerk cannot read is not filed; the receipt says
 so. Conditions hold for one night only; write them again tomorrow if you want them again.
 
-**Standing orders.** [PROPOSED, not built.]
+**Standing orders.** An order that repeats every night until you cancel it:
 
 ```
 STANDING ORDER: SURVEIL the Tagus road
+CC                                  (the morning's option C, every night)
 CANCEL STANDING 2
+CANCEL ORDERS                       (tonight's orders only; standing ones stay)
 ```
 
-A standing order repeats every round until cancelled and costs 2 AU per round in upkeep
-after the first. The dispatch numbers your standing orders so you can cancel them.
+A standing order costs its full price the first night and 2 AU a night after. It joins
+your orders at the lock, after any you sent that day, and is funded in that order; on a
+night you cannot pay it, it does not run. A night you send nothing suspends it (§6.1); a
+hold keeps it. The dispatch and every receipt number your standing orders so you can
+cancel one by number. Its price and its steps are fixed when it is filed.
 
 **6.5 Free acts.** These cost no AU and also take effect at the lock:
 
@@ -591,8 +596,8 @@ Command lines (start of a line, any email to the game):
   ORDER: TRAVEL <town or place>           beyond the fence, there until you come home; 5 AU
   ORDER: SPONSOR_MOTION <body> "<title>" CLOSES <round>   a motion before a committee; 5 AU
   ORDER: EMERGENCY_DIRECTIVE "<text>"     officers only; seal, suspend, curfew, open; no charge
-  STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
-  CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
+  STANDING ORDER: <order> / CC            repeats each night; full price, then 2 AU
+  CANCEL STANDING <n> / CANCEL ORDERS
   VOTE <motion>: FOR | AGAINST | ABSTAIN
   PROXY <motion> TO <member>                                       [PROPOSED]
   AGREEMENT: "<title>" WITH <names>  + TERMS: lines                [PROPOSED]
@@ -648,8 +653,9 @@ missed-turn defaults, motion tallying. Not built yet:
 - Built 2026-10-16: `IF … THEN …`, `FALLBACK:`, `HOLD EXCEPT`, `AUTHORIZE`/`REVOKE`,
   `ATTITUDE`, `LEAK`, contact reports, the watchful hold, the Minot Daily News
   (src/lib/engine/contacts.ts, bulletin.ts; migration 0018).
-- The parser: `STANDING ORDER:`, `CANCEL ORDERS`, `CANCEL STANDING`,
-  `PROXY`, `LEAVE`/`RETURN`, transfers of holdings.
+- Built 2026-10-16: `STANDING ORDER:`, the doubled letter, `CANCEL STANDING`, `CANCEL ORDERS`
+  (src/lib/engine/standing.ts; migration 0021).
+- The parser: `PROXY`, `LEAVE`/`RETURN`, transfers of holdings.
 - Replace-on-resend: orders are currently appended for a round; §6.2 says the latest
   message replaces them.
 - The three-order limit, AU costs per verb, refunds for unknown verbs, specialization

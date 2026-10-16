@@ -12,6 +12,7 @@ import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
 import { pressureFor, episodeOf } from "./world";
 import { standingFor } from "./contacts";
+import { listStanding, STANDING_UPKEEP } from "./standing";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -207,8 +208,8 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     mode = (pk?.mode as string | undefined) ?? null;
     for (const o of ((pk?.orders ?? []) as { seq: number; verb: string; args: { text?: string; code?: string; outcome?: { kind: string; summary: string } }; status: string; ruling: string | null }[]).sort((a, b) => a.seq - b.seq)) {
       const outcome = o.args.outcome;
-      const a = o.args as { conditional?: boolean; condition_label?: string };
-      lastNight.push({ label: `${a.conditional ? `IF ${a.condition_label ?? "the condition held"} THEN ` : ""}${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: outcome ? `${o.status} (${outcome.kind})` : o.status, ruling: outcome?.summary ?? o.ruling });
+      const a = o.args as { conditional?: boolean; condition_label?: string; standing?: number };
+      lastNight.push({ label: `${a.standing ? `Standing ${a.standing}: ` : ""}${a.conditional ? `IF ${a.condition_label ?? "the condition held"} THEN ` : ""}${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: outcome ? `${o.status} (${outcome.kind})` : o.status, ruling: outcome?.summary ?? o.ruling });
     }
   }
   // What arrived since the previous round opened: staff letters, filed forms, closed ballots.
@@ -254,7 +255,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const st = await standingFor(db, round.campaign_id, ch.id);
   const { data: loc } = await db.from("facts").select("value").eq("campaign_id", round.campaign_id).eq("key", `location.${ch.id}`).maybeSingle();
   const where = loc?.value as { name: string; round: number } | null;
+  const sos = await listStanding(db, ch.id);
   const standingLines = [
+    ...sos.map((s) => `• Standing ${s.seq}: ${s.label} — ${STANDING_UPKEEP} AU a round; CANCEL STANDING ${s.seq} ends it.`),
     ...(where ? [`• You are in ${where.name} (since Round ${where.round}). Orders there cost no further trip; any order on campus, or TRAVEL back, brings you home. Nobody is watching your desk while you are away.`] : []),
     ...(st.friendly.length ? [`• Friendly toward ${st.friendly.join(", ")}: they may pull ${department ?? "your department"}'s files, and your watch lets them pass.`] : []),
     ...(st.authorized.length ? [`• ${st.authorized.join(", ")} may pull ${department ?? "your department"}'s files (AUTHORIZE).`] : []),

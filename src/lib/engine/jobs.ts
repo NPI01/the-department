@@ -39,6 +39,7 @@ import { fileResearchBrief } from "@/lib/engine/research";
 import { findEquipment, holdingsFor, returnDue } from "@/lib/engine/equipment";
 import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
+import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -110,7 +111,7 @@ export function letterBody(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
-  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS).*|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -321,6 +322,25 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         continue;
       }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
+      if (a.kind === "standing") {
+        // STANDING ORDER: <order> (or a doubled menu letter): filed once, run every night until CANCEL STANDING <n>.
+        const r = rowFor(a.then);
+        if ("error" in r) { ignored.push(`STANDING ORDER ${a.then.kind === "select" ? a.then.code : a.then.args} — ${r.error}`); continue; }
+        const so = await fileStanding(db, { campaignId: c.campaign_id, characterId: c.from_character, round: round.number, verb: r.verb, args: { ...r.args, code: undefined }, label: r.label.replace(/\s+—\s+[^—]*$/, "") });
+        recorded.push(`STANDING ${so.seq}: ${so.label} — ${Number(r.args.cost ?? 5)} AU tonight, then ${STANDING_UPKEEP} AU a round until CANCEL STANDING ${so.seq}; suspended on a night you send nothing`);
+        continue;
+      }
+      if (a.kind === "cancel_standing") {
+        const so = await cancelStanding(db, c.from_character, a.seq, round.number);
+        if (so) recorded.push(`CANCELLED STANDING ${so.seq}: ${so.label}`); else ignored.push(`CANCEL STANDING ${a.seq} — no standing order by that number`);
+        continue;
+      }
+      if (a.kind === "cancel_orders") {
+        const { data: pk0 } = await db.from("order_packets").select("id").eq("round_id", round.id).eq("character_id", c.from_character).maybeSingle();
+        if (pk0) { await db.from("orders").delete().eq("packet_id", pk0.id).eq("status", "pending"); await db.from("order_packets").delete().eq("id", pk0.id); }
+        recorded.push(`CANCELLED tonight's orders — nothing is on file for Round ${round.number}${pk0 ? "" : " (nothing was)"}`);
+        continue;
+      }
       if (a.kind === "conditional") {
         // IF <trigger> THEN <order>: filed with its condition; judged after the night's first pass; units back if it never fires.
         const pc = parseCondition(a.trigger, { roster, episode });
@@ -476,7 +496,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -632,19 +652,22 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Missed-turn defaults: every active player character without a packet gets mode=missed.
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
       for (const ch of chars ?? []) await db.from("order_packets").upsert({ round_id: roundId, character_id: ch.id, mode: "missed", source: "default" }, { onConflict: "round_id,character_id", ignoreDuplicates: true });
+      // Standing orders join the night's packets before funding (standing.ts); a missed turn suspends them.
+      const standing = await enqueueStanding(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "standing.queued", payload: standing, idempotency_key: `standing:${roundId}` });
       // Funding at the lock: orders are paid for in the order given; the first that does not fit, and the rest, are skipped.
       const holdBonus = Number(await rule(db, round.campaign_id, "au.hold_bonus", 5));
-      const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status, condition)").eq("round_id", roundId);
+      const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status, condition, standing)").eq("round_id", roundId);
       for (const pk of packets ?? []) {
         const { data: au } = await db.from("resources").select("balance").eq("character_id", pk.character_id).eq("kind", "au").maybeSingle();
         let balance = Number(au?.balance ?? 0); let spent = 0;
-        const orders = ((pk.orders ?? []) as { id: string; seq: number; args: { cost?: number }; status: string; condition: unknown }[]).filter((o) => o.status === "pending").sort((a, b) => a.seq - b.seq);
+        const orders = ((pk.orders ?? []) as { id: string; seq: number; args: { cost?: number }; status: string; condition: unknown; standing: boolean }[]).filter((o) => o.status === "pending").sort((a, b) => a.seq - b.seq);
         for (const o of orders) {
           const cost = Number(o.args?.cost ?? 5);
           if (spent + cost <= balance) { spent += cost; await db.from("orders").update({ status: "reserved", cost: { au: cost } }).eq("id", o.id); }
           else await db.from("orders").update({ status: "skipped", ruling: "beyond your balance at the lock" }).eq("id", o.id);
         }
-        if (pk.mode === "hold" && !orders.some((o) => !o.condition)) balance += holdBonus;   // conditional orders do not spoil a hold
+        if (pk.mode === "hold" && !orders.some((o) => !o.condition && !o.standing)) balance += holdBonus;   // conditional and standing orders do not spoil a hold
         balance -= spent;
         await db.from("resources").upsert({ character_id: pk.character_id, kind: "au", balance }, { onConflict: "character_id,kind" });
       }
