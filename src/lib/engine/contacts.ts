@@ -206,8 +206,11 @@ export async function contactReports(db: Db, round: { campaignId: string; id: st
   // The watchful hold: a character who held or sent nothing learns who pulled their
   // department's files and who reported them, except those they let pass.
   const docs = new Map(documentsFor(round.episode).map((d) => [d.slug, d]));
+  const { data: locs } = await db.from("facts").select("key").eq("campaign_id", round.campaignId).like("key", "location.%");
+  const away = new Set((locs ?? []).map((f) => (f.key as string).slice("location.".length)));
   for (const pk of packets ?? []) {
     if (pk.mode !== "hold" && pk.mode !== "missed") continue;
+    if (away.has(pk.character_id as string)) continue;   // not at their desk: they are in a town somewhere
     const me = people.get(pk.character_id as string); if (!me?.player) continue;
     const pass = new Set<string>([...((pk.watch_except as string[] | null) ?? []), ...(decls ?? []).filter((d) => d.from_character === me.id && d.attitude === "friendly").map((d) => d.to_character as string)]);
     const notice = (who: Person, text: string, what: string, verb: string) => {

@@ -9,6 +9,7 @@
 import { VERB_COST, inferVerb } from "./resolve";
 import { findEquipment } from "./equipment";
 import { placesFor } from "./world";
+import { findTown } from "./world/towns";
 
 export const TRAVEL_COST = 5;
 export const MAX_STEPS = 4;
@@ -17,14 +18,14 @@ export const UNREAD_COST = 5;
 
 const VERB_NAME: Record<string, string> = {
   request_files: "files", interview: "a conversation", surveil: "a night's watch", visit: "a visit", examine: "a close reading",
-  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", research: "research", requisition: "a requisition", submit_manifest: "a manifest", approve_overtime: "overtime",
+  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", research: "research", requisition: "a requisition", travel: "the trip", submit_manifest: "a manifest", approve_overtime: "overtime",
   reconcile_maps: "reconciling maps", approve_corridors: "corridors", clear_invoices: "invoices", issue_statement: "a statement", report: "a report to Security",
 };
 
 /* Clauses that set a scene, a condition or a reason are not actions: "On my lunch break", "if I can find it", "so I can write to them". */
 const NOT_AN_ACTION = /^(if|when|whenever|unless|so|so that|because|in case|in order|while|once|on my|during|since|which|who|where|as long as|hopefully|i hope|the name|the main thing)\b/;
 
-const TOWNS = /\b(tagus|minot|split rock|out of town|into town|a ranch|the ranch|bismarck|stanley)\b/;
+const TOWNS = /\b(out of town|into town|a ranch|the ranch|bismarck)\b/;
 const MOVE = /\b(travel|drive|go|head|walk|ride|get)\s+(?:out\s+|back\s+|over\s+)?(?:to|into|out to|up to)\b|\bdrive out\b/;
 
 export type Priced = { steps: { verb: string; cost: number; clause: string }[]; travel: number; total: number; left: string[]; read: boolean };
@@ -53,9 +54,10 @@ export function priceFreeform(text: string, episode = 1): Priced {
   // The trip is charged when the order goes somewhere beyond the fence, not when it merely mentions it:
   // a clause that visits, searches, watches or attends there, or one that travels there.
   const offCampus = placesFor(episode).filter((p) => p.offCampus).flatMap((p) => p.aliases.map((a) => a.toLowerCase()));
-  const beyond = (c: string) => offCampus.some((a) => c.includes(a)) || TOWNS.test(c);
+  const beyond = (c: string) => offCampus.some((a) => c.includes(a)) || TOWNS.test(c) || Boolean(findTown(c));
   const goesThere = clauses.some((c) => { const l = c.toLowerCase(); return beyond(l) && (MOVE.test(l) || ["visit", "search", "surveil", "attend"].includes(inferVerb(c).verb)); });
-  const travel = steps.length && goesThere ? TRAVEL_COST : 0;
+  // A TRAVEL step is the trip; nothing is added for the road on top of it.
+  const travel = steps.length && goesThere && !steps.some((s) => s.verb === "travel") ? TRAVEL_COST : 0;
   const total = steps.length ? steps.reduce((n, s) => n + s.cost, 0) + travel : UNREAD_COST;
   return { steps, travel, total, left, read: steps.length > 0 };
 }

@@ -244,7 +244,7 @@ could not be done is refunded in the morning.
 | `REQUISITION <item>` | by item | Sign equipment out of Procurement stores (§5.2): a camera, a cassette recorder, a motor pool truck for the night, a temporary badge. On your personnel file by morning, and in a log. |
 | `ANALYZE <item>` | 6 | Put something you hold, or a copy sent to you, through your department's laboratory. Each department reads a thing its own way (Biological Sciences a sample, Advanced Materials a fragment, Information Systems a log, Applied Physics a power ledger); the report is evidence in your Case File. If your department has nothing to add, the clerk says whose work it is. Where `EXAMINE` is the close reading anyone can do, `ANALYZE` is what a laboratory adds, and why departments trade copies. |
 | `RESEARCH <subject>` | 10 | Read up on a subject in the company library, the county records and the newspaper morgue. A Research Brief is filed in your Case File, under Research, by morning: what a diligent reader could have found in 1977, and a note of what the shelves do not hold. Intelligence, never evidence. One brief per subject. |
-| `TRAVEL <place>` | 5 | Go somewhere off campus (Minot, Tagus, Split Rock Basin, a ranch). Other orders that round take place there. |
+| `TRAVEL <town or place>` | 5 | Drive beyond the fence to Tagus, Minot, Split Rock Basin or Stanley, or to a place out there. The trip goes before anything else that night (§6.6), so your other orders happen there. You stay until an order on campus, or `TRAVEL` back, brings you home; while away, orders there cost no further trip, and nobody is watching your desk (§6.7). Gate 2 logs you out; a motor pool truck makes the trip free (§5.2). Your dispatch says where you are. |
 | `MEET <person>` | 3 | Talk in person. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. |
 | `CONTACT <person or organization>` | 4 | Reach someone outside the company who has not written to you. They may not answer. |
 | `SURVEIL <person or place>` | 8 | Watch who comes and goes and who writes to whom. Shows connections, never letter contents. Can be standing. |
@@ -322,9 +322,9 @@ TRANSFER <holding> TO <name>    [PROPOSED for holdings]
 2. **Governance.** Close votes, make appointments, apply rule changes.
 3. **Agreements.** Carry out formal agreements whose conditions are met; mark breaches.
 4. **Actions.** Defend, then move, then intercept, then investigate. Every `PROTECT`
-   resolves before any other order, so protection laid tonight works against theft
-   attempted tonight; a traveller reaches a place before investigating it; conditional
-   orders (§6.4) are judged last.
+   and every `TRAVEL` resolves before any other order, so protection laid tonight works
+   against theft attempted tonight and a traveller reaches a town before acting there;
+   conditional orders (§6.4) are judged last.
 5. **The world.** Staff act, projects advance, pressures build, holdings decay.
 6. **Dispatch.** Your report is written and sent for 9:00 AM.
 
@@ -588,6 +588,7 @@ Command lines (start of a line, any email to the game):
   ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU
   ORDER: RECRUIT <name> / DISMISS <name>   an informant; 10 AU, then 2 a round
   ORDER: ANALYZE <item>                   your department's laboratory report; 6 AU
+  ORDER: TRAVEL <town or place>           beyond the fence, there until you come home; 5 AU
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

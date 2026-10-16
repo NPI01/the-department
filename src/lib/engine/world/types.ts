@@ -39,6 +39,7 @@ export type PlaceDef = {
   aliases: string[];
   restricted?: boolean;          // being seen there is noticed by Security
   offCampus?: boolean;           // beyond the fence: a free-form order going there pays for the trip (TRAVEL)
+  town?: string;                 // the town (world/towns.ts slug) an off-campus place belongs to, for TRAVEL
   visit: string;                 // what a daytime visit shows (player-safe)
   ask?: string;                  // what whoever is there will say to a stranger who asks
   surveil: Sighting[];           // what a night's watch may show, by round band

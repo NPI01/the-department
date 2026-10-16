@@ -15,9 +15,11 @@ import { researchSlug, researchSubject } from "./research";
 import { findEquipment, holdingsFor, holds, logLines, requisition, type Holding } from "./equipment";
 import { findLoot, guardOf, guardsTonight, layProtection, takeLoot, watchfulIn, type Scope } from "./custody";
 import { dismiss, recruit } from "./informants";
+import { writeLog } from "./equipment";
+import { findTown } from "./world/towns";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -29,11 +31,11 @@ export type Outcome = {
 
 export type Ctx = {
   campaignId: string; roundId: string; roundNo: number; episodeRound: number; episode?: number;
-  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[]; specialization?: string | null };   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
+  character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[]; specialization?: string | null; location?: { slug: string; name: string; round: number } | null };   // location: away from campus since a TRAVEL (null = Station R)   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -85,15 +87,33 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(search|go through|rifle|look through|open the|break into|the drawer|the locker|investigate|look around|poke around)\b/, "search"],
     [/\b(analy[sz]e|analysis|run (?:it|the sample|a sample|tests) |lab test|test the sample|under the microscope|assay|correlate|cross[ -]?reference|put .* through the lab|have the lab)\b/, "analyze"],
     [/\b(examine|study|read closely|look closely|compare|inspect|check the)\b/, "examine"],
+    [/\b(ask (?:the )?(?:records|archives|procurement|personnel|facilities|finance|stores) for|ask records)\b/, "request_files"],
     [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat|introduce|approach|walk up to)\b/, "interview"],
     [/\b(request|pull|get the|obtain|copy of|file|files|records|ledger|log|logs|report|invoices|authorizations|memo)\b/, "request_files"],
-    [/\b(go to|visit|drive|walk to|look at|see the|check out|go into|go inside|enter|travel to|head to|go out to|go back to)\b/, "visit"],
+    [/\b(travel|drive (?:out |up |down |over )?to|go (?:out |up |down |over )?to (?:tagus|minot|split rock|stanley|town)|head (?:out |up |down )?(?:to|for)|spend the night in|stay (?:the night )?in|overnight in|return to (?:station r|campus|the campus)|go back to (?:station r|campus|the campus)|come (?:back )?home)\b/, "travel"],
+    [/\b(go to|visit|drive|walk to|look at|see the|check out|go into|go inside|enter|head to|go out to|go back to)\b/, "visit"],
     [/\b(attend|sit in|be present)\b/, "attend"],
   ];
   for (const [re, verb] of rules) if (re.test(t)) return { verb, target: text };
   return { verb: "unknown", target: text };
 }
 
+/* Where an order ends up: a town by name, or the town an off-campus place sits in, or the place itself. */
+export function destinationOf(text: string, episode: number): { slug: string; name: string } | null {
+  const town = findTown(text);
+  if (town) return { slug: town.slug, name: town.name };
+  const p = findPlace(text, episode);
+  if (p?.offCampus) { const t = (p.town ? findTown(p.town) : null) ?? findTown(`${p.name} ${p.aliases.join(" ")}`); return t ? { slug: t.slug, name: t.name } : { slug: p.slug, name: p.name }; }
+  return null;
+}
+async function setLocation(db: SupabaseClient, ctx: Ctx, loc: { slug: string; name: string } | null) {
+  ctx.character.location = loc ? { ...loc, round: ctx.roundNo } : null;
+  if (ctx.dry) return;
+  if (loc) await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `location.${ctx.character.id}`, value: { ...loc, round: ctx.roundNo }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
+  else await db.from("facts").delete().eq("campaign_id", ctx.campaignId).eq("key", `location.${ctx.character.id}`);
+}
+/* An order done on campus brings a traveller home. */
+async function cameHome(db: SupabaseClient, ctx: Ctx) { if (ctx.character.location) await setLocation(db, ctx, null); }
 const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
 const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
 /* The item, or any copy of it (sent on, taken, found), in the character's Case File. */
@@ -144,12 +164,13 @@ export async function resolveOrder(db: SupabaseClient, ctx: Ctx, order: { id: st
   const travel = Number(order.args.travel ?? 0);
   const allBack = outs.every((o) => o.kind === "ruling" && o.refund > 0);
   const truck = travel > 0 && !allBack && holds(ctx.character.holdings ?? [], "vehicle");   // a motor pool truck in hand: the trip costs nothing
+  const there = travel > 0 && !allBack && !truck && Boolean(ctx.character.location) && destinationOf(whole, ctx.episode ?? episodeOf(ctx.roundNo))?.slug === ctx.character.location?.slug;   // already there since a TRAVEL
   const lead = outs.find((o) => o.kind !== "ruling") ?? outs[0];
   return {
     kind: lead.kind, verb: outs.map((o) => o.verb).join("+"), target: lead.target,
-    summary: dedupeSentences(outs.map((o) => o.summary).join(" ") + (truck ? " The motor pool truck took the trip; nothing was charged for the road." : "")),
+    summary: dedupeSentences(outs.map((o) => o.summary).join(" ") + (truck ? " The motor pool truck took the trip; nothing was charged for the road." : there ? ` Already in ${ctx.character.location!.name}; nothing was charged for the road.` : "")),
     learned: outs.flatMap((o) => o.learned), item: outs.find((o) => o.item)?.item,
-    noticed: outs.some((o) => o.noticed), refund: outs.reduce((n, o) => n + o.refund, 0) + (allBack || truck ? travel : 0),
+    noticed: outs.some((o) => o.noticed), refund: outs.reduce((n, o) => n + o.refund, 0) + (allBack || truck || there ? travel : 0),
     presence: outs.flatMap((o) => o.presence ?? []),
   };
 }
@@ -196,6 +217,7 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     }
   }
   if (verb === "request_files") {
+    await cameHome(db, ctx);
     const d = findDocument(text, episode);
     if (!d) return ruled(`The clerk could not match "${text}" to any file on the company's index. Units returned. Name the file, the office, or the person who keeps it.`);
     base.target = d.slug;
@@ -213,6 +235,7 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!p) return ruled(`The clerk could not place "${text}". Units returned. Name a building, a gate, a road, or a property.`);
     base.target = p.slug;
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb, covert: verb === "surveil" }];
+    if (!p.offCampus) await cameHome(db, ctx);
     const pass = holds(ctx.character.holdings ?? [], "pass");
     if (verb === "visit") { if (p.restricted && !pass) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}${pass && p.restricted ? ", badge on the lapel, and nobody looked twice" : ""}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted && !pass }; }
     const s = p.surveil.find((x) => (x.episode ?? 1) === episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]) ?? p.surveil.find((x) => (x.episode ?? 1) < episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
@@ -288,12 +311,14 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
       if (!p) return ruled(`The clerk could not tell who "${text}" names. Units returned. Use a surname from the directory, or name a place to ask around.`);
       base.target = p.slug;
       base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb: "interview" }];
+      if (!p.offCampus) await cameHome(db, ctx);
       if (p.restricted) await notify(db, ctx, `${ctx.character.name} was asking questions at ${p.name}, Round ${ctx.roundNo}.`);
       await learn(db, ctx, [`asked.${p.slug}`], "told", null);
       return { ...base, kind: "conversation", summary: `${ctx.character.name} asked around at ${p.name}. ${p.ask ?? p.visit}`, learned: [`asked.${p.slug}`], noticed: p.restricted };
     }
     base.target = who.slug;
     base.presence = [{ kind: "person", slug: who.slug, name: who.name, verb }];
+    if (who.division) await cameHome(db, ctx);   // staff are seen on campus; a local is seen where they live
     let lobbyNote = "";
     if (verb === "lobby" && !ctx.dry) {
       const direction: "for" | "against" = /\b(against|oppose|block|kill|vote no|no on)\b/i.test(text) ? "against" : "for";
@@ -326,6 +351,20 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     const r = await recruit(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, player: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name, division: ctx.character.division }, target: who, text });
     if (!r.ok) return ruled(`${r.error} Units returned.`);
     return { ...base, kind: "recruited", summary: r.summary, noticed: r.noticed, presence: [{ kind: "person", slug: who.slug, name: who.name, verb: "interview" }] };
+  }
+  if (verb === "travel") {
+    // TRAVEL: the trip beyond the fence, made before anything else moves (jobs.ts). You are there until an order brings you home.
+    const home = /\b(station r|campus|the campus|home|back)\b/i.test(text) && !findTown(text);
+    if (home) { if (!ctx.character.location) return ruled(`${ctx.character.name} is already at Station R. Units returned.`); const was = ctx.character.location.name; await setLocation(db, ctx, null); return { ...base, kind: "travelled", summary: `${ctx.character.name} drove back from ${was} and signed in at Gate 2.` }; }
+    const dest = destinationOf(text, episode);
+    if (!dest) return ruled(`The clerk could not place "${text}". Units returned. Name a town (Tagus, Minot, Split Rock Basin, Stanley) or a place beyond the fence.`);
+    if (ctx.character.location?.slug === dest.slug) return ruled(`${ctx.character.name} is already in ${dest.name}. Units returned.`);
+    base.target = dest.slug;
+    await setLocation(db, ctx, dest);
+    if (!ctx.dry) await writeLog(db, ctx.campaignId, "gate", ctx.roundNo, ctx.character.id, `${gameDate(ctx.roundNo)} · ${ctx.character.name} · out after 1800 · ${dest.name}`);
+    const town = findTown(dest.name);
+    const truck = holds(ctx.character.holdings ?? [], "vehicle");
+    return { ...base, kind: "travelled", summary: `${ctx.character.name} signed out at Gate 2 and drove to ${dest.name}${truck ? " in the motor pool truck" : ""}. ${town?.arrive ?? ""} The night is spent there, and the nights after until an order brings them home; orders there cost no further trip.`.replace(/\s+/g, " "), presence: [{ kind: "place", slug: dest.slug, name: dest.name, verb: "visit" }] };
   }
   if (verb === "protect") {
     // PROTECT: a guard for one night over my desk, one item, a document my department keeps, or myself. Laid before anything else moves (jobs.ts).

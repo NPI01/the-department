@@ -4,6 +4,13 @@
 import type { DocumentDef, PlaceDef, PressureTier } from "./types";
 
 export const DOCUMENTS: DocumentDef[] = [
+  {
+    slug: "gate-2-log", title: "Gate 2 vehicle log (October 1977)", kind: "document",
+    aliases: ["gate log", "gate 2 log", "the clipboard", "gate book", "vehicle gate log", "night gate log"],
+    holder: "corporate-security", access: { clearance: 2, department: ["corporate-security"] }, logKey: "gate",
+    grants: [], wrongDetail: null, from: "Corporate Security", written: "October 1977",
+    body: "**GATE 2 — VEHICLES OUT AFTER 1800 — OCTOBER 1977**\n\n| Date | Out | Vehicle | Driver | Destination | In |\n|---|---|---|---|---|---|\n| 4 Oct | 2310 | PMA van | (slip) | strip | 0220 |\n| 9 Oct | 2050 | MP-14 | PGS | Tagus rd | 0335 |",
+  },
   // Logs the engine appends to as equipment is signed out (equipment.ts). PROPOSED 2026-10-16.
   {
     slug: "procurement-requisition-log", title: "Equipment requisition log, Procurement stores (October 1977)", kind: "document",
@@ -209,12 +216,12 @@ export const PLACES: PlaceDef[] = [
     contains: ["greeley-notebook"], searchAccess: { clearance: 3, department: ["corporate-security"] } },
   { slug: "building-9-site", name: "the Building 9 site", aliases: ["building 9", "b9", "building nine", "the square on the map"], restricted: true, visit: "Where the Procurement map puts a square there is a graded pad, a fenced vent, and fresh concrete that nobody poured in daylight.",
     surveil: [{ rounds: [1, 14], text: "a truck came to the pad at 0300 and men unloaded something long under a tarp into the ground, through a hatch you had not seen in daylight", grants: "b9.night_delivery_seen", restricted: true }] },
-  { slug: "vane-pasture", offCampus: true, name: "the Vane north pasture", aliases: ["vane pasture", "vane ranch", "vane place", "north pasture", "the ranch", "vane's"], visit: "Fenced prairie north of Tagus. A scorched ring of grass, a steer carcass under a tarp that Mr. Vane has not let anyone take.",
+  { slug: "vane-pasture", town: "tagus", offCampus: true, name: "the Vane north pasture", aliases: ["vane pasture", "vane ranch", "vane place", "north pasture", "the ranch", "vane's"], visit: "Fenced prairie north of Tagus. A scorched ring of grass, a steer carcass under a tarp that Mr. Vane has not let anyone take.",
     surveil: [{ rounds: [1, 14], text: "lights over the pasture at 0130, no sound; the cattle moved to the far fence and stayed there until dawn", grants: "vane.lights_over_pasture_seen" }] },
-  { slug: "tagus-church", offCampus: true, name: "St. Olaf Lutheran, Tagus", aliases: ["tagus church", "st. olaf", "st olaf", "the church", "church"], visit: "A white frame church, bell tower without a bell, the caretaker's truck outside. The cemetery behind it is better kept than the town.",
+  { slug: "tagus-church", town: "tagus", offCampus: true, name: "St. Olaf Lutheran, Tagus", aliases: ["tagus church", "st. olaf", "st olaf", "the church", "church"], visit: "A white frame church, bell tower without a bell, the caretaker's truck outside. The cemetery behind it is better kept than the town.",
     surveil: [{ rounds: [1, 14], text: "at 0200 the tower hummed, a low note you felt in your teeth, for eleven minutes; the caretaker stood in the door and did not look up", grants: "tagus.tower_hum_heard" }],
     contains: [], searchAccess: { clearance: 1 } },
-  { slug: "tagus-cemetery", offCampus: true, name: "the Tagus cemetery", aliases: ["cemetery", "graveyard", "tagus cemetery"], visit: "Eighty graves, the newest 1976. One row of stones from 1921 with no names, only dates, all the same week in October.", surveil: [{ rounds: [1, 14], text: "nothing moved; the frost did not form on the 1921 row", grants: "tagus.1921_row_no_frost_seen" }] },
+  { slug: "tagus-cemetery", town: "tagus", offCampus: true, name: "the Tagus cemetery", aliases: ["cemetery", "graveyard", "tagus cemetery"], visit: "Eighty graves, the newest 1976. One row of stones from 1921 with no names, only dates, all the same week in October.", surveil: [{ rounds: [1, 14], text: "nothing moved; the frost did not form on the 1921 row", grants: "tagus.1921_row_no_frost_seen" }] },
   { slug: "prairie-meridian-strip", offCampus: true, name: "the Prairie Meridian strip", aliases: ["prairie meridian", "airstrip", "the strip", "helicopter pad", "hangar"], restricted: true, visit: "A grass strip and a hangar three miles south of the fence. A helicopter under a tarp, a fuel truck, a pilot who does not look up.",
     surveil: [{ rounds: [1, 14], text: "the helicopter went out at 0105 without lights and came back at 0220; the pilot sat in the cockpit for twenty minutes before he climbed down", grants: "pma.night_run_seen", restricted: true }] },
   { slug: "breakroom", name: "the Building 3 breakroom", aliases: ["breakroom", "break room", "cafeteria", "coffee", "lunch room", "canteen"], visit: "A percolator, a table with one short leg, a bulletin board of ride-shares and a notice about the October blood drive. The coffee tastes faintly of copper.", ask: "People talk, carefully. Everyone has heard Dr. Marsh was transferred and nobody has had a postcard. Two people say Building 7 is storage; one says it is nothing, and changes the subject.", surveil: [] },

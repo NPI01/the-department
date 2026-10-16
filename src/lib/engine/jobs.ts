@@ -675,7 +675,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         // Files a colleague's AUTHORIZE or friendship opens (contacts.ts).
         const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
         const holdings = await holdingsFor(db, chRaw.id);
-        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization } } });
+        const { data: loc } = await db.from("facts").select("value").eq("campaign_id", round.campaign_id).eq("key", `location.${chRaw.id}`).maybeSingle();
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization, location: (loc?.value as { slug: string; name: string; round: number } | null) ?? null } } });
       }
       const credit = async (characterId: string, refund: number) => {
         if (!refund) return;
@@ -701,7 +702,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       };
       // Pass zero: every PROTECT, so a guard laid tonight stops a theft attempted tonight (rulebook §6.6: defend first).
       type Row = { id: string; seq: number; verb: string; args: Record<string, unknown> };
-      const isGuard = (o: Row) => o.verb === "protect" || ((o.args.steps as { verb: string }[] | undefined)?.[0]?.verb === "protect") || (o.verb === "freeform" && !(o.args.steps as unknown[] | undefined)?.length && inferVerb(String(o.args.text ?? "")).verb === "protect");
+      // Guards and trips go first: protection laid tonight holds tonight; a traveller is there before anything else happens.
+      const FIRST = new Set(["protect", "travel"]);
+      const isGuard = (o: Row) => FIRST.has(o.verb) || FIRST.has((o.args.steps as { verb: string }[] | undefined)?.[0]?.verb ?? "") || (o.verb === "freeform" && !(o.args.steps as unknown[] | undefined)?.length && FIRST.has(inferVerb(String(o.args.text ?? "")).verb));
       const unconditional = new Map<string, Row[]>();
       for (const pk of live) {
         const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").is("condition", null).order("seq");

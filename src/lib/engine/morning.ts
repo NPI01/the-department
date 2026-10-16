@@ -30,6 +30,7 @@ const VERBS: Record<string, string> = {
   protect: "spend the night guarding your desk, one item, a file your department keeps, or your own movements",
   recruit: "ask a staff member or local who knows you to pass along what they see and hear, for 2 AU a round",
   analyze: "put something you hold through your department's laboratory; a report by morning if the department has something to say about it",
+  travel: "drive beyond the fence to a town or a place and stay there until an order brings you home; orders there cost no further trip",
 };
 
 type Facts = {
@@ -78,6 +79,7 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   protect: (w) => `Guard ${w}`,
   recruit: (w) => `Recruit ${w}`,
   analyze: (w) => `Analyze ${w}`,
+  travel: (w) => `Drive to ${w}`,
 };
 
 /* The line the player reads is the action and its target, built from the verb;
@@ -247,7 +249,10 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");
   // Standing declarations, written by the engine: the player's own, never anyone else's.
   const st = await standingFor(db, round.campaign_id, ch.id);
+  const { data: loc } = await db.from("facts").select("value").eq("campaign_id", round.campaign_id).eq("key", `location.${ch.id}`).maybeSingle();
+  const where = loc?.value as { name: string; round: number } | null;
   const standingLines = [
+    ...(where ? [`• You are in ${where.name} (since Round ${where.round}). Orders there cost no further trip; any order on campus, or TRAVEL back, brings you home. Nobody is watching your desk while you are away.`] : []),
     ...(st.friendly.length ? [`• Friendly toward ${st.friendly.join(", ")}: they may pull ${department ?? "your department"}'s files, and your watch lets them pass.`] : []),
     ...(st.authorized.length ? [`• ${st.authorized.join(", ")} may pull ${department ?? "your department"}'s files (AUTHORIZE).`] : []),
     ...(st.hostile.length ? [`• Hostile toward ${st.hostile.join(", ")}: any sighting of them in your reports goes to Security the same night.`] : []),
