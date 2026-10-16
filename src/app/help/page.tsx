@@ -32,6 +32,30 @@ ORDER: Ask the night guard at Gate 2 who signs for the helicopter.
 
 H                               ← hold: keep your units this round`}</Code>
       <P>Letters pick from the morning's list. A line starting with ORDER: is a free-form attempt at anything else; its cost is ruled in the morning. Anything else you write is treated as a note and is not acted on. A new reply replaces your earlier orders for the night unless it says "also", "add", or "plus", in which case it adds to them.</P>
+
+      <H>Trip-wires: IF and FALLBACK</H>
+      <P>An order can wait on something another player does tonight. It costs what it would cost, and the units come back in the morning if the condition never came about. Everyone's ordinary orders resolve first; then every IF line is judged against that night; a fired order cannot set off anyone else's IF line.</P>
+      <Code>{`IF anyone requests the motor pool log THEN C
+IF Okafor is seen at Building 7 THEN ORDER: report Okafor to Security
+IF B-77-003 fails THEN ORDER: lobby Crane against the budget
+FALLBACK: ORDER: ask around at the motor pool      ← only if the order above it fails`}</Code>
+      <P>Conditions the clerk can read: a named colleague or <em>anyone</em> requests a file; is seen at a place; watches a place; reports me; a ballot number passes or fails; the order above fails.</P>
+
+      <H>Holding, and what you see</H>
+      <P>Reply <strong>H</strong> or <strong>HOLD</strong> to keep your units and earn a small bonus. A character who holds, or who sends nothing, is at their desk and alert: in the morning they learn who pulled their department's files overnight and who reported them to Security. <strong>HOLD EXCEPT Okafor, Pruitt</strong> lets those colleagues pass unnoticed.</P>
+      <P>Whatever you do, two people who touch the same place, the same file or the same person in one night each learn the other was there, unless one of them was watching from the dark, is an Operative, or took something nobody saw. A contact report is a line in your dispatch, nothing more.</P>
+
+      <H>Standing declarations</H>
+      <P>These are free, last until you change them, and the person named is never told:</P>
+      <Code>{`AUTHORIZE Okafor                 she may pull your department's files as if one of you
+REVOKE Okafor                    she may not
+ATTITUDE Pruitt: FRIENDLY        as AUTHORIZE, and your watch lets him pass
+ATTITUDE Pruitt: HOSTILE         any sighting of him in your reports goes to Security the same night
+ATTITUDE Pruitt: NEUTRAL         nothing automatic either way`}</Code>
+      <P>Your own declarations are listed in your dispatch under Standing. You will never see anyone else's; you may notice that a request went through that should not have.</P>
+
+      <H>The paper</H>
+      <P>The Minot Daily News comes out on the morning of days 7 and 14 of each episode and reaches every desk: what the committees decided, what the company will say, and anything leaked to it. <code>ORDER: LEAK facilities-ledger-b7</code> sends a copy of something you hold to the paper for its next issue; it costs 6 Action Units, two more for each further leak in the same episode. What the paper prints, everyone knows, roughly. Records keeps a log of who asked for some files.</P>
       <P>The Department answers every reply with a receipt listing exactly what is on file, with the Action Units each order costs. Read the receipt; it is the truth.</P>
 
       <H>Action Units</H>
@@ -41,7 +65,7 @@ H                               ← hold: keep your units this round`}</Code>
       <P>Orders lock at 8:00 PM Eastern. Whatever is on file at that moment is what the Department carries out overnight. Your latest receipt is the record. After the lock, the night resolves and the next dispatch arrives at 9:00 AM.</P>
 
       <H>Writing to people</H>
-      <P>Reply <strong>DIRECTORY</strong> to any Department mail and the Personnel Directory comes back at once: your cohort, the staff you can write to, and the committees.</P>
+      <P>Reply <strong>DIRECTORY</strong> to any Department mail and the Personnel Directory comes back at once: your cohort, the staff you can write to, and the committees. Reply <strong>HELP</strong> for a one-page list of every line the clerk reads.</P>
       <P>To write to someone, send an ordinary email from your own address. Any of these reach the person: put their address (fisk@weird.delivery) in your To field; or reply to any Department letter and begin with their name ("Mr. Fisk,"); or start the letter with a line "To: Mr. Fisk". Use your mail program's Subject line as usual. You do not need to type To: or Re: in the body.</P>
       <P>Staff reply as themselves, usually within the hour, sometimes not until the morning. Other players reply when they reply. Letters cost nothing; only orders cost Action Units.</P>
 

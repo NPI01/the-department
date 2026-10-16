@@ -22,7 +22,13 @@ any email to the game, are read literally and are binding:
 
 ```
 ORDER: <verb> <details>          e.g. ORDER: REQUEST_FILES HARVEST sampling authorizations 1976
-HOLD                             strategic hold this round
+IF <condition> THEN <order>      a trip-wire: carried out only if the condition comes about tonight
+FALLBACK: <order>                carried out only if the order above it fails
+HOLD                             strategic hold this round; watchful at your desk
+HOLD EXCEPT <name>, <name>       hold, letting these colleagues pass your watch
+AUTHORIZE <name> / REVOKE <name> they may (not) pull your department's files; they are not told
+ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE
+ORDER: LEAK <item>               a copy to the Minot Daily News for its next issue
 VOTE <motion-number>: FOR|AGAINST|ABSTAIN
 ACCEPT AGREEMENT <id>  /  REJECT AGREEMENT <id>
 TRANSFER <n> <resource> TO <person>
@@ -35,7 +41,8 @@ will ask you to confirm before anything happens.
 
 ## Three ways to spend a round
 - **Orders** — actions that cost Action Units, access, or favours.
-- **Hold** — conserve; keep standing orders and defenses; modest advantage.
+- **Hold** — conserve; keep standing orders and defenses; modest advantage; learn who
+  pulled your department's files and who reported you.
 - **Missed turn** — you sent nothing; your character follows defaults and events still
   happen to you.
 
@@ -57,4 +64,11 @@ with members, quorum and thresholds (charter in progress: `agents/tasks/royce-go
 Every episode contains at least one collective decision: a vote, an authorization, an
 appointment, a sealing order.
 
-CHANGELOG: v1 sets the player-facing rules of correspondence, the deterministic grammar, round modes, evidence tiers, committee outline. v1.1 (2026-10-12) adds forms.
+## Contact reports, declarations and the paper
+Two people who touch the same place, file or person in one night each learn the other
+was there (a watcher sees and is not seen; an Operative is never listed). Declarations
+(`AUTHORIZE`, `REVOKE`, `ATTITUDE`) are free, standing, and never disclosed to the person
+named. The *Minot Daily News* comes out on the mornings of days 7 and 14 and prints what
+the committees decided and whatever was leaked to it. The rulebook has the detail.
+
+CHANGELOG: v1 sets the player-facing rules of correspondence, the deterministic grammar, round modes, evidence tiers, committee outline. v1.1 (2026-10-12) adds forms. v1.2 (2026-10-16) adds conditional orders, the watchful hold, contact reports, declarations and the paper.

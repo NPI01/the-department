@@ -24,7 +24,8 @@ import { blankFormLetter, fileForm } from "@/lib/engine/file-form";
 import { renderDirectoryLetter } from "@/lib/email/directory";
 import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
-import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
+import { advancePressure, resolveOrder, VERB_COST, type Ctx } from "@/lib/engine/resolve";
+import { authorizedDivisions, conditionLabel, conditionMet, contactReports, findInRoster, parseCondition, recordPresence, setDeclaration, type Condition, type Roster } from "@/lib/engine/contacts";
 import { episodeOf } from "@/lib/engine/world";
 import { growRound, loadLivePlaces, openWorldRequests } from "@/lib/engine/grow";
 import { moves as roomMoves, triage as roomTriage } from "@/lib/engine/room";
@@ -35,7 +36,7 @@ import { committeeByName, fileWithCommittee } from "@/lib/game/filing";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { newMessageId } from "@/lib/email/resend";
-import { menuFor, renderFooter, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
+import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
 
 /* Short stable key for a remembered sentence (djb2), so re-runs do not duplicate. */
@@ -105,7 +106,7 @@ export function letterBody(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
-  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?)\s*$/i.test(l));
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -246,10 +247,25 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const menu = afterLock ? [] : await menuFor(db, round.id, c.from_character);
     const recorded: string[] = [];
     const ignored: string[] = [];
-    const orderRows: { verb: string; args: Record<string, unknown>; label: string }[] = [];
-    let hold = false;
+    const orderRows: { verb: string; args: Record<string, unknown>; label: string; condition?: Condition | null }[] = [];
+    let hold = false; const holdExcept: string[] = [];
     const mode = replyMode(c.body_text as string);
     const commands = new Set<string>();
+    const episode = episodeOf(round.number);
+    const { data: roster0 } = await db.from("characters").select("id, slug, name, player_id").eq("campaign_id", c.campaign_id).eq("status", "active");
+    const roster: Roster = (roster0 ?? []).map((x) => ({ id: x.id as string, slug: x.slug as string, name: x.name as string, player: Boolean(x.player_id) }));
+    // One order row from a menu letter or an ORDER: line. A free-form order is priced
+    // now, by what it asks for (pricing.ts); a named verb at its listed price.
+    const rowFor = (t: { kind: "select"; code: string } | { kind: "order"; verb: string; args: string }): { verb: string; args: Record<string, unknown>; label: string } | { error: string } => {
+      if (t.kind === "select") {
+        const opt = menu.find((o) => o.code === t.code);
+        if (!opt) return { error: `${t.code} — not on tonight's list` };
+        return { verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` };
+      }
+      const priced = t.verb === "freeform" ? priceFreeform(t.args, episode) : null;
+      const cost = priced ? priced.total : (VERB_COST[t.verb] ?? 5);
+      return { verb: t.verb, args: { text: t.args, freeform: t.verb === "freeform", cost, ...(priced ? { steps: priced.steps.map((x) => ({ verb: x.verb, clause: x.clause })), travel: priced.travel, price: describePrice(priced) } : {}) }, label: `ORDER: ${t.verb === "freeform" ? t.args : `${t.verb.toUpperCase()}${t.args ? " " + t.args : ""}`} — ${priced ? describePrice(priced) : `${cost} AU`}` };
+    };
     for (const a of acts) {
       if (a.kind === "command") { commands.add(a.name); continue; }
       if (a.kind === "form_request") { commands.add(formIsKnown(a.form) ? `form:${a.form}` : "form:unknown"); continue; }
@@ -301,16 +317,35 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         continue;
       }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
+      if (a.kind === "conditional") {
+        // IF <trigger> THEN <order>: filed with its condition; judged after the night's first pass; units back if it never fires.
+        const pc = parseCondition(a.trigger, { roster, episode });
+        if ("error" in pc) { ignored.push(`IF ${a.trigger} — ${pc.error}`); continue; }
+        const r = rowFor(a.then);
+        if ("error" in r) { ignored.push(`IF ${pc.label} THEN ${a.then.kind === "select" ? a.then.code : a.then.args} — ${r.error}`); continue; }
+        orderRows.push({ verb: r.verb, args: { ...r.args, conditional: true, condition_label: pc.label }, condition: pc.condition, label: `IF ${pc.label} THEN ${r.label} — held until the condition is met; units returned if it is not` });
+        continue;
+      }
+      if (a.kind === "declare") {
+        // AUTHORIZE / REVOKE / ATTITUDE: standing, free, never disclosed to the person named.
+        const who = findInRoster(a.to, roster.filter((x) => x.player && x.id !== c.from_character));
+        if (!who) { ignored.push(`${a.what.toUpperCase()} ${a.to} — no one in your cohort by that name`); continue; }
+        const d = await setDeclaration(db, { campaignId: c.campaign_id, from: c.from_character, to: who.id, round: round.number }, a.what === "authorize" ? { authorized: true } : a.what === "revoke" ? { authorized: false, attitude: "neutral" } : { attitude: a.attitude ?? "neutral" });
+        recorded.push(a.what === "authorize" ? `AUTHORIZED ${who.name} — may pull your department's files as if one of you, until you REVOKE; they are not told`
+          : a.what === "revoke" ? `REVOKED ${who.name} — no longer pulls your department's files; they are not told`
+          : `ATTITUDE ${who.name}: ${d.attitude.toUpperCase()} — ${d.attitude === "friendly" ? "may pull your department's files, and your watch lets them pass" : d.attitude === "hostile" ? "any sighting of them in your reports goes to Security the same night; any authorization is withdrawn" : "nothing automatic either way"}; they are not told`);
+        continue;
+      }
       if (a.kind === "select") {
-        const opt = menu.find((o) => o.code === a.code);
         if (a.code === "X") continue; // X is the free-form prompt, not an option
-        if (!opt) { ignored.push(`${a.code} — not on tonight's list`); continue; }
-        orderRows.push({ verb: opt.verb, args: { text: opt.args, code: opt.code, cost: opt.cost }, label: `${opt.code}. ${opt.label} (${opt.cost} AU)` });
+        const r = rowFor(a);
+        if ("error" in r) { ignored.push(r.error); continue; }
+        orderRows.push(r);
       } else if (a.kind === "order") {
-        // A free-form order is priced now, by what it asks for (pricing.ts), so the receipt can say what it costs.
-        const priced = a.verb === "freeform" ? priceFreeform(a.args, episodeOf(round.number)) : null;
-        orderRows.push({ verb: a.verb, args: { text: a.args, freeform: a.verb === "freeform", ...(priced ? { cost: priced.total, steps: priced.steps.map((x) => ({ verb: x.verb, clause: x.clause })), travel: priced.travel, price: describePrice(priced) } : {}) }, label: `ORDER: ${a.verb === "freeform" ? a.args : `${a.verb.toUpperCase()}${a.args ? " " + a.args : ""}`} — ${priced ? describePrice(priced) : "cost ruled in the morning"}` });
-      } else if (a.kind === "hold") hold = true;
+        const r = rowFor(a);
+        if ("error" in r) { ignored.push(r.error); continue; }
+        orderRows.push(r);
+      } else if (a.kind === "hold") { hold = true; if (a.except) holdExcept.push(...a.except); }
       else if (a.kind === "vote") {
         const { data: m } = await db.from("motions").select("id, status, number, opens_round").eq("campaign_id", c.campaign_id).eq("number", a.motion).maybeSingle();
         if (m?.status === "open" && Number(m.opens_round) <= round.number) { await db.from("votes").upsert({ motion_id: m.id, character_id: c.from_character, choice: a.choice, cast_round: round.number, source: "email_grammar", source_ref: id }, { onConflict: "motion_id,character_id" }); recorded.push(`VOTE ${m.number}: ${a.choice.toUpperCase()}`); }
@@ -337,27 +372,32 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       orderRows.length = 0; hold = false;
     }
     if (orderRows.length || hold) {
-      const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !orderRows.length ? "hold" : "orders", source: "email" }, { onConflict: "round_id,character_id" }).select("id").single();
+      // A hold with only conditional orders is still a hold: watchful, +5 AU, and the trip-wires stand.
+      const unconditional = orderRows.filter((r) => !r.condition);
+      const exceptIds: string[] = []; const exceptNames: string[] = [];
+      for (const nm of holdExcept) { const who = findInRoster(nm, roster.filter((x) => x.id !== c.from_character)); if (who) { exceptIds.push(who.id); exceptNames.push(who.name); } else ignored.push(`HOLD EXCEPT ${nm} — no one in the directory by that name`); }
+      const { data: packet } = await db.from("order_packets").upsert({ round_id: round.id, character_id: c.from_character, mode: hold && !unconditional.length ? "hold" : "orders", source: "email", watch_except: exceptIds }, { onConflict: "round_id,character_id" }).select("id").single();
       if (packet) {
-        const { data: existing } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", packet.id).eq("status", "pending").order("seq");
+        const { data: existing } = await db.from("orders").select("id, seq, verb, args, condition").eq("packet_id", packet.id).eq("status", "pending").order("seq");
         const keep = mode === "append" ? (existing ?? []) : [];
         if (mode !== "append" && (existing ?? []).length) { await db.from("orders").delete().eq("packet_id", packet.id).eq("status", "pending"); replaced = true; }
-        const fresh = orderRows.filter((r) => !keep.some((k) => (k.args as { code?: string }).code && (k.args as { code?: string }).code === (r.args as { code?: string }).code));
-        if (fresh.length) await db.from("orders").insert(fresh.map((r, i) => ({ packet_id: packet.id, seq: keep.length + i + 1, verb: r.verb, args: r.args })));
+        const fresh = orderRows.filter((r) => !keep.some((k) => (k.args as { code?: string }).code && (k.args as { code?: string }).code === (r.args as { code?: string }).code && Boolean(k.condition) === Boolean(r.condition)));
+        if (fresh.length) await db.from("orders").insert(fresh.map((r, i) => ({ packet_id: packet.id, seq: keep.length + i + 1, verb: r.verb, args: r.args, condition: r.condition ?? null })));
         if (mode === "append") {
           added.push(...fresh.map((r) => r.label));
           for (const r of orderRows.filter((r) => !fresh.includes(r))) ignored.push(`${r.label} — already on file`);
         }
-        if (hold) recorded.push(orderRows.length || keep.length ? "HOLD — noted, but orders are on file, so they take precedence" : "HOLD — conserving; standing orders continue (+5 AU in the morning)");
+        if (hold) recorded.push(unconditional.length || keep.some((k) => !k.condition) ? "HOLD — noted, but orders are on file, so they take precedence" : `HOLD — conserving; watchful at your desk${exceptNames.length ? ` (letting ${exceptNames.join(", ")} pass)` : ""}; +5 AU in the morning`);
       }
     }
     // The full list now on file, labelled from the menu where possible.
     const { data: pk } = await db.from("order_packets").select("id, mode").eq("round_id", round.id).eq("character_id", c.from_character).maybeSingle();
-    const { data: rows } = pk ? await db.from("orders").select("verb, args").eq("packet_id", pk.id).eq("status", "pending").order("seq") : { data: [] };
+    const { data: rows } = pk ? await db.from("orders").select("verb, args, condition").eq("packet_id", pk.id).eq("status", "pending").order("seq") : { data: [] };
     const onFile = (rows ?? []).map((r) => {
-      const a = r.args as { code?: string; text?: string; freeform?: boolean; cost?: number; price?: string };
+      const a = r.args as { code?: string; text?: string; freeform?: boolean; cost?: number; price?: string; conditional?: boolean; condition_label?: string };
       const opt = a.code ? menu.find((o) => o.code === a.code) : null;
-      return opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — ${a.price ?? "cost ruled in the morning"}` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
+      const inner = opt ? `${opt.code}. ${opt.label} (${opt.cost} AU)` : a.freeform ? `ORDER: ${a.text} — ${a.price ?? "cost ruled in the morning"}` : `ORDER: ${r.verb.toUpperCase()} ${a.text ?? ""}`.trim();
+      return a.conditional ? `IF ${a.condition_label ?? conditionLabel(r.condition as Condition)} THEN ${inner} — held until the condition is met` : inner;
     });
     // Action Units: menu costs are known; free-form orders are priced at intake
     // (older ones carry the flat estimate). Orders are funded in the order given;
@@ -367,10 +407,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     const balance = Number(au?.balance ?? 0);
     let spent = 0;
     const ledger: LedgerLine[] = (rows ?? []).map((r) => {
-      const a = r.args as { code?: string; freeform?: boolean; cost?: number; text?: string };
+      const a = r.args as { code?: string; freeform?: boolean; cost?: number; text?: string; conditional?: boolean };
       const opt = a.code ? menu.find((o) => o.code === a.code) : null;
       const cost = opt ? opt.cost : Number(a.cost ?? FREEFORM_EST);
-      const label = opt ? `${opt.code}. ${opt.label}` : `ORDER: ${(a.text ?? "").slice(0, 40)}${(a.text ?? "").length > 40 ? "…" : ""}`;
+      const label = `${a.conditional ? "IF… " : ""}${opt ? `${opt.code}. ${opt.label}` : `ORDER: ${(a.text ?? "").slice(0, 40)}${(a.text ?? "").length > 40 ? "…" : ""}`}`;
       const funded = spent + cost <= balance; if (funded) spent += cost;
       return { label, cost, estimated: !opt && a.cost === undefined, funded };
     });
@@ -392,7 +432,11 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const lockAt = afterLock ? "the next lock; orders reopen with the morning dispatch at 9:00 AM Eastern" : new Date(round.locks_at).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", weekday: "long" }) + " Eastern";
       const from = replyAddress(player.mail_token);
       const reSubject = /^re:/i.test(c.subject ?? "") ? (c.subject as string) : `Re: ${c.subject ?? `Orders — Round ${round.number}`}`;
-      if (commands.has("directory") || commands.has("help")) {
+      if (commands.has("help")) {
+        const text = renderHelp(first);
+        await sendMail({ to: player.email, from, replyTo: from, subject: "What the clerk reads", text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
+      }
+      if (commands.has("directory")) {
         const { data: chars } = await db.from("characters").select("slug, name, title, player_id, status, division_id, npc_state, divisions(name)").eq("campaign_id", c.campaign_id).eq("status", "active").order("name");
         type Row = { slug: string; name: string; title: string | null; player_id: string | null; division_id: string | null; npc_state: { letterhead?: { place?: string } | null; listed?: boolean } | null; divisions: { name: string } | { name: string }[] | null };
         const entry = (x: Row): DirectoryEntry => ({ name: x.name, title: x.title, division: Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? (x.npc_state?.letterhead?.place ?? null), address: `${x.slug}@${process.env.EMAIL_DOMAIN || "weird.delivery"}` });
@@ -428,7 +472,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => r.startsWith("VOTE") || r.startsWith("HOLD") || r.startsWith("ACCEPT") || r.startsWith("REJECT") || r.startsWith("SENT") || r.startsWith("SEND") || r.startsWith("ACCEPTED") || r.startsWith("DECLINED") || r.startsWith("FILED") || r.startsWith("FILE "))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -578,17 +622,17 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       for (const ch of chars ?? []) await db.from("order_packets").upsert({ round_id: roundId, character_id: ch.id, mode: "missed", source: "default" }, { onConflict: "round_id,character_id", ignoreDuplicates: true });
       // Funding at the lock: orders are paid for in the order given; the first that does not fit, and the rest, are skipped.
       const holdBonus = Number(await rule(db, round.campaign_id, "au.hold_bonus", 5));
-      const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status)").eq("round_id", roundId);
+      const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status, condition)").eq("round_id", roundId);
       for (const pk of packets ?? []) {
         const { data: au } = await db.from("resources").select("balance").eq("character_id", pk.character_id).eq("kind", "au").maybeSingle();
         let balance = Number(au?.balance ?? 0); let spent = 0;
-        const orders = ((pk.orders ?? []) as { id: string; seq: number; args: { cost?: number }; status: string }[]).filter((o) => o.status === "pending").sort((a, b) => a.seq - b.seq);
+        const orders = ((pk.orders ?? []) as { id: string; seq: number; args: { cost?: number }; status: string; condition: unknown }[]).filter((o) => o.status === "pending").sort((a, b) => a.seq - b.seq);
         for (const o of orders) {
           const cost = Number(o.args?.cost ?? 5);
           if (spent + cost <= balance) { spent += cost; await db.from("orders").update({ status: "reserved", cost: { au: cost } }).eq("id", o.id); }
           else await db.from("orders").update({ status: "skipped", ruling: "beyond your balance at the lock" }).eq("id", o.id);
         }
-        if (pk.mode === "hold" && !orders.length) balance += holdBonus;
+        if (pk.mode === "hold" && !orders.some((o) => !o.condition)) balance += holdBonus;   // conditional orders do not spoil a hold
         balance -= spent;
         await db.from("resources").upsert({ character_id: pk.character_id, kind: "au", balance }, { onConflict: "character_id,kind" });
       }
@@ -606,30 +650,74 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     if (phase === "strategic") {
       await loadLivePlaces(db);
+      const episode = episodeOf(round.number);
       // Each funded order meets the verb rules; the outcome is written down for the morning.
       const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, divisions(slug))").eq("round_id", roundId);
+      type Live = { id: string; ctx: Ctx };
+      const live: Live[] = [];
       for (const pk of packets ?? []) {
         const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
         const division = (Array.isArray(chRaw.divisions) ? chRaw.divisions[0]?.slug : chRaw.divisions?.slug) ?? null;
         const { data: socs } = await db.from("memberships").select("organizations!inner(name, kind)").eq("character_id", chRaw.id).eq("organizations.kind", "society");
         const societies = (socs ?? []).map((m) => { const o = (Array.isArray(m.organizations) ? m.organizations[0] : m.organizations) as { name: string }; return /Vigil/.test(o.name) ? "vigil" : /Congregation/.test(o.name) ? "congregation" : o.name; });
-        const ctx: Ctx = { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode: episodeOf(round.number), character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies } };
-        const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").order("seq");
+        // Files a colleague's AUTHORIZE or friendship opens (contacts.ts).
+        const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized } } });
+      }
+      const credit = async (characterId: string, refund: number) => {
+        if (!refund) return;
+        const { data: au } = await db.from("resources").select("balance").eq("character_id", characterId).eq("kind", "au").maybeSingle();
+        await db.from("resources").upsert({ character_id: characterId, kind: "au", balance: Number(au?.balance ?? 0) + refund }, { onConflict: "character_id,kind" });
+      };
+      // One order: resolve, record the outcome and the presence it leaves, return the refund.
+      const run = async (pk: Live, o: { id: string; seq: number; verb: string; args: Record<string, unknown> }, fired: string | null): Promise<number> => {
+        const chId = pk.ctx.character.id;
+        try {
+          const out = await resolveOrder(db, pk.ctx, { id: o.id, verb: o.verb, args: o.args });
+          const summary = fired ? `Because ${fired}: ${out.summary}` : out.summary;
+          await db.from("orders").update({ status: "resolved", ruling: summary, args: { ...o.args, outcome: { ...out, summary } } }).eq("id", o.id);
+          await recordPresence(db, { campaignId: round.campaign_id, roundId, characterId: chId }, out.presence ?? []);
+          await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "order.resolved", payload: { order_id: o.id, verb: out.verb, kind: out.kind, target: out.target, learned: out.learned, refund: out.refund, fired }, idempotency_key: `order:${o.id}:resolved`, visible_to: [chId] });
+          return out.refund;
+        } catch (e) {
+          const cost = Number((o.args as { cost?: number }).cost ?? 5);
+          await db.from("orders").update({ status: "resolved", ruling: `The clerk could not carry this out (${(e as Error).message.slice(0, 80)}); units returned.`, args: { ...o.args, outcome: { kind: "ruling", summary: "could not be carried out; units returned", refund: cost, learned: [], verb: o.verb, target: null } } }).eq("id", o.id);
+          return cost;
+        }
+      };
+      // Pass one: every unconditional order, in the order given.
+      for (const pk of live) {
+        const { data: orders } = await db.from("orders").select("id, seq, verb, args").eq("packet_id", pk.id).eq("status", "reserved").is("condition", null).order("seq");
         let refund = 0;
-        for (const o of orders ?? []) {
-          try {
-            const out = await resolveOrder(db, ctx, { id: o.id, verb: o.verb, args: o.args as Record<string, unknown> });
-            refund += out.refund;
-            await db.from("orders").update({ status: "resolved", ruling: out.summary, args: { ...(o.args as object), outcome: out } }).eq("id", o.id);
-            await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "order.resolved", payload: { order_id: o.id, verb: out.verb, kind: out.kind, target: out.target, learned: out.learned, refund: out.refund }, idempotency_key: `order:${o.id}:resolved`, visible_to: [chRaw.id] });
-          } catch (e) {
-            await db.from("orders").update({ status: "resolved", ruling: `The clerk could not carry this out (${(e as Error).message.slice(0, 80)}); units returned.`, args: { ...(o.args as object), outcome: { kind: "ruling", summary: "could not be carried out; units returned", refund: Number((o.args as { cost?: number }).cost ?? 5), learned: [], verb: o.verb, target: null } } }).eq("id", o.id);
-            refund += Number((o.args as { cost?: number }).cost ?? 5);
+        for (const o of orders ?? []) refund += await run(pk, o as { id: string; seq: number; verb: string; args: Record<string, unknown> }, null);
+        await credit(pk.ctx.character.id, refund);
+      }
+      // Pass two: conditional orders, judged against the first pass (the presence
+      // ledger, the record, tonight's ballots). A fired order cannot trigger another:
+      // two trip-wires set against each other both stay quiet.
+      for (const pk of live) {
+        const { data: all } = await db.from("orders").select("id, seq, verb, args, status, condition").eq("packet_id", pk.id).order("seq");
+        const packet = (all ?? []).map((o) => ({ seq: o.seq as number, status: o.status as string, condition: o.condition, outcome: ((o.args as { outcome?: { kind: string } }).outcome) ?? null }));
+        let refund = 0;
+        for (const o of (all ?? []).filter((x) => x.status === "reserved" && x.condition)) {
+          const c = o.condition as Condition;
+          const { met, because } = await conditionMet(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, me: pk.ctx.character.id, packet, seq: o.seq as number }, c);
+          if (met) {
+            await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "condition.fired", payload: { order_id: o.id, condition: conditionLabel(c), because, round: round.number }, idempotency_key: `fired:${o.id}`, visible_to: [pk.ctx.character.id] });
+            refund += await run(pk, o as { id: string; seq: number; verb: string; args: Record<string, unknown> }, conditionLabel(c));
+          } else {
+            const cost = Number((o.args as { cost?: number }).cost ?? 5);
+            const summary = `Held against "${conditionLabel(c)}", which did not come about (${because}). Nothing was done; units returned.`;
+            await db.from("orders").update({ status: "skipped", ruling: summary, args: { ...(o.args as object), outcome: { kind: "ruling", summary, refund: cost, learned: [], verb: o.verb, target: null } } }).eq("id", o.id);
+            refund += cost;
           }
         }
-        if (refund) { const { data: au } = await db.from("resources").select("balance").eq("character_id", chRaw.id).eq("kind", "au").maybeSingle(); await db.from("resources").upsert({ character_id: chRaw.id, kind: "au", balance: Number(au?.balance ?? 0) + refund }, { onConflict: "character_id,kind" }); }
+        await credit(pk.ctx.character.id, refund);
       }
+      // Who saw whom tonight, and what the watchful learned.
+      const contacts = await contactReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number, episode });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "contacts.reported", payload: contacts, idempotency_key: `contacts:${roundId}` });
     }
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.

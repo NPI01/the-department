@@ -6,6 +6,7 @@ import { deliverScheduledMail } from "@/lib/engine/scripted";
 import { deliverBallotNotices } from "@/lib/engine/ballots";
 import { startDueCohorts } from "@/lib/game/cohorts";
 import { issueInvitations } from "@/lib/engine/societies";
+import { publishBulletin } from "@/lib/engine/bulletin";
 import { episodeOf } from "@/lib/engine/world";
 
 /* The morning. Vercel cron calls this at the campaign's dispatch time: open the
@@ -28,8 +29,10 @@ export async function GET(req: NextRequest) {
       const mail = await deliverScheduledMail(db, cid, { id: round.id, number: round.number, episodeRound: round.episode_round ?? round.number, episodeNumber: (ep?.number as number | undefined) ?? 1 });
       const notices = await deliverBallotNotices(db, cid, { id: round.id, number: round.number });
       const invited = await issueInvitations(db, cid, { id: round.id, number: round.number, episode: (ep?.number as number | undefined) ?? episodeOf(round.number), episodeRound: round.episode_round ?? round.number });
+      // The weekly paper, on the morning of days 7 and 14, before the dispatches that mention it.
+      const paper = await publishBulletin(db, cid, { id: round.id, number: round.number, episodeRound: round.episode_round ?? round.number, episode: (ep?.number as number | undefined) ?? episodeOf(round.number) });
       const queued = await queueMorningDispatches(db, cid, round.id);
-      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, ballots: notices.sent, invited, queued });
+      out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, ballots: notices.sent, invited, paper: paper.published, queued });
     }
     return { ok: true, started, campaigns: out };
   });

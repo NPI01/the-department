@@ -210,8 +210,14 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     <p style="margin:0 0 12px 0;font-family:${MONO};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:${C.ink2};">&#9986; Out of character &middot; The Department, a play-by-mail game from Weird.Delivery</p>
     <p style="margin:0 0 14px 0;line-height:2.2;">${links.join(`<span style="color:${C.rule};">&nbsp;&nbsp;&#9632;&nbsp;&nbsp;</span>`)}</p>
     <p style="margin:0 0 6px 0;font-family:${MONO};font-size:12px;line-height:1.6;color:${C.ink2};">${playing
-      ? `Reply to this message to answer its writer. To write to anyone else, send a new message to the same address with <b style="color:${C.ink};">TO: their name</b> on the first line. To act, start a line with <b style="color:${C.ink};">ORDER:</b>, <b style="color:${C.ink};">HOLD</b> or <b style="color:${C.ink};">VOTE</b>. Orders lock at 8:00 PM Eastern.`
+      ? `Reply to this message to answer its writer. To write to anyone else, send a new message to the same address with <b style="color:${C.ink};">TO: their name</b> on the first line. Orders lock at 8:00 PM Eastern.`
       : "Questions about the game? Reply to this message."}</p>
+    ${playing ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 10px 0;"><tr><td style="font-family:${MONO};font-size:11px;line-height:1.7;color:${C.ink2};">
+      <b style="color:${C.ink};">Lines the clerk reads</b>, each at the start of its own line:<br>
+      <b style="color:${C.ink};">A</b> a lettered option from the morning &middot; <b style="color:${C.ink};">ORDER:</b> anything else, in your words &middot; <b style="color:${C.ink};">IF</b> &lt;condition&gt; <b style="color:${C.ink};">THEN</b> &lt;order&gt; a trip-wire, units back if it never fires &middot; <b style="color:${C.ink};">FALLBACK:</b> if the order above fails &middot; <b style="color:${C.ink};">HOLD</b> keep your units, stay watchful (<b style="color:${C.ink};">HOLD EXCEPT</b> &lt;name&gt; lets a colleague pass)<br>
+      <b style="color:${C.ink};">AUTHORIZE</b> / <b style="color:${C.ink};">REVOKE</b> &lt;name&gt; your department's files, as if one of you &middot; <b style="color:${C.ink};">ATTITUDE</b> &lt;name&gt;: FRIENDLY | NEUTRAL | HOSTILE &middot; <b style="color:${C.ink};">VOTE</b> &lt;ballot&gt;: FOR | AGAINST | ABSTAIN &middot; <b style="color:${C.ink};">SEND</b> &lt;item&gt; TO &lt;name&gt; &middot; <b style="color:${C.ink};">FILE</b> &lt;item&gt; WITH &lt;committee&gt; &middot; <b style="color:${C.ink};">ORDER: LEAK</b> &lt;item&gt; to the Minot Daily News<br>
+      <b style="color:${C.ink};">FORM</b> 14-B &middot; <b style="color:${C.ink};">DIRECTORY</b> &middot; <b style="color:${C.ink};">HELP</b> (the full list) &middot; <b style="color:${C.ink};">RESIGN</b>. Nobody you name in a standing line is ever told.
+    </td></tr></table>` : ""}
     <p style="margin:0;font-family:${MONO};font-size:11px;line-height:1.6;color:${C.ink2};">Mail you send to the game is read by software, including AI models, to run the simulation. It is never shown to other players except as the rules allow.</p>
   </td></tr>
 </table>
@@ -247,7 +253,24 @@ export function renderLetter(l: Letter): { html: string; text: string } {
     `Field guide:         ${l.links.guide}`,
     "",
     ...(playing
-      ? ["Reply to this message to answer its writer. To write to anyone else, send a new message", "to the same address with TO: their name on the first line.", "To act, start a line with ORDER:, HOLD or VOTE. Orders lock at 8:00 PM Eastern."]
+      ? [
+          "Reply to this message to answer its writer. To write to anyone else, send a new message",
+          "to the same address with TO: their name on the first line. Orders lock at 8:00 PM Eastern.",
+          "",
+          "LINES THE CLERK READS (each at the start of its own line)",
+          "  A                              a lettered option from the morning's list",
+          "  ORDER: <what you want to do>   anything else, in your own words",
+          "  IF <condition> THEN <order>    a trip-wire; units back if it never fires",
+          "  FALLBACK: <order>              only if the order above it fails",
+          "  HOLD / HOLD EXCEPT <name>      keep your units, stay watchful; let a colleague pass",
+          "  AUTHORIZE / REVOKE <name>      your department's files, as if one of you",
+          "  ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE",
+          "  VOTE <ballot>: FOR | AGAINST | ABSTAIN      SEND <item> TO <name>",
+          "  FILE <item> WITH <committee>                ORDER: LEAK <item>",
+          "  FORM 14-B · DIRECTORY · HELP (the full list) · RESIGN",
+          "Nobody you name in a standing line is ever told.",
+          "",
+        ]
       : ["Questions about the game? Reply to this message."]),
     "Mail you send to the game is read by software, including AI models, to run the",
     "simulation. It is never shown to other players except as the rules allow.",

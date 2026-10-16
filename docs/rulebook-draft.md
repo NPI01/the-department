@@ -1,7 +1,10 @@
 # The Department — Rulebook
 
-> **DRAFT v0.1 (2026-10-11), for Nathan.** Not canon yet; promote to `canon/` once
-> approved. Everything not marked **[PROPOSED]** restates decisions already in canon:
+> **DRAFT v0.2 (2026-10-16), for Nathan.** Not canon yet; promote to `canon/` once
+> approved. v0.2 adds the standing layer (§6.4 conditional orders, §6.7 contact reports
+> and the watchful hold, §7.10 declarations, §9.4 the paper), built in the engine on
+> 2026-10-16 after a reading of Flying Buffalo's *Starweb* (7th ed., 1988) and KJC's
+> *Quest* rules. Everything not marked **[PROPOSED]** restates decisions already in canon:
 > `canon/00-player-bible.md`, `canon/01-correspondence-and-rules.md`,
 > `canon/03-governance-charter.md`, and the engine as built (`src/lib/email/inbound.ts`,
 > `src/lib/engine/`). **[PROPOSED]** marks a new rule written to fill a gap; numbers there
@@ -122,7 +125,7 @@ talent. You choose one. [PROPOSED] Each gives one standing edge:
 |---|---|---|
 | **Analyst** | reading documents, spotting what does not fit | `EXAMINE` costs 1 AU less, and each examination reports one additional observation when the document has more to give. |
 | **Negotiator** | people, bargains, coalitions | Staff start one step warmer toward you. One `MEET` per round costs nothing. You can be a party to any number of agreements at once (others: three). |
-| **Operative** | fieldwork, discretion, getting in and out | `TRAVEL` and `SURVEIL` cost 2 AU less. When someone surveils you, you learn that you were watched (not by whom). |
+| **Operative** | fieldwork, discretion, getting in and out | You never appear in another player's contact report (§6.7): where you went and what you pulled is yours to tell. [PROPOSED, not built: `TRAVEL` and `SURVEIL` cost 2 AU less.] |
 | **Administrator** | procedure, paperwork, committees | `REQUEST_FILES` costs 2 AU less. Once per episode you may sponsor a motion without a member's countersignature (§8.3). |
 
 Neither department nor specialization locks you in. Careers change through play: a
@@ -177,10 +180,12 @@ your dispatch; you learn where you stand from how people treat you.
 - **Orders.** You send one or more orders before the lock. They cost AU and resolve
   overnight.
 - **Hold.** You send `HOLD`. You take no new actions, your standing orders and defenses
-  stay in force, and you get +5 AU at the next dispatch.
+  stay in force, you are at your desk and watchful (§6.7), and you get +5 AU at the next
+  dispatch. Conditional orders (§6.4) may stand alongside a hold.
 - **Missed turn.** You send nothing. You get no hold bonus, your standing orders are
   suspended for the round, your character follows default behaviour, and the world still
-  happens to you.
+  happens to you. You are watchful all the same: a character who sent nothing was at
+  their desk.
 
 You can still write letters, vote and accept agreements in any of the three.
 
@@ -237,19 +242,50 @@ The game may recognise other sensible verbs; if it cannot, the dispatch says so 
 refunds the AU. Your department, clearance and specialization decide how much an order
 can achieve, so the same order works differently for different people.
 
-**6.4 Standing and fallback orders.** [PROPOSED syntax.]
+**6.4 Conditional orders, fallbacks and standing orders.**
+
+**Conditional orders** are trip-wires: an order that is carried out only if something
+comes about tonight. Write the condition, then the order, on one line:
+
+```
+IF anyone requests the motor pool log THEN C
+IF Okafor is seen at Building 7 THEN ORDER: report Okafor to Security
+IF B-77-003 fails THEN ORDER: lobby Crane against the budget
+FALLBACK: ORDER: ask around at the motor pool
+```
+
+The order after `THEN` is any order you could give on its own: a letter from the
+morning's list, `ORDER:` and a verb, or plain words. The clerk reads these conditions,
+with a colleague's surname or the word *anyone* in front where a name is wanted:
+
+| Condition | Comes about when, tonight, |
+|---|---|
+| `<name or anyone> requests <file>` | someone asks Records for that file, or takes it from where it is kept |
+| `<name or anyone> is seen at <place>` | someone goes there, searches it, attends there or asks around there |
+| `<name or anyone> watches <place>` | someone spends the night watching it |
+| `<name or anyone> reports me` | someone reports you to Corporate Security |
+| `<ballot number> passes` / `fails` | that ballot closes tonight with that result |
+| `the order above fails` | the order written above it was refused, ruled out, or came to nothing |
+
+A `FALLBACK:` line is the last of these written short: it is carried out only if the
+order above it fails.
+
+A conditional order is funded at the lock like any other and resolves in a second pass
+after everyone's ordinary orders, judged against what that first pass did. If the
+condition never came about, nothing is done and the units come back in the morning. A
+fired order cannot set off anyone else's condition: two trip-wires set against each
+other both stay quiet. A condition the clerk cannot read is not filed; the receipt says
+so. Conditions hold for one night only; write them again tomorrow if you want them again.
+
+**Standing orders.** [PROPOSED, not built.]
 
 ```
 STANDING ORDER: SURVEIL the Tagus road
 CANCEL STANDING 2
-ORDER: MEET Dr. Ely
-FALLBACK: INVESTIGATE Dr. Ely's laboratory schedule
 ```
 
 A standing order repeats every round until cancelled and costs 2 AU per round in upkeep
-after the first. The dispatch numbers your standing orders so you can cancel them. A
-`FALLBACK:` line directly under an order replaces it if it cannot be carried out (the
-person is gone, the place is sealed, you lack the AU).
+after the first. The dispatch numbers your standing orders so you can cancel them.
 
 **6.5 Free acts.** These cost no AU and also take effect at the lock:
 
@@ -277,6 +313,24 @@ Who submitted first never matters. When orders collide (two people after the sam
 one watching a road the other is driving), the result depends on clearance, department,
 specialization, AU committed, defenses and standing, and [PROPOSED] a measure of chance
 drawn from a recorded seed. Every ruling in your dispatch says what happened and why.
+
+**6.7 Contact reports and the watchful hold.** Nobody acts in a vacuum. Once every
+order of the night has resolved, the engine looks at who touched what:
+
+- **Contact reports.** Two characters who touch the same place, the same file or the
+  same person in one night each learn the other was there: *Pruitt was at the motor
+  pool*; *Okafor also asked Records for the HARVEST protocol*; *Vale was also in to see
+  Dr. Ely*. The report is a line in your dispatch and a fact you now hold. It says who
+  and where, never why, and never what they came away with.
+- **What stays unseen.** A character watching a place from the dark (`SURVEIL`) sees
+  everyone who comes and goes there and is seen by nobody, except another watcher. An
+  Operative (§4.3) is never listed in anyone's report. Something taken from a drawer at
+  night (`SEARCH`) is not a contact; being in the room is.
+- **The watchful hold.** A character who held, or who sent nothing, was at their desk and
+  alert. In the morning they learn who asked Records for any of their department's files
+  overnight, and who reported them to Corporate Security, by name. `HOLD EXCEPT
+  Okafor, Pruitt` lets those colleagues pass unnoticed; so does a friendly attitude
+  toward them (§7.10). Acting and guarding are the choice each round makes.
 
 ## 7. Correspondence: how to reach people
 
@@ -352,6 +406,24 @@ involved.
 matters go to `showrunner@weird.delivery`. That mailbox is outside the fiction and never
 counts as play.
 
+**7.10 Standing declarations.** Three lines set, once, how the engine treats a named
+colleague on your behalf. They are free, they stay until you change them, they take
+effect from the next lock, and **the person named is never told.**
+
+```
+AUTHORIZE Okafor                 she may pull your department's files as if one of you
+REVOKE Okafor                    she may not
+ATTITUDE Pruitt: FRIENDLY        as AUTHORIZE, and your watch lets him pass
+ATTITUDE Pruitt: HOSTILE         any sighting of him in your reports goes to Security the same night
+ATTITUDE Pruitt: NEUTRAL         nothing automatic either way
+```
+
+An authorized colleague who asks Records for a file your department may pull gets it,
+as you would; a refused colleague finds out only by being refused. A hostile attitude
+withdraws any authorization and turns your contact reports (§6.7) into Security's
+information, unasked and uncredited to you in the fiction. Your own declarations are
+listed in your dispatch under *Standing*; you never see anyone else's.
+
 ## 8. Committees, motions and votes
 
 **8.1 The bodies.** Royce is governed by the **Board of Directors** (seven seats: budget,
@@ -401,6 +473,22 @@ What you learn comes in three grades:
 A finding can be properly established and still be wrong. Documents can be authentic and
 contradict each other. People lie. The game keeps track of what is true; nobody else
 does.
+
+**9.4 The paper.** The *Minot Daily News* comes out on the morning of days 7 and 14 of
+each episode and reaches every desk at Station R, with a clipping in your Case File. It
+prints what the committees decided and found, what the company will say, what the week
+felt like in the county, and whatever has been leaked to it.
+
+```
+ORDER: LEAK facilities-ledger-b7
+```
+
+A leak sends a copy of something you hold to the paper for its next issue. It costs
+6 AU, and 2 AU more for each further leak you make in the same episode. The paper
+describes the document in its own words; what it prints, everyone at Royce then knows,
+roughly, as one knows things from a newspaper. A file Records keeps a log for is
+cross-referenced: the paper has it, Records knows who asked for it. A document the
+paper already has cannot be leaked again.
 
 ## 10. Personal Goals and points: what you are playing for
 
@@ -467,11 +555,16 @@ secret. They score nothing by themselves, but they are usually how goals get met
 
 ```
 Command lines (start of a line, any email to the game):
+  A                                       a lettered option from the morning's list
   ORDER: <VERB> <details>                 one action; costs AU
+  IF <condition> THEN <order>             a trip-wire; units back if it never fires
+  FALLBACK: <order>                       if the order above fails
+  HOLD / HOLD EXCEPT <name>, <name>       no new actions; watchful; +5 AU next round
+  AUTHORIZE <name> / REVOKE <name>        your department's files, as if one of you
+  ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE
+  ORDER: LEAK <item>                      to the Minot Daily News; 6 AU, +2 per repeat
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
-  FALLBACK: <VERB> <details>              if the order above fails [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
-  HOLD                                    no new actions; +5 AU next round
   VOTE <motion>: FOR | AGAINST | ABSTAIN
   PROXY <motion> TO <member>                                       [PROPOSED]
   AGREEMENT: "<title>" WITH <names>  + TERMS: lines                [PROPOSED]
@@ -482,7 +575,8 @@ Command lines (start of a line, any email to the game):
 Clock: dispatch 9:00 AM ET · lock 8:00 PM ET · 14 rounds an episode
 AU:    +20 a round · cap 60 · start 10 · hold +5 · standing order 2/round
 Write: reply to a letter, or TO: <name> on the first line of a new message to the mail room
-Help:  showrunner@weird.delivery (out of character)                [PROPOSED]
+Paper: the Minot Daily News, mornings of days 7 and 14
+Help:  reply HELP for this list · showrunner@weird.delivery (out of character) [PROPOSED]
 ```
 
 ---
@@ -510,6 +604,12 @@ Help:  showrunner@weird.delivery (out of character)                [PROPOSED]
    draft leaves it out and lets standing (§5.3) carry it unless you want a number.
 11. **One document or two.** This draft absorbs `canon/01-correspondence-and-rules.md`.
     On promotion, retire 01 or keep it as the short version.
+12. **The standing layer (v0.2).** Built as described in §6.4, §6.7, §7.10 and §9.4.
+    Numbers to tune with bot seasons: the leak's 6 AU and +2 surcharge; whether a missed
+    turn should be watchful (it is); whether a watcher should see another watcher (they
+    do); whether the paper should come out weekly or only when it has something (weekly).
+    Starweb's masked scores (the cohort's totals printed in order, names in random order)
+    is a toggle for the standings board if the board ever feels too bare.
 
 ## Engine work this draft implies
 
@@ -517,7 +617,10 @@ Already built: `ORDER:`, `HOLD`, `VOTE` (including REMOVE/RETAIN), `ACCEPT`/`REJ
 AGREEMENT`, `TRANSFER <n> <resource> TO`, the seal in the plus-address, phase order,
 missed-turn defaults, motion tallying. Not built yet:
 
-- The parser: `STANDING ORDER:`, `FALLBACK:`, `CANCEL ORDERS`, `CANCEL STANDING`,
+- Built 2026-10-16: `IF … THEN …`, `FALLBACK:`, `HOLD EXCEPT`, `AUTHORIZE`/`REVOKE`,
+  `ATTITUDE`, `LEAK`, contact reports, the watchful hold, the Minot Daily News
+  (src/lib/engine/contacts.ts, bulletin.ts; migration 0018).
+- The parser: `STANDING ORDER:`, `CANCEL ORDERS`, `CANCEL STANDING`,
   `PROXY`, `LEAVE`/`RETURN`, transfers of holdings.
 - Replace-on-resend: orders are currently appended for a round; §6.2 says the latest
   message replaces them.

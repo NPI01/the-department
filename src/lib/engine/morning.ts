@@ -11,6 +11,7 @@ import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
 import { pressureFor, episodeOf } from "./world";
+import { standingFor } from "./contacts";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -192,7 +193,8 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     mode = (pk?.mode as string | undefined) ?? null;
     for (const o of ((pk?.orders ?? []) as { seq: number; verb: string; args: { text?: string; code?: string; outcome?: { kind: string; summary: string } }; status: string; ruling: string | null }[]).sort((a, b) => a.seq - b.seq)) {
       const outcome = o.args.outcome;
-      lastNight.push({ label: `${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: outcome ? `${o.status} (${outcome.kind})` : o.status, ruling: outcome?.summary ?? o.ruling });
+      const a = o.args as { conditional?: boolean; condition_label?: string };
+      lastNight.push({ label: `${a.conditional ? `IF ${a.condition_label ?? "the condition held"} THEN ` : ""}${o.verb.replace(/_/g, " ")}: ${o.args.text ?? ""}`.trim(), status: outcome ? `${o.status} (${outcome.kind})` : o.status, ruling: outcome?.summary ?? o.ruling });
     }
   }
   // What arrived since the previous round opened: staff letters, filed forms, closed ballots.
@@ -206,8 +208,12 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
   }
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
-  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed"]).limit(8);
-  for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string }; if (e.kind === "goal.met") arrived.push(`Personnel recorded one of the player's Personal Goals as ${v.partial ? "partly " : ""}met, worth ${v.awarded} points; the player will read the particulars on their file`); if (e.kind === "goal.failed") arrived.push(`Personnel recorded one of the player's Personal Goals as not met by the end of the episode`); if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`the ballot on ${v.number ?? "a motion"} "${v.title ?? ""}" closed: ${v.passed ? "carried" : "failed"}${(v as { finding?: string | null }).finding ? `; the body recorded a finding: ${(v as { finding?: string }).finding}` : ""}`); if (e.kind === "election.closed") arrived.push(`the election ${v.number ?? ""} closed: ${v.winner_name ? `${v.winner_name} takes the seat` : "no votes were cast; the seat stays empty"}`); }
+  const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published"]).limit(16);
+  for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string; text?: string; condition?: string; issue?: string };
+    if (e.kind === "contact.seen") arrived.push(`a contact report: ${v.text} (the player saw this themselves last night)`);
+    if (e.kind === "contact.watch") arrived.push(`from the player's own desk, while they held: ${v.text}`);
+    if (e.kind === "condition.fired") arrived.push(`the player's conditional order fired because ${v.condition}`);
+    if (e.kind === "bulletin.published") arrived.push(`the ${v.issue ?? "Minot Daily News"} came out this morning; a copy is in the player's Case File`); if (e.kind === "goal.met") arrived.push(`Personnel recorded one of the player's Personal Goals as ${v.partial ? "partly " : ""}met, worth ${v.awarded} points; the player will read the particulars on their file`); if (e.kind === "goal.failed") arrived.push(`Personnel recorded one of the player's Personal Goals as not met by the end of the episode`); if (e.kind === "form.filed") arrived.push(`the clerk filed your Form ${v.form} as ${v.index}`); if (e.kind === "motion.closed") arrived.push(`the ballot on ${v.number ?? "a motion"} "${v.title ?? ""}" closed: ${v.passed ? "carried" : "failed"}${(v as { finding?: string | null }).finding ? `; the body recorded a finding: ${(v as { finding?: string }).finding}` : ""}`); if (e.kind === "election.closed") arrived.push(`the election ${v.number ?? ""} closed: ${v.winner_name ? `${v.winner_name} takes the seat` : "no votes were cast; the seat stays empty"}`); }
   const { data: office } = await db.from("correspondence").select("subject, raw").eq("direction", "outbound").contains("to_characters", [ch.id]).is("from_character", null).gte("received_at", since).limit(8);
   for (const o of office ?? []) { const r = o.raw as { scripted?: string; office?: { office: string } | null } | null; if (r?.scripted) arrived.push(`a ${r.office ? `memo from ${r.office.office}` : "notice"}: "${o.subject ?? ""}"`); }
   // Open ballots go in their own section, written by the engine, not the model: the exact line to send must survive.
@@ -224,7 +230,14 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const out = await composeDispatch(facts, onLedger);
   await recordMenu(db, round.campaign_id, round.id, ch.id, out.menu);
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");
-  const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), "", "## Your orders for tonight", menuBlock].join("\n");
+  // Standing declarations, written by the engine: the player's own, never anyone else's.
+  const st = await standingFor(db, round.campaign_id, ch.id);
+  const standingLines = [
+    ...(st.friendly.length ? [`• Friendly toward ${st.friendly.join(", ")}: they may pull ${department ?? "your department"}'s files, and your watch lets them pass.`] : []),
+    ...(st.authorized.length ? [`• ${st.authorized.join(", ")} may pull ${department ?? "your department"}'s files (AUTHORIZE).`] : []),
+    ...(st.hostile.length ? [`• Hostile toward ${st.hostile.join(", ")}: any sighting of them in your reports goes to Security the same night.`] : []),
+  ];
+  const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), ...(standingLines.length ? ["", "## Standing", ...standingLines, "• Change these with AUTHORIZE, REVOKE or ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE. The people named are never told."] : []), "", "## Your orders for tonight", menuBlock].join("\n");
   const subject = `${facts.date} — Round ${round.number} of ${Number(await rule(db, round.campaign_id, "episode.rounds", 14))} — ${facts.episodeTitle}`;
   const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu, rejected: out.rejected } }).select("id").single();
   if (error) throw new Error(error.message);

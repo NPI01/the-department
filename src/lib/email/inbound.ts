@@ -40,8 +40,10 @@ export type GrammarAct =
   | { kind: "file"; item: string; with: string }
   | { kind: "select"; code: string }
   | { kind: "vote"; motion: string; choice: "for" | "against" | "abstain" }
-  | { kind: "hold" }
+  | { kind: "hold"; except?: string[] }
   | { kind: "order"; verb: string; args: string }
+  | { kind: "conditional"; trigger: string; then: { kind: "select"; code: string } | { kind: "order"; verb: string; args: string } }
+  | { kind: "declare"; what: "authorize" | "revoke" | "attitude"; to: string; attitude?: "friendly" | "neutral" | "hostile" }
   | { kind: "accept"; agreement: string }
   | { kind: "reject"; agreement: string }
   | { kind: "transfer"; amount: number; resource: string; to: string };
@@ -56,16 +58,26 @@ const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go wi
 
 /* The lines after an ORDER: line that belong to it: up to a blank line, a
    quoted line, another command, or a sign-off. Indexes into `lines`. */
-const COMMAND_START = /^(?:ORDER\s*:|STANDING ORDER|FALLBACK|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
+const COMMAND_START = /^(?:ORDER\s*:|STANDING ORDER|FALLBACK|AUTHORIZE\s|REVOKE\s|ATTITUDE\s|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
 const SIGN_OFF = /^(?:thanks|thank you|best|regards|cheers|sincerely|yours|--|—|sent from)\b/i;
 export function orderContinuation(lines: string[], i: number): number[] {
   const out: number[] = [];
   for (let j = i + 1; j < lines.length; j++) {
     const l = lines[j].trim();
-    if (!l || l.startsWith(">") || COMMAND_START.test(l) || SIGN_OFF.test(l) || /^On .{5,120} wrote:\s*$/.test(l)) break;
+    if (!l || l.startsWith(">") || COMMAND_START.test(l) || /^IF\s/.test(l) || SIGN_OFF.test(l) || /^On .{5,120} wrote:\s*$/.test(l)) break;
     out.push(j);
   }
   return out;
+}
+
+/* The order a conditional fires: a letter from the morning's list, ORDER: and a
+   verb or prose, or just the prose. */
+function thenPart(text: string): { kind: "select"; code: string } | { kind: "order"; verb: string; args: string } {
+  const t = text.trim().replace(/^(?:ORDER\s*:\s*)?/i, "").trim();
+  let m: RegExpMatchArray | null;
+  if ((m = t.match(/^(?:option\s+)?([A-G])\.?$/i))) return { kind: "select", code: m[1].toUpperCase() };
+  if ((m = t.match(/^([A-Z][A-Z_]{2,})\b\s*(.*)$/))) return { kind: "order", verb: m[1].toLowerCase(), args: m[2].trim() };
+  return { kind: "order", verb: "freeform", args: t };
 }
 
 export function parseGrammar(text: string): GrammarAct[] {
@@ -108,7 +120,21 @@ export function parseGrammar(text: string): GrammarAct[] {
     if ((m = line.match(/^VOTE\s+(E-[A-Z0-9-]+)\s*:\s*(.+?)\.?$/i)) && !/^(FOR|AGAINST|ABSTAIN)$/i.test(m[2].trim())) { acts.push({ kind: "elect", motion: m[1].toUpperCase(), candidate: m[2].trim() }); continue; }
     if ((m = line.match(/^VOTE\s+([A-Z0-9-]+)\s*:\s*(FOR|AGAINST|ABSTAIN|REMOVE|RETAIN)\b/i))) {
       const c = m[2].toUpperCase(); acts.push({ kind: "vote", motion: m[1].toUpperCase(), choice: c === "FOR" || c === "REMOVE" ? "for" : c === "ABSTAIN" ? "abstain" : "against" });
-    } else if (/^(?:H\.?|HOLD(?:\s+POSITION)?)\s*$/i.test(line)) acts.push({ kind: "hold" });
+    } else if ((m = line.match(/^(?:H\.?|HOLD(?:\s+POSITION)?)(?:\s+EXCEPT\s+(.+?))?\.?\s*$/i))) acts.push(m[1] ? { kind: "hold", except: m[1].split(/\s*(?:,|;|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean) } : { kind: "hold" });
+    else if (/^IF\s/.test(line) && (m = line.match(/^IF\s+(.+?)\s*(?:,?\s*THEN\b|:)\s*(.+)$/i))) {
+      // IF <trigger> THEN <order>, in capitals so that "If you can, then write" in a
+      // letter stays a sentence: filed now, judged after the night's first pass (contacts.ts).
+      let rest = m[2].trim();
+      for (const j of orderContinuation(lines, i)) { rest += " " + lines[j].trim(); consumed.add(j); }
+      acts.push({ kind: "conditional", trigger: m[1].trim(), then: thenPart(rest) });
+    }
+    else if ((m = line.match(/^FALLBACK\s*:\s*(.+)$/i))) {
+      let rest = m[1].trim();
+      for (const j of orderContinuation(lines, i)) { rest += " " + lines[j].trim(); consumed.add(j); }
+      acts.push({ kind: "conditional", trigger: "the order above fails", then: thenPart(rest) });
+    }
+    else if ((m = line.match(/^(AUTHORIZE|AUTHORISE|REVOKE)\s+(.+?)\.?$/i))) acts.push({ kind: "declare", what: m[1].toUpperCase() === "REVOKE" ? "revoke" : "authorize", to: m[2].trim() });
+    else if ((m = line.match(/^ATTITUDE\s+(?:TOWARDS?\s+)?(.+?)\s*[:,]\s*(FRIENDLY|NEUTRAL|HOSTILE)\.?$/i))) acts.push({ kind: "declare", what: "attitude", to: m[1].trim(), attitude: m[2].toLowerCase() as "friendly" | "neutral" | "hostile" });
     else if ((m = line.match(/^ORDER\s*:\s*(.+)$/i))) {
       // "ORDER: REQUEST_FILES …" names an engine verb; "ORDER: I want to see
       // the directory" is prose and is kept whole for the morning ruling.
