@@ -249,7 +249,7 @@ could not be done is refunded in the morning.
 | `SURVEIL <person or place>` | 8 | Watch who comes and goes and who writes to whom. Shows connections, never letter contents. Can be standing. |
 | `PROTECT my desk \| <item> \| <file> \| myself` | 4 | A guard for one night, laid before anything else moves (§6.6). *My desk* covers everything you hold and your department's files; an item, or a file your department keeps, covers that one thing; *myself* keeps your movements out of every contact report (§6.7). Write it again to keep it. |
 | `OBTAIN <file>` / `OBTAIN <item> FROM <name>` | 8 | Take a file the index keeps behind clearance from wherever it is kept, or take a document or a piece of equipment from a colleague's desk. Against a guard it fails and the guard learns who tried. Against a colleague who held or sent nothing it succeeds, and they see who. Otherwise it is simply missing in the morning. Security hears of it when the file is sealed, logged, kept by a person, or in a restricted place. An Operative (§4.3) is never named. |
-| `RECRUIT <person>` | 10 | Turn a contact into an informant who reports to you each round. Needs an existing relationship. |
+| `RECRUIT <person>` | 10 | Turn a staff member or local into an informant. They must know you (they have written more than once, or you have sat down together). They answer in their own words in the morning; from then on a short note each morning with what they saw from their post and what they heard, for 2 AU a round. Informants are listed under Holdings. Someone in Corporate Security reports the approach instead. `DISMISS <person>` (1 AU) ends it; Security's summons warns them off; an unpaid week ends it. |
 | `FILE <evidence> WITH <body>` | 2 | Submit evidence to a committee so it can rule on it (§9). |
 | `SPONSOR_MOTION <body> "<title>" CLOSES <round>` | 5 | Put a motion before a committee (§8.3). |
 | `ESTABLISH_ALIAS "<name>"` | 10 | Open a second identity with its own mailbox (§7.6). |
@@ -585,6 +585,7 @@ Command lines (start of a line, any email to the game):
   ORDER: REQUISITION <item>               camera 4 · recorder 4 · truck 3 · badge 6; on your file by morning
   ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU
   ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU
+  ORDER: RECRUIT <name> / DISMISS <name>   an informant; 10 AU, then 2 a round
   STANDING ORDER: <VERB> <details>        repeats each round       [PROPOSED]
   CANCEL STANDING <n> / CANCEL ORDERS                              [PROPOSED]
   VOTE <motion>: FOR | AGAINST | ABSTAIN

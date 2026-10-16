@@ -97,12 +97,12 @@ export async function returnDue(db: SupabaseClient, campaignId: string, round: n
   return n;
 }
 
-/* Everything a character holds is taken. Security's purge calls this; a colleague's OBTAIN may. */
+/* Everything a character holds is taken; their informants are warned off. Security's purge calls this. */
 export async function seizeHoldings(db: SupabaseClient, p: { campaignId: string; characterId: string; round: number; roundId?: string | null; by: string; note: string }): Promise<string[]> {
-  const { data } = await db.from("assets").select("id, name").eq("holder_id", p.characterId).eq("kind", "equipment").eq("status", "held");
+  const { data } = await db.from("assets").select("id, name, kind").eq("holder_id", p.characterId).in("kind", ["equipment", "informant"]).eq("status", "held");
   const names: string[] = [];
   for (const a of data ?? []) {
-    await db.from("assets").update({ status: "seized", status_round: p.round, status_note: p.note }).eq("id", a.id);
+    await db.from("assets").update({ status: a.kind === "informant" ? "lost" : "seized", status_round: p.round, status_note: a.kind === "informant" ? "Warned off by Corporate Security." : p.note }).eq("id", a.id);
     await db.from("events").insert({ campaign_id: p.campaignId, round_id: p.roundId ?? null, kind: "equipment.seized", payload: { character: p.characterId, name: a.name, by: p.by, round: p.round, note: p.note }, idempotency_key: `seized:${a.id}`, visible_to: [p.characterId] });
     names.push(a.name as string);
   }
@@ -111,7 +111,7 @@ export async function seizeHoldings(db: SupabaseClient, p: { campaignId: string;
 
 /* For the personnel file: held, and what has gone, with why. */
 export async function holdingsPage(db: SupabaseClient, characterId: string): Promise<{ held: { name: string; blurb: string | null; since: number | null; returns: number | null }[]; gone: { name: string; status: string; round: number | null; note: string | null }[] }> {
-  const { data } = await db.from("assets").select("name, description, provenance, status, status_round, status_note, created_at").eq("holder_id", characterId).eq("kind", "equipment").order("created_at");
+  const { data } = await db.from("assets").select("name, description, provenance, status, status_round, status_note, created_at").eq("holder_id", characterId).in("kind", ["equipment", "informant"]).order("created_at");
   const held: { name: string; blurb: string | null; since: number | null; returns: number | null }[] = []; const gone: { name: string; status: string; round: number | null; note: string | null }[] = [];
   for (const a of data ?? []) {
     const p = (a.provenance as { round?: number; returns?: number } | null) ?? {};

@@ -164,7 +164,7 @@ async function File({ params, searchParams }: { params: PageProps<"/file/[token]
       </section>
 
       <h2 className="display mt-12 text-2xl">Holdings</h2>
-      <p className="mt-2 text-sm text-ink-2">Equipment signed out in your name. <code>ORDER: REQUISITION a camera</code> signs something out of Procurement stores; it is here by morning and in a log somebody can pull. Loans go back on their own. Security can collect anything on this list.</p>
+      <p className="mt-2 text-sm text-ink-2">Equipment signed out in your name, and people who inform for you. <code>ORDER: REQUISITION a camera</code> signs something out of Procurement stores; <code>ORDER: RECRUIT Haugen</code> asks someone who knows you to send a note each morning, for 2 AU a round. Loans go back on their own. Security can collect anything on this list.</p>
       {holdings.held.length || (assets ?? []).some((a) => a.kind !== "equipment") ? (
         <ul className="mt-3 space-y-2 text-sm">
           {holdings.held.map((h, i) => <li key={`h${i}`} className="border-2 border-ink bg-paper-2 px-4 py-3"><span className="type text-[15px]">■ {h.name}</span><span className="block text-xs text-ink-2">{h.since ? `Signed out Round ${h.since}` : ""}{h.returns ? ` · due back by the morning of Round ${h.returns}` : ""}</span>{h.blurb && <span className="mt-1 block text-xs text-ink-2">{h.blurb}</span>}</li>)}

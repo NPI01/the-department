@@ -37,6 +37,7 @@ import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { fileResearchBrief } from "@/lib/engine/research";
 import { findEquipment, holdingsFor, returnDue } from "@/lib/engine/equipment";
+import { informantReports } from "@/lib/engine/informants";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -574,7 +575,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const { data: cRaw } = await db.from("correspondence").select("raw").eq("id", id).single();
       const letterKind = (cRaw?.raw as { letter_kind?: string } | null)?.letter_kind;
       const inPerson = letterKind === "interview";
-      const formNote = letterKind === "initiative"
+      const recruitKind = letterKind === "recruit"; const informantKind = letterKind === "informant";
+      const agreed = Boolean((cRaw?.raw as { agreed?: boolean } | null)?.agreed);
+      const formNote = recruitKind
+        ? `this was not a letter: the writer came to see you in person and asked you to pass along what you see and hear, for a consideration each week. ${agreed ? "You agreed, for your own reasons; say so in your own way, say what you can and cannot be expected to pass on, and name nothing you never put in writing." : "You are Corporate Security; you did not agree, and you have reported the approach. Write the short, civil note you would send them the next morning that gives nothing away about what you did."} Four to eight lines.`
+        : informantKind
+        ? `this is not a letter: you have been informing for this person since Round ${(cRaw?.raw as { since?: number } | null)?.since ?? "?"}, for a consideration. Write this week's note in your own voice: what you saw from your post (the clerk's lines above are what you actually saw; use them, name the names), what you heard, and nothing you never put in writing. If there was nothing, say so in a line and ask for the consideration anyway. Two to six lines, no greeting beyond a word.`
+        : letterKind === "initiative"
         ? `this is not a letter from them: it is the note above, from the showrunner, that you have decided to write to this person first. They have not written to you. Write that first letter: why you are writing, what you want, and nothing beyond what the day allows. Do not thank them for a letter they did not send.`
         : inPerson
         ? `this was not a letter: the writer came to see you in person last night and asked what the line above says. Write the short note you would send them the next morning about that conversation: what you were willing to say to their face, and nothing you would not put on paper. If you would send nothing, write one line saying so.`
@@ -745,6 +752,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
       // Loans run out: a truck or a badge goes back on its own (equipment.ts).
       await returnDue(db, round.campaign_id, round.number);
+      // Informants: upkeep, lapses, and tonight's note from each (informants.ts).
+      const inf = await informantReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "informants.reported", payload: inf, idempotency_key: `informants:${roundId}` });
       // Income: every active player character draws the round's Action Units, to the cap.
       const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);

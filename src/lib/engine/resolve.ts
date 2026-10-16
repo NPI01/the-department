@@ -14,9 +14,10 @@ import type { Presence } from "./contacts";
 import { researchSlug, researchSubject } from "./research";
 import { findEquipment, holdingsFor, holds, logLines, requisition, type Holding } from "./equipment";
 import { findLoot, guardOf, guardsTonight, layProtection, takeLoot, watchfulIn, type Scope } from "./custody";
+import { dismiss, recruit } from "./informants";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -32,7 +33,7 @@ export type Ctx = {
   dry?: boolean;
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -76,6 +77,8 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(research|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
     [/\b(requisition|sign out (?!log)|sign for a|check out a|borrow|a camera|the camera|tape recorder|a recorder|a truck|a pickup|the truck|a vehicle|a badge|temporary badge|visitor badge)\b/, "requisition"],
     [/\b(protect|guard|lock up|lock away|hide|keep .* safe|secure my|cover my tracks|keep my head down)\b/, "protect"],
+    [/\b(recruit|as (?:an|my) informant|keep me informed|on retainer|pay .* to (?:report|tell me|keep)|be my eyes)\b/, "recruit"],
+    [/\b(dismiss|release my informant|let .* go|stop paying|drop my informant|end the arrangement)\b/, "dismiss"],
     [/\b(obtain|steal|lift|pinch|swipe|get hold of|take .* (?:from|off|out of)|make off with|help myself to)\b/, "obtain"],
     [/\b(lobby|persuade|convince|vote with|support the motion|oppose the motion)\b/, "lobby"],
     [/\b(watch|stake out|stakeout|follow|surveil|keep an eye|after dark|at night|overnight)\b/, "surveil"],
@@ -287,6 +290,17 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
       await db.from("relationships").upsert({ campaign_id: ctx.campaignId, from_character: who.id, to_character: ctx.character.id, obligation: 0.1, updated_at: new Date().toISOString() }, { onConflict: "from_character,to_character", ignoreDuplicates: true });
     }
     return { ...base, kind: verb === "lobby" ? "lobbied" : "conversation", summary: verb === "lobby" ? `${ctx.character.name} put the motion to ${who.name} in person${lobbyNote}. What ${who.name} made of it arrives in their own words, if they choose to put it in writing.` : `${ctx.character.name} sat down with ${who.name}. What was said arrives in ${who.name}'s own words this morning, if they chose to put any of it in writing.` };
+  }
+  if (verb === "recruit" || verb === "dismiss") {
+    // RECRUIT / DISMISS: an informant (informants.ts). Staff and locals only; someone who knows you.
+    const who = findPerson(text, people.filter((p) => !p.player));
+    if (!who) return ruled(`The clerk could not tell whom "${text}" names. Units returned. Use a surname from the directory.`);
+    base.target = who.slug;
+    if (ctx.dry) return { ...base, kind: "recruited", summary: `(dry) ${verb} ${who.name}` };
+    if (verb === "dismiss") { const ok = await dismiss(db, { campaignId: ctx.campaignId, roundNo: ctx.roundNo, playerId: ctx.character.id, playerSlug: ctx.character.slug, target: who }); return ok ? { ...base, kind: "recruited", summary: `${ctx.character.name} ended the arrangement with ${who.name}. No more notes, no more consideration.` } : ruled(`${who.name} does not inform for ${ctx.character.name}. Units returned.`); }
+    const r = await recruit(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, player: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name, division: ctx.character.division }, target: who, text });
+    if (!r.ok) return ruled(`${r.error} Units returned.`);
+    return { ...base, kind: "recruited", summary: r.summary, noticed: r.noticed, presence: [{ kind: "person", slug: who.slug, name: who.name, verb: "interview" }] };
   }
   if (verb === "protect") {
     // PROTECT: a guard for one night over my desk, one item, a document my department keeps, or myself. Laid before anything else moves (jobs.ts).
