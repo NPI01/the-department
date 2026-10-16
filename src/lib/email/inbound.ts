@@ -52,7 +52,8 @@ export type GrammarAct =
   | { kind: "declare"; what: "authorize" | "revoke" | "attitude"; to: string; attitude?: "friendly" | "neutral" | "hostile" }
   | { kind: "accept"; agreement: string }
   | { kind: "reject"; agreement: string }
-  | { kind: "transfer"; amount: number; resource: string; to: string };
+  | { kind: "transfer"; amount: number; resource: string; to: string }
+  | { kind: "transfer_holding"; item: string; to: string };
 
 /* "also", "add", "plus" mean: keep what is on file and add these. Anything
    else means the reply replaces the earlier packet. */
@@ -167,7 +168,8 @@ export function parseGrammar(text: string): GrammarAct[] {
     }
     else if ((m = line.match(/^ACCEPT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "accept", agreement: m[1].toUpperCase() });
     else if ((m = line.match(/^REJECT\s+(?:TREATY|AGREEMENT)\s+([A-Z0-9-]+)/i))) acts.push({ kind: "reject", agreement: m[1].toUpperCase() });
-    else if ((m = line.match(/^TRANSFER\s+(\d+)\s+([A-Z_]+)\s+TO\s+([a-z0-9._-]+)/i))) acts.push({ kind: "transfer", amount: Number(m[1]), resource: m[2].toLowerCase(), to: m[3].toLowerCase() });
+    else if ((m = line.match(/^TRANSFER\s+(\d+)\s*(AU|UNITS?|ACTION\s+UNITS?)?\s+TO\s+(.+?)\.?$/i))) acts.push({ kind: "transfer", amount: Number(m[1]), resource: "au", to: m[3].trim() });
+    else if ((m = line.match(/^TRANSFER\s+(?:THE\s+|MY\s+|A\s+|AN\s+)?(.+?)\s+TO\s+(.+?)\.?$/i))) acts.push({ kind: "transfer_holding", item: m[1].trim(), to: m[2].trim() });
     else soft();
   }
   return acts;

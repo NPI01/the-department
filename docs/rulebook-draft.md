@@ -316,8 +316,8 @@ cancel one by number. Its price and its steps are fixed when it is filed.
 VOTE B-77-003: FOR              (or AGAINST, ABSTAIN)
 PROXY B-77-003 TO <member>      a member carries your vote; TO NOBODY takes it back
 ACCEPT AGREEMENT A-77-002       (or REJECT AGREEMENT A-77-002)
-TRANSFER 10 AU TO <name>
-TRANSFER <holding> TO <name>    [PROPOSED for holdings]
+TRANSFER 10 AU TO <name>        at once, up to what you have and their cap; staff remember it
+TRANSFER <item> TO <name>       equipment under Holdings changes hands, and the log says so
 ```
 
 **6.6 How the night resolves.** All orders resolve together, in this fixed order:
@@ -655,8 +655,8 @@ missed-turn defaults, motion tallying. Not built yet:
 - Built 2026-10-16: `STANDING ORDER:`, the doubled letter, `CANCEL STANDING`, `CANCEL ORDERS`
   (src/lib/engine/standing.ts; migration 0021).
 - Built 2026-10-16: `PROXY` (src/lib/engine/proxies.ts); `LEAVE`/`RETURN` and the absence
-  thresholds (src/lib/engine/leave.ts).
-- The parser: transfers of holdings.
+  thresholds (src/lib/engine/leave.ts); `TRANSFER` of units and of equipment, at intake
+  (src/lib/engine/equipment.ts). Every line in §13 is now built.
 - Replace-on-resend: orders are currently appended for a round; §6.2 says the latest
   message replaces them.
 - The three-order limit, AU costs per verb, refunds for unknown verbs, specialization

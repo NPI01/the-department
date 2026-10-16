@@ -36,7 +36,7 @@ import { committeeByName, fileWithCommittee } from "@/lib/game/filing";
 import { castNpcVotes } from "@/lib/engine/governance";
 import { sendDocumentCopy } from "@/lib/game/transfer";
 import { fileResearchBrief } from "@/lib/engine/research";
-import { findEquipment, holdingsFor, returnDue } from "@/lib/engine/equipment";
+import { findEquipment, holdingsFor, returnDue, transferHolding, transferUnits } from "@/lib/engine/equipment";
 import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
@@ -113,7 +113,7 @@ export function letterBody(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
-  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|LEAVE(?:\s.*)?|RETURN(?:\s.*)?|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|LEAVE(?:\s.*)?|RETURN(?:\s.*)?|TRANSFER\s.*|(?:SEND|GIVE|FORWARD)\s.+\sTO\s.*|FILE\s.+\sWITH\s.*|FORM\s+[A-Z0-9-]+|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -402,8 +402,19 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           else { const accepted = [...new Set([...ag.accepted_by, c.from_character])]; await db.from("agreements").update({ accepted_by: accepted, status: accepted.length >= ag.parties.length ? "active" : "proposed" }).eq("id", ag.id); }
           recorded.push(`${a.kind.toUpperCase()} AGREEMENT ${a.agreement}`);
         }
-      } else if (a.kind === "transfer") {
-        orderRows.push({ verb: "transfer", args: a as unknown as Record<string, unknown>, label: `TRANSFER ${a.amount} ${a.resource} to ${a.to}` });
+      } else if (a.kind === "transfer" || a.kind === "transfer_holding") {
+        // TRANSFER <n> AU TO <name> / TRANSFER <item> TO <name>: free, at once; the receiver is told (equipment.ts).
+        const who = findInRoster(a.to, roster.filter((x) => x.id !== c.from_character));
+        const { data: me2 } = await db.from("characters").select("name").eq("id", c.from_character).single();
+        if (!who) { ignored.push(`TRANSFER … TO ${a.to} — no one in the directory by that name`); continue; }
+        if (a.kind === "transfer") {
+          const cap = Number(await rule(db, c.campaign_id, "au.cap", 60));
+          const r = await transferUnits(db, { campaignId: c.campaign_id, round: round.number, from: { id: c.from_character, name: me2?.name ?? "" }, to: { id: who.id, name: who.name, player: who.player }, amount: a.amount, cap });
+          if (r.ok) recorded.push(`TRANSFERRED ${r.moved} AU to ${who.name}${r.kept ? ` (${r.kept} kept: they were at the cap)` : ""}`); else ignored.push(`TRANSFER ${a.amount} AU TO ${a.to} — ${r.error}`);
+        } else {
+          const r = await transferHolding(db, { campaignId: c.campaign_id, round: round.number, from: { id: c.from_character, name: me2?.name ?? "" }, to: { id: who.id, name: who.name, slug: who.slug, player: who.player }, text: a.item });
+          if (r.ok) recorded.push(`TRANSFERRED the ${r.name.toLowerCase()} to ${who.name} — it is under their Holdings now, and in the log`); else ignored.push(`TRANSFER ${a.item} TO ${a.to} — ${r.error}; for a document, use SEND`);
+        }
       }
     }
 
@@ -518,7 +529,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN|TRANSFERRED)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }

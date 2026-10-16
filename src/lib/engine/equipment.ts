@@ -109,6 +109,45 @@ export async function seizeHoldings(db: SupabaseClient, p: { campaignId: string;
   return names;
 }
 
+/* TRANSFER <item> TO <name>: a piece of equipment changes hands. Loans keep their return round; the log says so. */
+export async function transferHolding(db: SupabaseClient, p: { campaignId: string; round: number; from: { id: string; name: string }; to: { id: string; name: string; slug: string; player: boolean }; text: string }): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  const def = findEquipment(p.text);
+  if (!def) return { ok: false, error: `nothing under Holdings matches "${p.text}"` };
+  const { data: a } = await db.from("assets").select("id, name, provenance").eq("holder_id", p.from.id).eq("kind", "equipment").eq("status", "held").contains("provenance", { item: def.slug }).maybeSingle();
+  if (!a) return { ok: false, error: `${p.from.name} holds no ${def.name.toLowerCase()}` };
+  const { data: dup } = await db.from("assets").select("id").eq("holder_id", p.to.id).eq("kind", "equipment").eq("status", "held").contains("provenance", { item: def.slug }).maybeSingle();
+  if (dup) return { ok: false, error: `${p.to.name} already holds a ${def.name.toLowerCase()}` };
+  const prov = (a.provenance as Record<string, unknown>) ?? {};
+  await db.from("assets").update({ status: "returned", status_round: p.round, status_note: `Handed to ${p.to.name}.` }).eq("id", a.id);
+  await db.from("assets").insert({ campaign_id: p.campaignId, holder_id: p.to.id, kind: "equipment", slug: `${def.slug}-${p.to.slug}-r${p.round}-from`, name: a.name, description: def.blurb, provenance: { ...prov, how: `Handed over by ${p.from.name}, Round ${p.round}.`, from: p.from.id }, tier: null, secret: false, status: "held", status_round: p.round });
+  await writeLog(db, p.campaignId, def.log.key, p.round, p.to.id, `${gameDate(p.round)} · ${def.name} · handed by ${p.from.name} to ${p.to.name}`);
+  if (p.to.player) await db.from("events").insert({ campaign_id: p.campaignId, kind: "transfer.received", payload: { to: p.to.id, from: p.from.id, from_name: p.from.name, what: a.name, round: p.round, text: `${p.from.name} handed the player a ${String(a.name).toLowerCase()}; it is under Holdings` }, idempotency_key: `transfer:${a.id}:${p.round}`, visible_to: [p.to.id] });
+  else await db.from("knowledge").insert({ character_id: p.to.id, fact_key: `told:${p.from.id.slice(0, 8)}:handed:${def.slug}:${p.round}`, value: { kind: "info_share", text: `${p.from.name} handed me a ${String(a.name).toLowerCase()} on ${gameDate(p.round)}`, from: p.from.id, from_name: p.from.name, round: p.round }, confidence: 1, source_kind: "told", source_ref: null, learned_round: p.round });
+  return { ok: true, name: a.name as string };
+}
+
+/* TRANSFER <n> AU TO <name>: units change hands at once, up to what the sender has and the receiver's cap. A staff receiver remembers it, and is a little obliged. */
+export async function transferUnits(db: SupabaseClient, p: { campaignId: string; round: number; from: { id: string; name: string }; to: { id: string; name: string; player: boolean }; amount: number; cap: number }): Promise<{ ok: true; moved: number; kept: number } | { ok: false; error: string }> {
+  const n = Math.floor(p.amount);
+  if (!(n > 0)) return { ok: false, error: "name a number of units" };
+  const { data: mine } = await db.from("resources").select("balance").eq("character_id", p.from.id).eq("kind", "au").maybeSingle();
+  const have = Number(mine?.balance ?? 0);
+  if (have < n) return { ok: false, error: `${p.from.name} has ${have} AU, not ${n}` };
+  const { data: theirs } = await db.from("resources").select("balance").eq("character_id", p.to.id).eq("kind", "au").maybeSingle();
+  const room = p.to.player ? Math.max(0, p.cap - Number(theirs?.balance ?? 0)) : n;
+  const moved = Math.min(n, room);
+  if (moved <= 0) return { ok: false, error: `${p.to.name} is at the cap of ${p.cap} AU and can take none` };
+  await db.from("resources").update({ balance: have - moved }).eq("character_id", p.from.id).eq("kind", "au");
+  await db.from("resources").upsert({ character_id: p.to.id, kind: "au", balance: Number(theirs?.balance ?? 0) + moved, ...(p.to.player ? { cap: p.cap } : {}) }, { onConflict: "character_id,kind" });
+  if (p.to.player) await db.from("events").insert({ campaign_id: p.campaignId, kind: "transfer.received", payload: { to: p.to.id, from: p.from.id, from_name: p.from.name, what: `${moved} AU`, round: p.round, text: `${p.from.name} transferred ${moved} Action Units to the player` }, idempotency_key: `transfer:au:${p.from.id}:${p.to.id}:${Date.now()}`, visible_to: [p.to.id] });
+  else {
+    await db.from("knowledge").insert({ character_id: p.to.id, fact_key: `told:${p.from.id.slice(0, 8)}:units:${p.round}:${Date.now().toString(36)}`, value: { kind: "info_share", text: `${p.from.name} put ${moved} units' worth of consideration my way on ${gameDate(p.round)}`, from: p.from.id, from_name: p.from.name, round: p.round }, confidence: 1, source_kind: "told", source_ref: null, learned_round: p.round });
+    const { data: rel } = await db.from("relationships").select("obligation").eq("from_character", p.to.id).eq("to_character", p.from.id).maybeSingle();
+    await db.from("relationships").upsert({ campaign_id: p.campaignId, from_character: p.to.id, to_character: p.from.id, obligation: Math.min(1, Number(rel?.obligation ?? 0) + moved / 20), updated_at: new Date().toISOString() }, { onConflict: "from_character,to_character" });
+  }
+  return { ok: true, moved, kept: n - moved };
+}
+
 /* For the personnel file: held, and what has gone, with why. */
 export async function holdingsPage(db: SupabaseClient, characterId: string): Promise<{ held: { name: string; blurb: string | null; since: number | null; returns: number | null }[]; gone: { name: string; status: string; round: number | null; note: string | null }[] }> {
   const { data } = await db.from("assets").select("name, description, provenance, status, status_round, status_note, created_at").eq("holder_id", characterId).in("kind", ["equipment", "informant"]).order("created_at");

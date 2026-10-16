@@ -110,6 +110,7 @@ export function renderHelp(first: string) {
     `  VOTE B-77-003: FOR               FOR, AGAINST or ABSTAIN; VOTE E-…: <surname>`,
     `  PROXY B-77-003 TO <member>       a member carries your vote; TO NOBODY takes it back`,
     `  SEND <item> TO <name>            a copy from your Case File to a colleague`,
+    `  TRANSFER <n> AU TO <name>        units, at once; TRANSFER <item> TO <name> for equipment`,
     `  FILE <item> WITH <committee>     evidence before a body, on the record`,
     `  FORM 14-B                        a blank company form`,
     `  ACCEPT INVITATION / DECLINE INVITATION`,
