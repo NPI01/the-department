@@ -80,6 +80,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       { line: "TO: <name>", what: "On the first line of a new message to the game's address, to write to anyone in the directory. Several names, separated by commas, to write to more than one.", example: "TO: Dr. Sarah Ely, Maya Okafor\n\nDr. Ely,\n\nI have the field log you asked about." },
       { line: "DIRECTORY", what: "The Personnel Directory comes back at once: your cohort, the staff you can write to, the committees.", example: "DIRECTORY" },
       { line: "HELP", what: "This list, as a letter.", example: "HELP" },
+      { line: "LEAVE <rounds>", what: "Step away on purpose for up to five rounds, from tonight's lock, with no penalty. Your desk, holdings and committee seat are kept; a seat abstains; informants wait and cost nothing; staff stop expecting replies. Tonight's orders are set aside.", example: "LEAVE 3", note: "Three nights in a row without word and Personnel places you on leave anyway; seven and the position is reassigned." },
+      { line: "RETURN", what: "Come back from leave early. Any order does the same.", example: "RETURN" },
       { line: "RESIGN", what: "Leave the game. Your character is retired at the next lock.", example: "RESIGN" },
     ],
   },

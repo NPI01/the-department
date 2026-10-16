@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { surnameKey } from "@/lib/email/inbound";
 import { documentsFor, placesFor } from "./world";
 import { guardsTonight, selfGuarded } from "./custody";
+import { leaveSet } from "./leave";
 import type { DocumentDef, PlaceDef } from "./world/types";
 
 type Db = SupabaseClient;
@@ -207,7 +208,7 @@ export async function contactReports(db: Db, round: { campaignId: string; id: st
   // department's files and who reported them, except those they let pass.
   const docs = new Map(documentsFor(round.episode).map((d) => [d.slug, d]));
   const { data: locs } = await db.from("facts").select("key").eq("campaign_id", round.campaignId).like("key", "location.%");
-  const away = new Set((locs ?? []).map((f) => (f.key as string).slice("location.".length)));
+  const away = new Set([...(locs ?? []).map((f) => (f.key as string).slice("location.".length)), ...(await leaveSet(db, round.campaignId))]);
   for (const pk of packets ?? []) {
     if (pk.mode !== "hold" && pk.mode !== "missed") continue;
     if (away.has(pk.character_id as string)) continue;   // not at their desk: they are in a town somewhere

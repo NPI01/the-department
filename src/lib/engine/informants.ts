@@ -15,6 +15,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameDate } from "@/lib/email/letter";
 import { gameMailbox, newMessageId } from "@/lib/email/resend";
+import { leaveSet } from "./leave";
 
 type Db = SupabaseClient;
 export const UPKEEP = 2;
@@ -72,9 +73,11 @@ export async function dismiss(db: Db, p: { campaignId: string; roundNo: number; 
 export async function informantReports(db: Db, round: { campaignId: string; id: string; number: number }): Promise<{ notes: number; lapsed: number }> {
   const { data: rows } = await db.from("assets").select("id, holder_id, name, provenance").eq("campaign_id", round.campaignId).eq("kind", "informant").eq("status", "held");
   let notes = 0, lapsed = 0;
+  const away = await leaveSet(db, round.campaignId);
   for (const a of rows ?? []) {
     const p = a.provenance as { npc: string; round: number };
     const holder = a.holder_id as string;
+    if (away.has(holder)) continue;   // on leave: the informant waits, and nothing is charged
     const { data: au } = await db.from("resources").select("balance").eq("character_id", holder).eq("kind", "au").maybeSingle();
     const balance = Number(au?.balance ?? 0);
     if (balance < UPKEEP) {

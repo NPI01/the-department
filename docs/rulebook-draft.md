@@ -546,8 +546,6 @@ secret. They score nothing by themselves, but they are usually how goals get met
 
 ## 11. Absence, leave and leaving
 
-[PROPOSED.]
-
 - **One missed turn** follows §6.1: default behaviour, no bonus, standing orders paused.
 - **Three missed turns in a row:** your character is placed on leave. Staff stop
   expecting replies, your committee seat (if any) votes as an abstention, and your
@@ -555,7 +553,8 @@ secret. They score nothing by themselves, but they are usually how goals get met
 - **Seven missed turns in a row:** your character is reassigned out of Station R, and
   their story ends in the fiction. You can join a later cohort with a new character.
 - **Going on leave on purpose:** send `LEAVE <rounds>` (up to five) to step away without
-  penalty to your standing.
+  penalty to your standing. It begins at that night's lock and sets aside that night's
+  orders; informants wait and cost nothing; `RETURN`, or any order, ends it early.
 
 ## 12. Fair play and the engine
 
@@ -603,7 +602,7 @@ Command lines (start of a line, any email to the game):
   AGREEMENT: "<title>" WITH <names>  + TERMS: lines                [PROPOSED]
   ACCEPT AGREEMENT <id> / REJECT AGREEMENT <id>
   TRANSFER <n> AU TO <name>
-  LEAVE <rounds> / RETURN                                          [PROPOSED]
+  LEAVE <rounds> / RETURN                 away up to five rounds; back early
 
 Clock: dispatch 9:00 AM ET · lock 8:00 PM ET · 14 rounds an episode
 AU:    +20 a round · cap 60 · start 10 · hold +5 · standing order 2/round
@@ -655,8 +654,9 @@ missed-turn defaults, motion tallying. Not built yet:
   (src/lib/engine/contacts.ts, bulletin.ts; migration 0018).
 - Built 2026-10-16: `STANDING ORDER:`, the doubled letter, `CANCEL STANDING`, `CANCEL ORDERS`
   (src/lib/engine/standing.ts; migration 0021).
-- Built 2026-10-16: `PROXY` (src/lib/engine/proxies.ts).
-- The parser: `LEAVE`/`RETURN`, transfers of holdings.
+- Built 2026-10-16: `PROXY` (src/lib/engine/proxies.ts); `LEAVE`/`RETURN` and the absence
+  thresholds (src/lib/engine/leave.ts).
+- The parser: transfers of holdings.
 - Replace-on-resend: orders are currently appended for a round; §6.2 says the latest
   message replaces them.
 - The three-order limit, AU costs per verb, refunds for unknown verbs, specialization

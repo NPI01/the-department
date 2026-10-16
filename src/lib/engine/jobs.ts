@@ -41,6 +41,7 @@ import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
+import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
 import { newMessageId } from "@/lib/email/resend";
 import { menuFor, renderFooter, renderHelp, renderReceipt, replyAddress, textToHtml, type DirectoryEntry, type LedgerLine } from "@/lib/engine/dispatch";
 import { writeBrief } from "@/lib/admin/brief";
@@ -112,7 +113,7 @@ export function letterBody(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && (!lines[i].trim() || /^(?:re|subject|subj|to|cc)\s*:/i.test(lines[i].trim()))) i++;
-  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
+  const kept = lines.slice(i).filter((l) => !/^\s*(?:ORDER\s*:.*|STANDING(?:\s+ORDER)?\s*:.*|CANCEL\s+(?:STANDING|ALL|MY|ORDERS|PROXY).*|(?:REVOKE|WITHDRAW)\s+(?:MY\s+)?PROXY.*|PROXY\s.*|LEAVE(?:\s.*)?|RETURN(?:\s.*)?|FALLBACK\s*:.*|AUTHORIZE\s.*|AUTHORISE\s.*|REVOKE\s.*|ATTITUDE\s.*|VOTE\s+\S+\s*:.*|H\.?|HOLD(?:\s+POSITION)?(?:\s+EXCEPT\s.*)?|(?:ORDER\s*:?\s*)?[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?|([A-G])\1\.?)\s*$/i.test(l) && !/^\s*IF\s.+\b(?:THEN\b|:)/.test(l));
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -323,6 +324,18 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         continue;
       }
       if (a.kind === "order" && a.verb === "freeform" && /\bdirectory\b/i.test(a.args)) { commands.add("directory"); continue; }
+      if (a.kind === "leave") {
+        // LEAVE <rounds>: away on purpose from tonight's lock, up to MAX_LEAVE rounds; tonight's orders are set aside.
+        const lv = await startLeave(db, { campaignId: c.campaign_id, characterId: c.from_character, round: round.number, rounds: a.rounds });
+        const { data: pk0 } = await db.from("order_packets").select("id").eq("round_id", round.id).eq("character_id", c.from_character).maybeSingle();
+        if (pk0) { await db.from("orders").delete().eq("packet_id", pk0.id).eq("status", "pending"); await db.from("order_packets").delete().eq("id", pk0.id); }
+        recorded.push(`ON LEAVE from tonight through the lock of Round ${lv.until} (${Math.min(MAX_LEAVE, Math.max(1, a.rounds))} round${a.rounds === 1 ? "" : "s"}) — your desk, holdings and seat are kept; a seat abstains; informants wait; staff stop expecting replies. RETURN, or any order, brings you back early.`);
+        continue;
+      }
+      if (a.kind === "return") {
+        recorded.push((await endLeave(db, c.campaign_id, c.from_character)) ? "RETURNED from leave — expected at your desk from tonight" : "RETURN — you were not on leave");
+        continue;
+      }
       if (a.kind === "proxy") {
         // PROXY <ballot> TO <member>: free; the holder is told; applied at the close unless the giver votes (proxies.ts).
         const { data: me } = await db.from("characters").select("name, slug").eq("id", c.from_character).single();
@@ -403,6 +416,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       if (hold) ignored.push(`HOLD — orders closed for Round ${round.number}`);
       orderRows.length = 0; hold = false;
     }
+    if ((orderRows.length || hold) && !acts.some((a) => a.kind === "leave") && (await endLeave(db, c.campaign_id, c.from_character))) recorded.push("RETURNED from leave — any order brings you back");
     if (orderRows.length || hold) {
       // A hold with only conditional orders is still a hold: watchful, +5 AU, and the trip-wires stand.
       const unconditional = orderRows.filter((r) => !r.condition);
@@ -504,7 +518,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         return;
       }
       if (!(commands.size && nothingFoundExceptCommands(acts))) {
-        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
+        const text = renderReceipt({ first, round: round.number, onFile: [...onFile, ...(await listStanding(db, c.from_character)).map((s) => `STANDING ${s.seq}: ${s.label} — ${s.last_run_round === null ? `${Number((s.args as { cost?: number }).cost ?? 5)} AU tonight` : `${STANDING_UPKEEP} AU a round`}; CANCEL STANDING ${s.seq} ends it`), ...recorded.filter((r) => /^(VOTE|HOLD|ACCEPT|REJECT|SENT|SEND|ACCEPTED|DECLINED|FILED|FILE |AUTHORIZED|REVOKED|ATTITUDE|CANCELLED|PROXY|ON LEAVE|RETURN)/.test(r))], added, replaced, ignored, notes: noteLines, lockAt, nothingFound, ledger, balance });
         await sendMail({ to: player.email, from, replyTo: from, subject: reSubject, text, html: textToHtml(text), inReplyTo: c.message_id ?? undefined });
       }
     }
@@ -660,6 +674,9 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Missed-turn defaults: every active player character without a packet gets mode=missed.
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
       for (const ch of chars ?? []) await db.from("order_packets").upsert({ round_id: roundId, character_id: ch.id, mode: "missed", source: "default" }, { onConflict: "round_id,character_id", ignoreDuplicates: true });
+      // Absence: the streak, leave at three, reassignment at seven; voluntary leaves run out (leave.ts).
+      const absence = await absenceTick(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "absence.ticked", payload: absence, idempotency_key: `absence:${roundId}` });
       // Standing orders join the night's packets before funding (standing.ts); a missed turn suspends them.
       const standing = await enqueueStanding(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
       await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "standing.queued", payload: standing, idempotency_key: `standing:${roundId}` });
@@ -823,6 +840,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         await castNpcVotes(db, m, round.number);
         // Proxies: givers who did not vote follow their holder (proxies.ts).
         await applyProxies(db, { campaignId: round.campaign_id, motionId: m.id as string, motionNumber: m.number as string | null, round: round.number });
+        await leaveAbstentions(db, { campaignId: round.campaign_id, motionId: m.id as string, organizationId: m.organization_id as string, round: round.number });
         const { data: members } = await db.from("memberships").select("character_id").eq("organization_id", m.organization_id);
         const memberIds = new Set((members ?? []).map((x) => x.character_id as string));
         const { data: votes } = await db.from("votes").select("character_id, choice, weight").eq("motion_id", m.id);

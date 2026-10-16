@@ -120,6 +120,7 @@ export function renderHelp(first: string) {
     `                                   further leak this episode`,
     ``,
     `OTHER`,
+    `  LEAVE <rounds> / RETURN          away up to five rounds, no penalty; back early`,
     `  DIRECTORY                        who you can write to`,
     `  HELP                             this letter`,
     `  RESIGN                           leave the game`,

@@ -14,6 +14,7 @@ import { pressureFor, episodeOf } from "./world";
 import { standingFor } from "./contacts";
 import { listStanding, STANDING_UPKEEP } from "./standing";
 import { proxiesOf } from "./proxies";
+import { onLeave } from "./leave";
 
 const SECRET_TERMS = /\bconvergence\b|68-24|\bthe keepers\b|\bkeepers\b|\bascendants?\b|\b1984\b|retrocausal|sublevel nine|\bkessler\b|omega point|marsh is alive|closed causal|causal loop|time loop|from the future|\bvetch\b|clara wren|\bsentinel\b|\bnightjar\b|\bchoir\b|\borpheus\b/i;
 
@@ -59,7 +60,7 @@ function fallbackText(f: Facts): { narrative: string; overnight: string[] } {
   const narrative = [
     did.length
       ? `${f.first}, the night went the way nights here go: slowly, and then all at once. ${did.map((o) => o.label).join("; ")}. None of it is finished, and some of it has already been noticed.`
-      : f.mode === "hold" ? `${f.first}, you kept your head down last night and your units with it. The building did not notice; the building notices very little, which is a thing to remember.` : `${f.first}, you sent no orders last night, so the night took its own course. Your desk is as you left it, except that it is not quite.`,
+      : f.mode === "leave" ? `${f.first}, you are on leave, and the building has stopped expecting you. The mail still comes; it is kept for you. Send RETURN, or any order, and the desk is yours again in the morning.` : f.mode === "hold" ? `${f.first}, you kept your head down last night and your units with it. The building did not notice; the building notices very little, which is a thing to remember.` : `${f.first}, you sent no orders last night, so the night took its own course. Your desk is as you left it, except that it is not quite.`,
     `This is ${f.date}, Round ${f.round} of 14, ${f.episodeTitle}. Orders lock at 8:00 PM Eastern.`,
   ].join("\n\n");
   const overnight = f.arrived.length ? f.arrived.map((a) => a.replace(/;\s*the player has read (it|them)\.?$/i, "").replace(/^(\d+) letters from (.+?), the latest on "(.+)"$/, "$1 letters from $2, the latest headed \"$3\"").replace(/^a letter from (.+?) \(subject: (.+)\)$/, "a letter from $1, headed \"$2\"")) : ["Nothing came in the overnight mail that bore your name."];
@@ -137,7 +138,7 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
   const user = [
     `TODAY: ${f.date}. Round ${f.round} of 14 (day ${f.episodeRound} of the episode "${f.episodeTitle}").`,
     `THE PLAYER: ${f.name}${f.title ? `, ${f.title}` : ""}${f.department ? ` (${f.department})` : ""}; first name ${f.first}. Action Units this morning: ${f.au}.`,
-    f.lastNight.length ? `LAST NIGHT'S ORDERS AND WHAT THE CLERK RECORDED:\n${f.lastNight.map((o) => `- ${o.label} → ${o.status}${o.ruling ? ` (${o.ruling})` : ""}`).join("\n")}` : `LAST NIGHT: ${f.mode === "hold" ? "the player held (no orders; kept their units)" : "the player sent no orders"}.`,
+    f.lastNight.length ? `LAST NIGHT'S ORDERS AND WHAT THE CLERK RECORDED:\n${f.lastNight.map((o) => `- ${o.label} → ${o.status}${o.ruling ? ` (${o.ruling})` : ""}`).join("\n")}` : `LAST NIGHT: ${f.mode === "leave" ? "the player is on leave, away from Station R; no orders are expected and staff do not write to them first" : f.mode === "hold" ? "the player held (no orders; kept their units)" : "the player sent no orders"}.`,
     f.arrived.length ? `WHAT ARRIVED OR HAPPENED, FROM THE RECORD:\n${f.arrived.map((a) => `- ${a}`).join("\n")}` : "WHAT ARRIVED: nothing addressed to the player.",
     f.scheduled.length ? `SCHEDULED FOR TODAY (the company's calendar; mention only what the player would notice):\n${f.scheduled.map((a) => `- ${a}`).join("\n")}` : "",
     "Write the dispatch.",
@@ -259,7 +260,10 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const where = loc?.value as { name: string; round: number } | null;
   const sos = await listStanding(db, ch.id);
   const proxies = await proxiesOf(db, round.campaign_id, ch.id);
+  const leave = await onLeave(db, round.campaign_id, ch.id);
+  if (leave) facts.mode = "leave";
   const standingLines = [
+    ...(leave ? [`• You are on leave${leave.until ? ` through the lock of Round ${leave.until}` : ""}${leave.kind === "absence" ? " (placed by Personnel after three days without word; after seven the position is reassigned)" : ""}. Your desk, holdings and seat are kept; a seat abstains; informants wait. RETURN, or any order, brings you back.`] : []),
     ...proxies.map((p) => `• Your proxy on ${p.motion} is with ${p.to_name}; a VOTE of your own takes it back, or PROXY ${p.motion} TO NOBODY.`),
     ...sos.map((s) => `• Standing ${s.seq}: ${s.label} — ${STANDING_UPKEEP} AU a round; CANCEL STANDING ${s.seq} ends it.`),
     ...(where ? [`• You are in ${where.name} (since Round ${where.round}). Orders there cost no further trip; any order on campus, or TRAVEL back, brings you home. Nobody is watching your desk while you are away.`] : []),
