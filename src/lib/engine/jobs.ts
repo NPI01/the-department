@@ -26,6 +26,7 @@ import { sendMorningDispatch } from "@/lib/engine/morning";
 import { rule } from "@/lib/engine/rounds";
 import { advancePressure, resolveOrder, type Ctx } from "@/lib/engine/resolve";
 import { episodeOf } from "@/lib/engine/world";
+import { growRound, loadLivePlaces, openWorldRequests } from "@/lib/engine/grow";
 import { judgeGoals } from "@/lib/game/goal-predicates";
 import { campaignForPlayer } from "@/lib/game/cohorts";
 import { acceptInvitation, declineInvitation, outstandingInvitations, securityPurge, societyByName } from "@/lib/engine/societies";
@@ -240,6 +241,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // an order packet: no receipt, the addressee answers instead.
     if (!acts.length && (routed?.to_characters as string[] | null)?.length) return;
 
+    await loadLivePlaces(db); // generated places count when an order is priced
     const menu = afterLock ? [] : await menuFor(db, round.id, c.from_character);
     const recorded: string[] = [];
     const ignored: string[] = [];
@@ -586,8 +588,14 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         balance -= spent;
         await db.from("resources").upsert({ character_id: pk.character_id, kind: "au", balance }, { onConflict: "character_id,kind" });
       }
+      // The gaps tonight's funded orders opened, for the grow phase.
+      await openWorldRequests(db, { id: roundId, campaignId: round.campaign_id, number: round.number });
+    }
+    if (phase === "grow") {
+      await growRound(db, { id: roundId, campaignId: round.campaign_id, number: round.number }, ledger(db));
     }
     if (phase === "strategic") {
+      await loadLivePlaces(db);
       // Each funded order meets the verb rules; the outcome is written down for the morning.
       const { data: packets } = await db.from("order_packets").select("id, character_id, characters(id, slug, name, clearance, title, divisions(slug))").eq("round_id", roundId);
       for (const pk of packets ?? []) {

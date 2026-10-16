@@ -50,16 +50,17 @@ async function Content({ params }: { params: PageProps<"/file/[token]/directory"
     db.from("characters").select("id, campaign_id, division_id, supervisor_id, created_at").eq("id", me.id).single(),
     db.from("campaigns").select("title").eq("id", me.campaignId).maybeSingle(),
     db.from("divisions").select("id, name, slug").eq("campaign_id", me.campaignId),
-    db.from("characters").select("id, name, title, division_id, player_id").eq("campaign_id", me.campaignId).eq("status", "active").not("division_id", "is", null).order("name"),
+    db.from("characters").select("id, name, title, division_id, player_id, public_profile, npc_state").eq("campaign_id", me.campaignId).eq("status", "active").not("division_id", "is", null).order("name"),
     db.from("canon_docs").select("content").eq("path", "canon/02-personnel-directory.md").maybeSingle(),
   ]);
   const p = self ? await particulars(db, self) : null;
   // DSRD is not on the org chart new hires receive; its people appear under the Executive Office.
   const div = new Map((divisions ?? []).map((d) => [d.id as string, d.slug === "dsrd" ? "Executive Office" : (d.name as string)]));
   const profiles = publicProfiles((canon?.content as string) ?? "");
-  const entries: Entry[] = (staff ?? []).map((s) => ({
+  // People the living world wrote (grow.ts) are listed once someone in the cohort has met them.
+  const entries: Entry[] = (staff ?? []).filter((s) => (s.npc_state as { listed?: boolean } | null)?.listed !== false).map((s) => ({
     id: s.id as string, name: s.name as string, title: (s.title as string | null) ?? null, department: div.get(s.division_id as string) ?? "Other",
-    profile: s.player_id ? null : profiles.get(s.name as string) ?? null,
+    profile: s.player_id ? null : profiles.get(s.name as string) ?? (s.public_profile as string | null) ?? null,
     newHire: Boolean(s.player_id), you: s.id === me.id, supervisor: p?.supervisor?.name === s.name,
   }));
 

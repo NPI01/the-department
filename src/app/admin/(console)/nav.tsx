@@ -14,6 +14,7 @@ export const NAV = [
   { href: "/admin/casting", label: "Casting Call" },
   { href: "/admin/players", label: "Players" },
   { href: "/admin/cohorts", label: "Cohorts" },
+  { href: "/admin/world", label: "Overnight additions" },
   { href: "/admin/engine", label: "Engine Health" },
 ];
 

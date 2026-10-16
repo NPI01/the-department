@@ -209,7 +209,19 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     return { ...base, kind: "examined", summary: `A close reading of "${d.title}": ${d.wrongDetail.text}.`, learned: [d.wrongDetail.grants] };
   }
   if (verb === "interview" || verb === "lobby") {
-    const who = findPerson(text, people.filter((p) => !p.player));
+    let who = findPerson(text, people.filter((p) => !p.player));
+    if (!who && verb === "interview") {
+      // Nobody named: whoever the living world put at the place is met (grow.ts), and from now on is in the directory.
+      const p = findPlace(text, episode);
+      if (p) {
+        const { data: there } = await db.from("characters").select("id, slug, name, npc_state").eq("campaign_id", ctx.campaignId).eq("status", "active").is("player_id", null).eq("npc_state->>place", p.slug).limit(1).maybeSingle();
+        if (there) {
+          who = { id: there.id as string, slug: there.slug as string, name: there.name as string, division: null, player: false };
+          if (!ctx.dry && !(there.npc_state as { listed?: boolean } | null)?.listed) await db.from("characters").update({ npc_state: { ...(there.npc_state as object), listed: true } }).eq("id", there.id);
+          await learn(db, ctx, [`met.${who.slug}`], "witnessed", null);
+        }
+      }
+    }
     if (!who) {
       // Not a listed person: asking around at a place (a guard, a clerk, whoever is there).
       const p = findPlace(text, episode);
