@@ -2,6 +2,7 @@
      pnpm tsx scripts/round-ops.ts open            open the next round now (if none is open)
      pnpm tsx scripts/round-ops.ts dispatch        queue morning dispatches for the open round
      pnpm tsx scripts/round-ops.ts paper           publish the Minot Daily News now, whatever the day
+     pnpm tsx scripts/round-ops.ts newsletter      publish The Royce Report now, whatever the day
      pnpm tsx scripts/round-ops.ts reresolve <n>   re-run the resolution phases for round n
      pnpm tsx scripts/round-ops.ts work            drain the production worker once */
 import { config } from "dotenv";
@@ -11,6 +12,7 @@ import { openNextRound, queueMorningDispatches } from "../src/lib/engine/rounds"
 import { PHASES } from "../src/lib/engine/phases";
 import { deliverScheduledMail } from "../src/lib/engine/scripted";
 import { publishBulletin } from "../src/lib/engine/bulletin";
+import { publishNewsletter } from "../src/lib/engine/newsletter";
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
 async function main() {
@@ -28,6 +30,11 @@ async function main() {
     if (!open) throw new Error("no open round; run open first");
     const { data: ep } = await db.from("episodes").select("number").eq("id", open.episode_id).maybeSingle();
     console.log(JSON.stringify(await publishBulletin(db, cid, { id: open.id, number: open.number, episodeRound: open.episode_round ?? open.number, episode: (ep?.number as number | undefined) ?? 1 }, { force: true })));
+  } else if (cmd === "newsletter") {
+    const { data: open } = await db.from("rounds").select("id, number, episode_round, episode_id").eq("campaign_id", cid).eq("status", "open").maybeSingle();
+    if (!open) throw new Error("no open round; run open first");
+    const { data: ep } = await db.from("episodes").select("number").eq("id", open.episode_id).maybeSingle();
+    console.log(JSON.stringify(await publishNewsletter(db, cid, { id: open.id, number: open.number, episodeRound: open.episode_round ?? open.number, episode: (ep?.number as number | undefined) ?? 1 }, { force: true })));
   } else if (cmd === "dispatch") {
     const { data: open } = await db.from("rounds").select("id, number").eq("campaign_id", cid).eq("status", "open").maybeSingle();
     if (!open) throw new Error("no open round; run open first");
@@ -54,6 +61,6 @@ async function main() {
   } else if (cmd === "work") {
     const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "https://weird.delivery"}/api/cron/work`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
     console.log(res.status, await res.text());
-  } else { console.log("usage: open | mail | paper | dispatch | reresolve <n> [strategic] | work"); process.exit(2); }
+  } else { console.log("usage: open | mail | paper | newsletter | dispatch | reresolve <n> [strategic] | work"); process.exit(2); }
 }
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -6,12 +6,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameDate } from "@/lib/email/letter";
 
 export type Story = { headline: string; paragraphs: string[] };
-export type Issue = { round: number; date: string; stories: Story[]; byline: string | null; specimen: boolean };
+export type Issue = { round: number; date: string; stories: Story[]; byline: string | null; specimen: boolean; masthead?: string | null };
 
 /* The bulletin's Markdown: a bold dateline, bold headlines, paragraphs, an italic byline. */
 export function parseIssue(body: string, round: number, specimen = false): Issue {
   const lines = body.replace(/\r/g, "").split("\n").map((l) => l.trim());
-  let date = gameDate(round); let byline: string | null = null;
+  let date = gameDate(round); let byline: string | null = null; let masthead: string | null = null;
   const stories: Story[] = [];
   let cur: Story | null = null;
   for (const l of lines) {
@@ -19,20 +19,53 @@ export function parseIssue(body: string, round: number, specimen = false): Issue
     const bold = l.match(/^\*\*(.+?)\*\*$/);
     if (bold) {
       const text = bold[1].trim();
-      if (/minot daily news/i.test(text) && !stories.length && !cur) { const d = text.split(/\s[—–-]\s/)[1]; if (d) date = d.trim(); continue; }
+      if (/minot daily news|royce report/i.test(text) && !stories.length && !cur) { masthead = text; const parts = text.split(/\s[—–-]\s/); const d = parts[parts.length - 1]; if (d && /\d{4}/.test(d)) date = d.trim(); continue; }
       if (cur) stories.push(cur);
       cur = { headline: text.replace(/[.:]+$/, ""), paragraphs: [] };
       continue;
     }
     const by = l.match(/^\*(.+?)\*$/);
-    if (by && /staff|haugen|correspondent/i.test(by[1]) && by[1].length < 60) { byline = by[1].replace(/\.$/, ""); continue; }
+    if (by && /staff|haugen|correspondent|personnel|building 1|room 104/i.test(by[1]) && by[1].length < 160) { byline = by[1].replace(/\.$/, ""); continue; }
     const para = l.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1");
     if (!cur) cur = { headline: "From the wire", paragraphs: [] };
     cur.paragraphs.push(para);
   }
   if (cur) stories.push(cur);
-  return { round, date, stories: stories.filter((s) => s.paragraphs.length), byline, specimen };
+  return { round, date, stories: stories.filter((s) => s.paragraphs.length), byline, specimen, masthead };
 }
+
+export async function newslettersFor(db: SupabaseClient, campaignId: string): Promise<Issue[]> {
+  const { data } = await db.from("correspondence").select("body_text, raw").eq("campaign_id", campaignId).eq("direction", "outbound").not("raw->newsletter", "is", null).order("received_at");
+  const seen = new Set<number>(); const out: Issue[] = [];
+  for (const r of data ?? []) {
+    const round = Number((r.raw as { newsletter?: number }).newsletter);
+    if (!round || seen.has(round)) continue; seen.add(round);
+    out.push(parseIssue(r.body_text as string, round));
+  }
+  return out;
+}
+
+/* A specimen newsletter: the company's voice, from facts any cohort's first weeks would hold. */
+export const NEWSLETTER_SPECIMEN_ROUND = 4;
+export const NEWSLETTER_SPECIMEN = `**THE ROYCE REPORT — Vol. 6, No. 1 — ${gameDate(NEWSLETTER_SPECIMEN_ROUND)}**
+
+**WELCOME ABOARD**
+
+Personnel & Administration is pleased to welcome this month's new employees to Station R. Orientation packets, badge photographs and the confidentiality agreement are handled in Room 104; please have page three signed and returned by Friday. The Recreation Association reminds new staff that the bowling league bowls Tuesdays at the Minot lanes and that the company van leaves Gate 2 at 6:15.
+
+**COMMITTEE BUSINESS**
+
+Nominations for the two employee seats, one on the Research Committee and one on the Safety Committee, close at the lock of Round 3. Every employee has a vote. The seats carry a full voice on every motion put before the committee, and the company encourages new staff to stand.
+
+**FOR THE RECORD**
+
+Employees will have seen local press reports concerning livestock on ranches near Tagus. The company's position is unchanged: Royce Industries conducts agricultural and industrial research under agreement with participating ranchers, operates no aircraft after dark, and refers all inquiries to its spokesman. The confidentiality agreement applies to conversations with the press.
+
+**SAFETY FIRST**
+
+With the first hard frost expected this week, Facilities asks drivers to allow extra time on the perimeter road and to report any vehicle found outside the motor pool after hours to Gate 2. The cafeteria's Thursday special is walleye.
+
+*Personnel & Administration, Building 1. Items for the next issue to Room 104 by Tuesday noon.*`;
 
 export async function issuesFor(db: SupabaseClient, campaignId: string): Promise<Issue[]> {
   const { data } = await db.from("correspondence").select("body_text, raw").eq("campaign_id", campaignId).eq("direction", "outbound").not("raw->bulletin", "is", null).order("received_at");
