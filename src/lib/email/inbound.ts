@@ -46,6 +46,7 @@ export type GrammarAct =
   | { kind: "standing"; then: { kind: "select"; code: string } | { kind: "order"; verb: string; args: string } }
   | { kind: "cancel_standing"; seq: number }
   | { kind: "cancel_orders" }
+  | { kind: "proxy"; motion: string; to: string | null }
   | { kind: "declare"; what: "authorize" | "revoke" | "attitude"; to: string; attitude?: "friendly" | "neutral" | "hostile" }
   | { kind: "accept"; agreement: string }
   | { kind: "reject"; agreement: string }
@@ -61,7 +62,7 @@ const CUE = /\b(do|does|doing|choose|chose|pick|take|taking|option|options|go wi
 
 /* The lines after an ORDER: line that belong to it: up to a blank line, a
    quoted line, another command, or a sign-off. Indexes into `lines`. */
-const COMMAND_START = /^(?:ORDER\s*:|STANDING\b|CANCEL\b|FALLBACK|AUTHORIZE\s|REVOKE\s|ATTITUDE\s|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
+const COMMAND_START = /^(?:ORDER\s*:|STANDING\b|CANCEL\b|PROXY\s|FALLBACK|AUTHORIZE\s|REVOKE\s|ATTITUDE\s|VOTE\s|HOLD\b|H\.?$|ACCEPT\s|DECLINE\s|REFUSE\s|REJECT\s|TRANSFER\s|FILE\s|SEND\s|GIVE\s|FORWARD\s|FORM\s|DIRECTORY\b|HELP\b|RESIGN\b|[A-GX](?:\s*[,/ ]\s*[A-GX])*\.?$)/i;
 const SIGN_OFF = /^(?:thanks|thank you|best|regards|cheers|sincerely|yours|--|—|sent from)\b/i;
 export function orderContinuation(lines: string[], i: number): number[] {
   const out: number[] = [];
@@ -140,6 +141,8 @@ export function parseGrammar(text: string): GrammarAct[] {
     }
     else if ((m = line.match(/^CANCEL\s+STANDING(?:\s+ORDER)?\s*#?\s*(\d{1,3})\.?$/i))) acts.push({ kind: "cancel_standing", seq: Number(m[1]) });
     else if (/^CANCEL\s+(?:ALL\s+)?(?:MY\s+)?ORDERS\.?$/i.test(line)) acts.push({ kind: "cancel_orders" });
+    else if ((m = line.match(/^(?:REVOKE|CANCEL|WITHDRAW)\s+(?:MY\s+)?PROXY\s+(?:ON\s+)?([A-Z]-\d{2}-\d{3})\.?$/i))) acts.push({ kind: "proxy", motion: m[1].toUpperCase(), to: null });
+    else if ((m = line.match(/^PROXY\s+(?:ON\s+)?([A-Z]-\d{2}-\d{3})\s+(?:TO|->|→)\s+(.+?)\.?$/i))) acts.push({ kind: "proxy", motion: m[1].toUpperCase(), to: /^(?:nobody|no one|none|myself|me)$/i.test(m[2].trim()) ? null : m[2].trim() });
     else if ((m = line.match(/^FALLBACK\s*:\s*(.+)$/i))) {
       let rest = m[1].trim();
       for (const j of orderContinuation(lines, i)) { rest += " " + lines[j].trim(); consumed.add(j); }

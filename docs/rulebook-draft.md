@@ -314,7 +314,7 @@ cancel one by number. Its price and its steps are fixed when it is filed.
 
 ```
 VOTE B-77-003: FOR              (or AGAINST, ABSTAIN)
-PROXY B-77-003 TO <member>      [PROPOSED]
+PROXY B-77-003 TO <member>      a member carries your vote; TO NOBODY takes it back
 ACCEPT AGREEMENT A-77-002       (or REJECT AGREEMENT A-77-002)
 TRANSFER 10 AU TO <name>
 TRANSFER <holding> TO <name>    [PROPOSED for holdings]
@@ -599,7 +599,7 @@ Command lines (start of a line, any email to the game):
   STANDING ORDER: <order> / CC            repeats each night; full price, then 2 AU
   CANCEL STANDING <n> / CANCEL ORDERS
   VOTE <motion>: FOR | AGAINST | ABSTAIN
-  PROXY <motion> TO <member>                                       [PROPOSED]
+  PROXY <motion> TO <member> / TO NOBODY   a member carries your vote
   AGREEMENT: "<title>" WITH <names>  + TERMS: lines                [PROPOSED]
   ACCEPT AGREEMENT <id> / REJECT AGREEMENT <id>
   TRANSFER <n> AU TO <name>
@@ -655,7 +655,8 @@ missed-turn defaults, motion tallying. Not built yet:
   (src/lib/engine/contacts.ts, bulletin.ts; migration 0018).
 - Built 2026-10-16: `STANDING ORDER:`, the doubled letter, `CANCEL STANDING`, `CANCEL ORDERS`
   (src/lib/engine/standing.ts; migration 0021).
-- The parser: `PROXY`, `LEAVE`/`RETURN`, transfers of holdings.
+- Built 2026-10-16: `PROXY` (src/lib/engine/proxies.ts).
+- The parser: `LEAVE`/`RETURN`, transfers of holdings.
 - Replace-on-resend: orders are currently appended for a round; §6.2 says the latest
   message replaces them.
 - The three-order limit, AU costs per verb, refunds for unknown verbs, specialization
