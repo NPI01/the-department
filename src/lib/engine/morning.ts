@@ -11,6 +11,7 @@ import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
 import { pressureFor, episodeOf } from "./world";
+import { VERB_COST } from "./resolve";
 import { standingFor } from "./contacts";
 import { listStanding, STANDING_UPKEEP } from "./standing";
 import { proxiesOf } from "./proxies";
@@ -51,10 +52,10 @@ type Facts = {
 
 function fallbackMenu(f: Facts): MenuOption[] {
   return [
-    { code: "A", verb: "request_files", args: `${f.department ?? "your department"} files touching last night's matter`, label: `Ask Records for ${f.department ?? "your department"}'s file on what you found`, cost: 6 },
-    { code: "B", verb: "interview", args: "a colleague in your building", label: "Buy a colleague lunch and ask what they have heard", cost: 4 },
-    { code: "C", verb: "surveil", args: "the perimeter road after dark", label: "Walk the perimeter road after dark and see what lands", cost: 10 },
-    ...(f.cabinet.length ? [{ code: "D", verb: "examine", args: f.cabinet[0], label: menuLabel("examine", f.cabinet[0], "read it line by line for what does not fit"), cost: 3 }] : [{ code: "D", verb: "visit", args: "the Records room", label: "Go to the Records room and see what the index holds", cost: 5 }]),
+    { code: "A", verb: "request_files", args: `${f.department ?? "your department"} files touching last night's matter`, label: `Ask Records for ${f.department ?? "your department"}'s file on what you found`, cost: VERB_COST.request_files },
+    { code: "B", verb: "interview", args: "a colleague in your building", label: "Buy a colleague lunch and ask what they have heard", cost: VERB_COST.interview },
+    { code: "C", verb: "surveil", args: "the perimeter road after dark", label: "Walk the perimeter road after dark and see what lands", cost: VERB_COST.surveil },
+    ...(f.cabinet.length ? [{ code: "D", verb: "examine", args: f.cabinet[0], label: menuLabel("examine", f.cabinet[0], "read it line by line for what does not fit"), cost: VERB_COST.examine }] : [{ code: "D", verb: "visit", args: "the Records room", label: "Go to the Records room and see what the index holds", cost: VERB_COST.visit }]),
   ];
 }
 
@@ -103,16 +104,17 @@ export function menuLabel(verb: string, args: string, modelLine: string): string
 }
 
 /* The letter above a "~~~" line; OVERNIGHT and MENU lines below it. */
-function parse(text: string): { narrative: string; overnight: string[]; menu: MenuOption[]; complete: boolean } {
+export function parse(text: string): { narrative: string; overnight: string[]; menu: MenuOption[]; complete: boolean } {
   const clean = text.replace(/^```[a-z]*\n?|```$/gm, "").trim();
   const [top, ...rest] = clean.split(/^\s*~{3,}\s*$/m);
   const tail = rest.join("\n");
   const overnight = [...tail.matchAll(/^\s*[-•]\s+(.+)$/gm)].map((m) => m[1].trim()).filter(Boolean);
   const menu: MenuOption[] = [];
-  for (const m of tail.matchAll(/^\s*([A-D])\s*\|\s*([a-z_]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*(\d{1,2})\s*$/gim)) {
-    const verb = m[2].toLowerCase(); const cost = Number(m[5]);
-    if (!VERBS[verb] || cost < 3 || cost > 12) continue;
-    menu.push({ code: m[1].toUpperCase(), verb, args: m[3].trim(), label: menuLabel(verb, m[3].trim(), m[4].trim().replace(/\.$/, "")), cost });
+  // The model's cost column is ignored: an option costs what the rulebook says its verb costs (VERB_COST).
+  for (const m of tail.matchAll(/^\s*([A-D])\s*\|\s*([a-z_]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*(?:\|\s*\d{1,2}\s*)?$/gim)) {
+    const verb = m[2].toLowerCase();
+    if (!VERBS[verb] || VERB_COST[verb] === undefined) continue;
+    menu.push({ code: m[1].toUpperCase(), verb, args: m[3].trim(), label: menuLabel(verb, m[3].trim(), m[4].trim().replace(/\.$/, "")), cost: VERB_COST[verb] });
   }
   return { narrative: top.trim(), overnight, menu, complete: rest.length > 0 };
 }
@@ -134,7 +136,7 @@ Then:
 OVERNIGHT:
 - three to five lines, each one thing that arrived or happened that the player would learn of this morning, drawn from the facts; a line may be mundane
 MENU:
-A | <verb> | <what, specifically> | <the line the player reads, 6 to 12 words> | <cost 3-12>
+A | <verb> | <what, specifically> | <the line the player reads, 6 to 12 words>
 B | ...
 C | ...
 D | ...
@@ -295,7 +297,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     ...(st.authorized.length ? [`• ${st.authorized.join(", ")} may pull ${department ?? "your department"}'s files (AUTHORIZE).`] : []),
     ...(st.hostile.length ? [`• Hostile toward ${st.hostile.join(", ")}: any sighting of them in your reports goes to Security the same night.`] : []),
   ];
-  const body = [out.narrative, "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), ...(standingLines.length ? ["", "## Standing", ...standingLines, "• Change these with AUTHORIZE, REVOKE or ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE. The people named are never told."] : []), "", "## Your orders for tonight", menuBlock].join("\n");
+  // What the clerk returned last night, in the clerk's own words: the narration may soften a refusal, this does not.
+  const returned = lastNight.filter((o) => /\(ruling\)|^skipped/.test(o.status)).map((o) => `• ${o.label.replace(/^(\w+(?: \w+)?): /, (_m, v: string) => `${v.toUpperCase()}: `)} — ${o.ruling ?? "beyond your balance at the lock"}`);
+  const body = [out.narrative, ...(returned.length ? ["", "## Returned by the clerk", ...returned] : []), "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), ...(standingLines.length ? ["", "## Standing", ...standingLines, "• Change these with AUTHORIZE, REVOKE or ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE. The people named are never told."] : []), "", "## Your orders for tonight", menuBlock].join("\n");
   const subject = `${facts.date} — Round ${round.number} of ${Number(await rule(db, round.campaign_id, "episode.rounds", 14))} — ${facts.episodeTitle}`;
   const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu, rejected: out.rejected } }).select("id").single();
   if (error) throw new Error(error.message);

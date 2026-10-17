@@ -134,7 +134,8 @@ async function heldItem(db: SupabaseClient, ctx: Ctx, text: string, episode: num
   const base = (s: string) => s.replace(/-from-.*$|-taken-r\d+$/, "");
   const t = norm(text);
   let hit = d ? rows.find((i) => base(i.slug) === d.slug) : undefined;
-  if (!hit) hit = rows.find((i) => t.includes(norm(i.title)) || norm(i.title).includes(t) || t.includes(i.slug));
+  const bare = t.replace(/^(?:the|a|an|my)\s+/, "");
+  if (!hit) hit = rows.find((i) => t.includes(norm(i.title)) || norm(i.title).includes(bare) || t.includes(norm(i.slug)) || (bare.length >= 8 && norm(i.slug).includes(bare)));
   if (!hit) hit = rows.find((i) => { const words = norm(i.title).split(" ").filter((w) => w.length > 3); return words.length > 0 && words.filter((w) => t.includes(w)).length >= Math.min(2, words.length); });
   if (!hit) return null;
   const doc = documentsFor(episode).find((x) => x.slug === base(hit!.slug)) ?? documentsFor(episode).find((x) => norm(x.title) === norm(hit!.title)) ?? null;
@@ -318,6 +319,10 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
   }
   if (verb === "interview" || verb === "lobby") {
     let who = findPerson(text, people.filter((p) => !p.player));
+    if (!who) {
+      const mate = findPerson(text, people.filter((p) => p.player && p.id !== ctx.character.id));
+      if (mate) return ruled(`${mate.name} is a colleague in your cohort; the clerk arranges sittings with staff and locals only. Units returned. Write to them instead: a new message to the game's address beginning "TO: ${mate.name}".`);
+    }
     if (!who && verb === "interview") {
       // Nobody named: whoever the living world put at the place is met (grow.ts), and from now on is in the directory.
       const p = findPlace(text, episode);
@@ -369,7 +374,11 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
   if (verb === "recruit" || verb === "dismiss") {
     // RECRUIT / DISMISS: an informant (informants.ts). Staff and locals only; someone who knows you.
     const who = findPerson(text, people.filter((p) => !p.player));
-    if (!who) return ruled(`The clerk could not tell whom "${text}" names. Units returned. Use a surname from the directory.`);
+    if (!who) {
+      const mate = findPerson(text, people.filter((p) => p.player && p.id !== ctx.character.id));
+      if (mate) return ruled(`${mate.name} is a colleague in your cohort; informants are staff and locals only. Units returned. To bind a colleague, propose an AGREEMENT; to ask them, write: "TO: ${mate.name}".`);
+      return ruled(`The clerk could not tell whom "${text}" names. Units returned. Use a surname from the directory.`);
+    }
     base.target = who.slug;
     if (ctx.dry) return { ...base, kind: "recruited", summary: `(dry) ${verb} ${who.name}` };
     if (verb === "dismiss") { const ok = await dismiss(db, { campaignId: ctx.campaignId, roundNo: ctx.roundNo, playerId: ctx.character.id, playerSlug: ctx.character.slug, target: who }); return ok ? { ...base, kind: "recruited", summary: `${ctx.character.name} ended the arrangement with ${who.name}. No more notes, no more consideration.` } : ruled(`${who.name} does not inform for ${ctx.character.name}. Units returned.`); }

@@ -569,6 +569,10 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (!c) return;
     const { count } = await db.from("correspondence_events").select("id", { count: "exact", head: true }).eq("correspondence_id", id);
     if (count) return; // already extracted
+    // A reply to the clerk is read by the grammar; only letters to people are worth a model's reading.
+    // Nothing to read: only command lines. Nobody to tell: no recipient, and it carried orders.
+    const prose = letterBody((c.body_text as string) ?? "");
+    if (!prose || (!(c.to_characters as string[] | null)?.length && parseGrammar((c.body_text as string) ?? "").length > 0)) return;
     const system = `You read one email from a player in a 1977 corporate-intrigue correspondence game and list the game-relevant things it does. You never decide anything; you propose. Output JSON: {"events":[{"kind":"claim|proposal|offer|threat|promise|info_share|vote_intent|order_intent","payload":{},"confidence":0..1,"span":"quoted text"}]}. Claims are what the sender asserts as fact (payload: {subject, claim}). Proposals/offers are deals (payload: {to, give, get, conditions}). Promises are commitments (payload: {to, what, by}). vote_intent and order_intent are only when the sender clearly means to act but did not use the formal grammar (payload: {what}). Be conservative: fewer, surer events.`;
     const { data, result } = await chatJson<{ events: { kind: string; payload: unknown; confidence: number; span: string }[] }>([{ role: "system", content: system }, { role: "user", content: `SUBJECT: ${c.subject ?? ""}\n\n${c.body_text.slice(0, 6000)}` }], { tag: "extract", maxTokens: 1500, timeoutMs: 110_000, onLedger: ledger(db) });
     const events = (data?.events ?? []).filter((e) => e && e.kind && typeof e.confidence === "number");
