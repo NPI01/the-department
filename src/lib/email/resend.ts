@@ -38,9 +38,14 @@ export type OutboundMail = {
   messageId?: string;
 };
 
+/* Synthetic players live at reserved test domains; their mail is recorded and never sent. MAIL_SINK=1 sinks everything (local runs). */
+export const SINK_DOMAINS = /@(?:example\.test|sim\.test|example\.com)$/i;
+export function sinks(to: string | string[]): boolean { return process.env.MAIL_SINK === "1" || ([] as string[]).concat(to).every((a) => SINK_DOMAINS.test(a.trim())); }
+
 export async function sendMail(m: OutboundMail): Promise<{ id: string | null; messageId: string; error: string | null }> {
   const key = process.env.RESEND_API_KEY;
   const messageId = m.messageId ?? newMessageId();
+  if (sinks(m.to)) return { id: `sink-${messageId.replace(/[<>]/g, "").slice(0, 12)}`, messageId, error: null };
   if (!key) return { id: null, messageId, error: "RESEND_API_KEY not set" };
   const resend = new Resend(key);
   const headers: Record<string, string> = { "Message-ID": messageId };

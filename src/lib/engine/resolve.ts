@@ -122,11 +122,23 @@ async function setLocation(db: SupabaseClient, ctx: Ctx, loc: { slug: string; na
 async function cameHome(db: SupabaseClient, ctx: Ctx) { if (ctx.character.location) await setLocation(db, ctx, null); }
 const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
 const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
-/* The item, or any copy of it (sent on, taken, found), in the character's Case File. */
-async function holdsCopy(db: SupabaseClient, ctx: Ctx, slug: string): Promise<boolean> {
-  if (ctx.dry) return true;
-  const { data } = await db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("status", "held").or(`slug.eq.${slug},slug.like.${slug}-from-%,slug.like.${slug}-taken-%`).limit(1);
-  return Boolean(data?.length);
+/* The thing in the character's Case File that the words name: by the index's vocabulary first (a document's
+   aliases), then by the held item's own title or short name. A copy (sent on, taken) counts. Returns the
+   held row and the index document it is a copy of, if any; items with no index entry (the orientation pack,
+   briefs, photographs, transcripts) come back with doc null. */
+async function heldItem(db: SupabaseClient, ctx: Ctx, text: string, episode: number): Promise<{ slug: string; title: string; doc: DocumentDef | null } | null> {
+  const d = findDocument(text, episode);
+  if (ctx.dry) return d ? { slug: d.slug, title: d.title, doc: d } : null;
+  const { data: items } = await db.from("case_items").select("slug, title").eq("character_id", ctx.character.id).eq("status", "held").neq("drawer", "correspondence");
+  const rows = (items ?? []) as { slug: string; title: string }[];
+  const base = (s: string) => s.replace(/-from-.*$|-taken-r\d+$/, "");
+  const t = norm(text);
+  let hit = d ? rows.find((i) => base(i.slug) === d.slug) : undefined;
+  if (!hit) hit = rows.find((i) => t.includes(norm(i.title)) || norm(i.title).includes(t) || t.includes(i.slug));
+  if (!hit) hit = rows.find((i) => { const words = norm(i.title).split(" ").filter((w) => w.length > 3); return words.length > 0 && words.filter((w) => t.includes(w)).length >= Math.min(2, words.length); });
+  if (!hit) return null;
+  const doc = documentsFor(episode).find((x) => x.slug === base(hit!.slug)) ?? documentsFor(episode).find((x) => norm(x.title) === norm(hit!.title)) ?? null;
+  return { slug: hit.slug, title: hit.title, doc };
 }
 async function learn(db: SupabaseClient, ctx: Ctx, keys: string[], source: string, ref: string | null) {
   if (ctx.dry || !keys.length) return;
@@ -281,11 +293,11 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
   }
   if (verb === "analyze") {
     // ANALYZE <item>: a department's laboratory reading of something held, from the item's own data; a report, evidence grade.
-    const d = findDocument(text, episode);
-    if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned.`);
-    base.target = d.slug;
-    if (!(await holdsCopy(db, ctx, d.slug))) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; a laboratory needs the thing itself, or a copy.`);
-    if (!d.analyses?.length) return ruled(`There is nothing a laboratory could add to "${d.title}"; the page is what it is. Units returned. EXAMINE it instead.`);
+    const h = await heldItem(db, ctx, text, episode);
+    if (!h) { const d0 = findDocument(text, episode); return ruled(d0 ? `${ctx.character.name} does not hold "${d0.title}". Units returned; a laboratory needs the thing itself, or a copy.` : `Nothing in the Case File matches "${text}". Units returned.`); }
+    const d = h.doc;
+    base.target = h.slug;
+    if (!d?.analyses?.length) return ruled(`There is nothing a laboratory could add to "${h.title}"; the page is what it is. Units returned. EXAMINE it instead.`);
     const mine = d.analyses.find((a) => a.department === ctx.character.division);
     if (!mine) return ruled(`"${d.title}" is work for ${d.analyses.map((a) => deptName(a.department)).join(" or ")}, not ${deptName(ctx.character.division)}. Units returned. SEND a copy to someone there.`);
     const slug = `analysis-${d.slug}`.slice(0, 44) + `-${(ctx.character.division ?? "x").slice(0, 10)}`;
@@ -296,12 +308,11 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     return { ...base, kind: "analyzed", summary: `${deptName(ctx.character.division)} put "${d.title}" through the laboratory. The report is in the Case File: ${mine.text.split(". ")[0]}.`, learned: mine.grants, item: slug };
   }
   if (verb === "examine") {
-    const d = findDocument(text, episode);
-    if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned.`);
-    base.target = d.slug;
-    const held = await holdsCopy(db, ctx, d.slug);
-    if (!held) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; request it first.`);
-    if (!d.wrongDetail) return { ...base, kind: "examined", summary: `A close reading of "${d.title}" found nothing beyond what it says.` };
+    const h = await heldItem(db, ctx, text, episode);
+    if (!h) { const d0 = findDocument(text, episode); return ruled(d0 ? `${ctx.character.name} does not hold "${d0.title}". Units returned; request it first, or EXAMINE something in the Case File.` : `Nothing in the Case File matches "${text}". Units returned.`); }
+    const d = h.doc;
+    base.target = h.slug;
+    if (!d?.wrongDetail) return { ...base, kind: "examined", summary: `A close reading of "${h.title}" found nothing beyond what it says.` };
     await learn(db, ctx, [d.wrongDetail.grants], "inferred", null);
     return { ...base, kind: "examined", summary: `A close reading of "${d.title}": ${d.wrongDetail.text}.`, learned: [d.wrongDetail.grants] };
   }

@@ -46,6 +46,7 @@ type Facts = {
   mode: string | null;
   arrived: string[];
   scheduled: string[];
+  cabinet: string[];     // titles the player holds, for EXAMINE and ANALYZE options
 };
 
 function fallbackMenu(f: Facts): MenuOption[] {
@@ -53,7 +54,7 @@ function fallbackMenu(f: Facts): MenuOption[] {
     { code: "A", verb: "request_files", args: `${f.department ?? "your department"} files touching last night's matter`, label: `Ask Records for ${f.department ?? "your department"}'s file on what you found`, cost: 6 },
     { code: "B", verb: "interview", args: "a colleague in your building", label: "Buy a colleague lunch and ask what they have heard", cost: 4 },
     { code: "C", verb: "surveil", args: "the perimeter road after dark", label: "Walk the perimeter road after dark and see what lands", cost: 10 },
-    { code: "D", verb: "examine", args: "what arrived in the mail", label: "Go through what arrived in the mail, line by line", cost: 3 },
+    ...(f.cabinet.length ? [{ code: "D", verb: "examine", args: f.cabinet[0], label: menuLabel("examine", f.cabinet[0], "read it line by line for what does not fit"), cost: 3 }] : [{ code: "D", verb: "visit", args: "the Records room", label: "Go to the Records room and see what the index holds", cost: 5 }]),
   ];
 }
 
@@ -126,6 +127,7 @@ RULES
 - Do not explain the plot. Do not tell the player what to think. No bullet points or headers in the narrative.
 - On a night with no orders, do not inventory the mail; the OVERNIGHT lines do that. Write the morning instead: the building, the weather, one small thing out of place on the desk, and the day ahead.
 - Every MENU line names its target so a clerk could act on it: a person by name, a file by its title, a place by its name. Never "him", "the note", "the data".
+- An EXAMINE or ANALYZE option must name one of the items the player holds (listed in the facts), by its title; if they hold nothing, offer no such option.
 
 FORMAT. Two short paragraphs of narrative (120 to 200 words in all). Then a line of exactly three tildes: ~~~
 Then:
@@ -143,6 +145,7 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
     f.lastNight.length ? `LAST NIGHT'S ORDERS AND WHAT THE CLERK RECORDED:\n${f.lastNight.map((o) => `- ${o.label} → ${o.status}${o.ruling ? ` (${o.ruling})` : ""}`).join("\n")}` : `LAST NIGHT: ${f.mode === "leave" ? "the player is on leave, away from Station R; no orders are expected and staff do not write to them first" : f.mode === "hold" ? "the player held (no orders; kept their units)" : "the player sent no orders"}.`,
     f.arrived.length ? `WHAT ARRIVED OR HAPPENED, FROM THE RECORD:\n${f.arrived.map((a) => `- ${a}`).join("\n")}` : "WHAT ARRIVED: nothing addressed to the player.",
     f.scheduled.length ? `SCHEDULED FOR TODAY (the company's calendar; mention only what the player would notice):\n${f.scheduled.map((a) => `- ${a}`).join("\n")}` : "",
+    f.cabinet.length ? `WHAT THE PLAYER HOLDS (the only things EXAMINE or ANALYZE may name):\n${f.cabinet.map((a) => `- ${a}`).join("\n")}` : "THE PLAYER HOLDS NOTHING YET: offer no EXAMINE or ANALYZE option.",
     "Write the dispatch.",
   ].filter(Boolean).join("\n\n");
   const ask = (sys: string) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag: "dispatch", temperature: 0.8, maxTokens: 1200, think: false, timeoutMs: 120_000, model: process.env.DISPATCH_MODEL || undefined, onLedger });
@@ -155,8 +158,17 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
       const out = parse(res.text);
       const bad = (out.narrative + " " + out.overnight.join(" ") + " " + out.menu.map((m) => m.label + m.args).join(" ")).match(SECRET_TERMS);
       // A menu short of four options is padded from the standard list rather than thrown away.
-      const codes = new Set(out.menu.map((m) => m.code));
-      const menu = [...out.menu, ...fallbackMenu(f).filter((m) => !codes.has(m.code))].slice(0, 4).map((m, i) => ({ ...m, code: "ABCD"[i] }));
+      // An EXAMINE or ANALYZE of something the player does not hold is a refund in the morning: name a held item instead, or drop it.
+      const held = (t: string) => f.cabinet.find((c) => c.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(c.toLowerCase().slice(0, 24)));
+      const kept = out.menu.flatMap((m) => {
+        if (m.verb !== "examine" && m.verb !== "analyze") return [m];
+        if (held(m.args)) return [m];
+        if (!f.cabinet.length) return [];
+        const title = f.cabinet[0];
+        return [{ ...m, args: title, label: menuLabel(m.verb, title, "") }];
+      });
+      const codes = new Set(kept.map((m) => m.code));
+      const menu = [...kept, ...fallbackMenu(f).filter((m) => !codes.has(m.code) && (m.verb !== "examine" || f.cabinet.length))].slice(0, 4).map((m, i) => ({ ...m, code: "ABCD"[i] }));
       const overnight = out.overnight.length >= 2 ? out.overnight : fallbackText(f).overnight;
       const reason = !out.complete ? "no ~~~ line separating the letter from the clerk's lines" : out.narrative.length <= 200 ? "the narrative was too short" : bad ? `it used the word "${bad[0]}"` : out.menu.length < 2 ? "the MENU lines were missing or malformed (A | verb | what | line | cost)" : null;
       if (!reason) return { narrative: out.narrative, overnight, menu, model, fallback: false, rejected };
@@ -257,7 +269,8 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const band = pressureFor(epNo).find((t) => (round.episode_round ?? round.number) >= t.rounds[0] && (round.episode_round ?? round.number) <= t.rounds[1]);
   if (band && epNo !== 1) scheduled.push(`around the company: ${band.text}`);
 
-  const facts: Facts = { first, name: ch.name, title: ch.title, department, date: gameDate(round.number), round: round.number, episodeRound: round.episode_round ?? round.number, episodeTitle: ep?.title ?? "Orientation", au: Number(au?.balance ?? 0), lastNight, mode, arrived, scheduled };
+  const { data: heldItems } = await db.from("case_items").select("title").eq("character_id", ch.id).eq("status", "held").neq("drawer", "correspondence").order("created_at", { ascending: false }).limit(12);
+  const facts: Facts = { first, name: ch.name, title: ch.title, department, date: gameDate(round.number), round: round.number, episodeRound: round.episode_round ?? round.number, episodeTitle: ep?.title ?? "Orientation", au: Number(au?.balance ?? 0), lastNight, mode, arrived, scheduled, cabinet: (heldItems ?? []).map((i) => i.title as string) };
   const out = await composeDispatch(facts, onLedger);
   await recordMenu(db, round.campaign_id, round.id, ch.id, out.menu);
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");

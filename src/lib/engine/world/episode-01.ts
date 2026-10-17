@@ -6,7 +6,7 @@ import type { DocumentDef, PlaceDef, PressureTier } from "./types";
 export const DOCUMENTS: DocumentDef[] = [
   {
     slug: "gate-2-log", title: "Gate 2 vehicle log (October 1977)", kind: "document",
-    aliases: ["gate log", "gate 2 log", "the clipboard", "gate book", "vehicle gate log", "night gate log"],
+    aliases: ["gate log", "gate 2 log", "the clipboard", "gate book", "vehicle gate log", "night gate log", "gatehouse log", "gatehouse vehicle log", "gatehouse", "gate records", "vehicle entries"],
     holder: "corporate-security", access: { clearance: 2, department: ["corporate-security"] }, logKey: "gate",
     grants: [], wrongDetail: null, from: "Corporate Security", written: "October 1977",
     body: "**GATE 2 — VEHICLES OUT AFTER 1800 — OCTOBER 1977**\n\n| Date | Out | Vehicle | Driver | Destination | In |\n|---|---|---|---|---|---|\n| 4 Oct | 2310 | PMA van | (slip) | strip | 0220 |\n| 9 Oct | 2050 | MP-14 | PGS | Tagus rd | 0335 |",

@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
   const result = await heartbeat(db, "dispatch", async () => {
     // Cohorts whose start has come go active and open Round 1; then every campaign with a round on the books.
     const started = await startDueCohorts(db);
-    const { data: rounds } = await db.from("rounds").select("campaign_id");
+    // Active cohorts only: a finished or simulated cohort is left alone.
+    const { data: active } = await db.from("campaigns").select("id").eq("status", "active");
+    const { data: rounds } = await db.from("rounds").select("campaign_id").in("campaign_id", (active ?? []).map((c) => c.id as string));
     const campaigns = [...new Set((rounds ?? []).map((r) => r.campaign_id as string))];
     const out: Record<string, unknown>[] = [];
     for (const cid of campaigns) {
