@@ -8,7 +8,8 @@ import { documentsFor, placesFor, pressureFor, episodeOf } from "./world";
 import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
-import { applyLobby } from "./governance";
+import { applyLobby, getStance } from "./governance";
+import { committeeByName } from "@/lib/game/filing";
 import { acceptInvitation, accessRestricted, outstandingInvitations } from "./societies";
 import type { Presence } from "./contacts";
 import { researchSlug, researchSubject } from "./research";
@@ -22,7 +23,7 @@ import { endGrace, underGrace } from "./grace";
 import { curfew, holdsEmergencyAuthority, issueDirective, opened, parseDirective, sealed, type Directive } from "./directives";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "directed" | "ruling";
+  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "directed" | "attended" | "met" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -39,7 +40,7 @@ export type Ctx = {
   directives?: Directive[];   // emergency directives in force tonight (directives.ts)
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, emergency_directive: 0, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, emergency_directive: 0, meet: 3, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -94,6 +95,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(analy[sz]e|analysis|run (?:it|the sample|a sample|tests) |lab test|test the sample|under the microscope|assay|correlate|cross[ -]?reference|put .* through the lab|have the lab)\b/, "analyze"],
     [/\b(examine|study|read closely|look closely|compare|inspect|check the)\b/, "examine"],
     [/\b(ask (?:the )?(?:records|archives|procurement|personnel|facilities|finance|stores) for|ask records)\b/, "request_files"],
+    [/\b(meet (?:with |up with )?|sit down with|have (?:coffee|lunch|a drink|a word) with|catch up with|in person with|corner)\b/, "meet"],
     [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat|introduce|approach|walk up to)\b/, "interview"],
     [/\b(request|pull|get the|obtain|copy of|file|files|records|ledger|log|logs|report|invoices|authorizations|memo)\b/, "request_files"],
     [/\b(travel|drive (?:out |up |down |over )?to|go (?:out |up |down |over )?to (?:tagus|minot|split rock|stanley|town)|head (?:out |up |down )?(?:to|for)|spend the night in|stay (?:the night )?in|overnight in|return to (?:station r|campus|the campus)|go back to (?:station r|campus|the campus)|come (?:back )?home)\b/, "travel"],
@@ -120,6 +122,62 @@ async function setLocation(db: SupabaseClient, ctx: Ctx, loc: { slug: string; na
 }
 /* An order done on campus brings a traveller home. */
 async function cameHome(db: SupabaseClient, ctx: Ctx) { if (ctx.character.location) await setLocation(db, ctx, null); }
+/* ATTEND a committee session (rulebook §6.3): the attendee hears where each staff member stands on every
+   motion open before the body, and is seen there by anyone else who attended. Leans are read, never moved. */
+async function attendSession(db: SupabaseClient, ctx: Ctx, base: { learned: string[]; refund: number; verb: string; target: string | null; presence: Presence[] | undefined }, orgName: string): Promise<Outcome> {
+  const { data: org } = await db.from("organizations").select("id, name, slug").eq("campaign_id", ctx.campaignId).eq("name", orgName).maybeSingle();
+  if (!org) return { ...base, kind: "ruling", summary: `No body called ${orgName} sits this season. Units returned.`, refund: VERB_COST.attend };
+  await cameHome(db, ctx);
+  const presence: Presence[] = [{ kind: "place", slug: `${org.slug}-session`, name: `the ${org.name} session`, verb: "attend" }];
+  const { data: motions } = await db.from("motions").select("id, number, title").eq("organization_id", org.id).eq("status", "open").neq("kind", "election").lte("opens_round", ctx.roundNo).order("closes_round");
+  if (!motions?.length) return { ...base, kind: "attended", target: org.slug, summary: `${ctx.character.name} sat at the back of the ${org.name} session. Minutes, a budget line, a long discussion of the parking allocation; nothing before the body that a new hire would care about.`, presence };
+  const { data: seats } = await db.from("memberships").select("character_id, characters(slug, name, player_id)").eq("organization_id", org.id);
+  const lines: string[] = []; const learned: string[] = [];
+  for (const m of motions) {
+    const fors: string[] = [], against: string[] = [], quiet: string[] = [];
+    for (const s of seats ?? []) {
+      const c = (Array.isArray(s.characters) ? s.characters[0] : s.characters) as { slug: string; name: string; player_id: string | null } | null;
+      if (!c || c.player_id) continue;
+      const lean = (await getStance(db, ctx.campaignId, m.number as string, c.slug)).lean;
+      (lean > 0.15 ? fors : lean < -0.15 ? against : quiet).push(c.name);
+      learned.push(`lean.${m.number}.${c.slug}.${lean > 0.15 ? "for" : lean < -0.15 ? "against" : "undecided"}`);
+    }
+    lines.push(`On ${m.number}, "${m.title}": ${fors.length ? `${fors.join(", ")} spoke for it` : "nobody spoke for it"}; ${against.length ? `${against.join(", ")} against` : "nobody against"}${quiet.length ? `; ${quiet.join(", ")} said nothing that committed them` : ""}.`);
+  }
+  if (!ctx.dry) { learned.push(`attended.${org.slug}.r${ctx.roundNo}`); await learn(db, ctx, learned, "witnessed", null); }
+  return { ...base, kind: "attended", target: org.slug, summary: `${ctx.character.name} sat at the back of the ${org.name} session. ${lines.join(" ")} Members' own votes are cast by ballot and were not shown.`, learned, presence };
+}
+
+/* MEET <colleague> (rulebook §6.3): in person, off the record. The colleague hears it the next morning in the
+   meeter's words, in a section of their dispatch; nothing is on paper, so nothing can be filed, forwarded,
+   intercepted or quoted. Both must be in the same place: on campus, or in the same town. Seen together only
+   if the meeting is at a named place. */
+async function meetColleague(db: SupabaseClient, ctx: Ctx, base: { learned: string[]; refund: number; verb: string; target: string | null; presence: Presence[] | undefined }, mate: { id: string; slug: string; name: string }, text: string, episode: number): Promise<Outcome> {
+  const ruledMeet = (summary: string): Outcome => ({ ...base, kind: "ruling", summary, refund: VERB_COST.meet });
+  const [{ data: leave }, { data: loc }] = ctx.dry ? [{ data: null }, { data: null }] : await Promise.all([
+    db.from("facts").select("key").eq("campaign_id", ctx.campaignId).eq("key", `leave.${mate.id}`).maybeSingle(),
+    db.from("facts").select("value").eq("campaign_id", ctx.campaignId).eq("key", `location.${mate.id}`).maybeSingle(),
+  ]);
+  if (leave) return ruledMeet(`${mate.name} is on leave and was not at Station R. Units returned.`);
+  const theirs = (loc?.value as { slug: string; name: string } | null) ?? null;
+  const mine = ctx.character.location ?? null;
+  if ((theirs?.slug ?? null) !== (mine?.slug ?? null)) return ruledMeet(`${mate.name} was ${theirs ? `in ${theirs.name}` : "at Station R"} and ${ctx.character.name} ${mine ? `in ${mine.name}` : "at Station R"}; they could not sit down together. Units returned.`);
+  // What was said: quoted words, or what follows "about" or a colon; else the order itself.
+  const quoted = text.match(/["\u201c](.{3,600}?)["\u201d]/)?.[1];
+  const after = text.match(/\b(?:about|re|regarding|to say|and say|and tell (?:them|him|her))\b\s*(.{3,600})$/i)?.[1] ?? text.match(/:\s*(.{3,600})$/)?.[1];
+  const words = (quoted ?? after ?? text).trim().replace(/\s+/g, " ").slice(0, 600);
+  const place = findPlace(text, episode);
+  const where = place ? ` at ${place.name}` : "";
+  if (!ctx.dry) {
+    await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "meet.held", payload: { from: ctx.character.id, from_name: ctx.character.name, to: mate.id, to_name: mate.name, words, place: place?.name ?? null, round: ctx.roundNo }, idempotency_key: `meet:${ctx.roundId}:${ctx.character.id}:${mate.id}`, visible_to: [ctx.character.id, mate.id] });
+    await db.from("knowledge").insert([
+      { character_id: mate.id, fact_key: `told:${ctx.character.slug}:meet:${ctx.roundNo}`, value: { kind: "in_person", text: words, from: ctx.character.id, from_name: ctx.character.name, round: ctx.roundNo, off_record: true }, confidence: 1, source_kind: "told", source_ref: null, learned_round: ctx.roundNo },
+      { character_id: ctx.character.id, fact_key: `met.${mate.slug}.r${ctx.roundNo}`, value: { true: true, round: ctx.roundNo, with: mate.id }, confidence: 1, source_kind: "witnessed", source_ref: null, learned_round: ctx.roundNo },
+    ]);
+  }
+  return { ...base, kind: "met", target: mate.slug, summary: `${ctx.character.name} sat down with ${mate.name}${where}. What was said is off the record: nothing on paper to file, forward, intercept or quote. ${mate.name} hears it in the morning, in ${ctx.character.name}'s own words.`, learned: [`met.${mate.slug}.r${ctx.roundNo}`], presence: place ? [{ kind: "place", slug: place.slug, name: place.name, verb: "visit" }] : undefined };
+}
+
 const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
 const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
 /* The thing in the character's Case File that the words name: by the index's vocabulary first (a document's
@@ -317,11 +375,18 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     await learn(db, ctx, [d.wrongDetail.grants], "inferred", null);
     return { ...base, kind: "examined", summary: `A close reading of "${d.title}": ${d.wrongDetail.text}.`, learned: [d.wrongDetail.grants] };
   }
+  if (verb === "meet") {
+    // MEET a colleague: in person, off the record. MEET staff or a local is a conversation as INTERVIEW has it.
+    const mate = findPerson(text, people.filter((p) => p.player && p.id !== ctx.character.id));
+    if (mate) return meetColleague(db, ctx, base, mate, text, episode);
+    verb = "interview"; base.verb = "interview";
+  }
   if (verb === "interview" || verb === "lobby") {
     let who = findPerson(text, people.filter((p) => !p.player));
     if (!who) {
+      // A colleague: the sitting is a MEET (in person, off the record); the price difference comes back.
       const mate = findPerson(text, people.filter((p) => p.player && p.id !== ctx.character.id));
-      if (mate) return ruled(`${mate.name} is a colleague in your cohort; the clerk arranges sittings with staff and locals only. Units returned. Write to them instead: a new message to the game's address beginning "TO: ${mate.name}".`);
+      if (mate) { const out = await meetColleague(db, { ...ctx }, { ...base, verb: "meet" }, mate, text, episode); return out.kind === "met" ? { ...out, refund: out.refund + Math.max(0, paid - VERB_COST.meet) } : out; }
     }
     if (!who && verb === "interview") {
       // Nobody named: whoever the living world put at the place is met (grow.ts), and from now on is in the directory.
@@ -523,18 +588,20 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     // issue (bulletin.ts). Each leak after the first by the same person this episode
     // costs 2 AU more. A file Security logs requests for is cross-referenced: the
     // paper has it, Records knows who pulled it.
-    const d = findDocument(text, episode);
-    if (!d) return ruled(`Nothing in the Case File matches "${text}". Units returned. Name the document you mean to leak.`);
+    const h = await heldItem(db, ctx, text, episode);
+    if (!h) { const d0 = findDocument(text, episode); return ruled(d0 ? `${ctx.character.name} does not hold "${d0.title}". Units returned; a leak needs the paper in hand.` : `Nothing in the Case File matches "${text}". Units returned. Name the document you mean to leak.`); }
+    if (/^minot-daily-news/.test(h.slug)) return ruled(`"${h.title}" is the paper's own issue; it has printed it already. Units returned.`);
+    // An index document goes by its own slug (its grants spread when printed); anything else held goes as its copy.
+    const d = h.doc ?? { slug: h.slug.slice(0, 60), title: h.title, notice: false, grants: [] as string[] };
     base.target = d.slug;
-    const { data: held } = ctx.dry ? { data: [{ slug: d.slug }] } : await db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("slug", d.slug).eq("status", "held");
-    if (!held?.length) return ruled(`${ctx.character.name} does not hold "${d.title}". Units returned; a leak needs the paper in hand.`);
+    const { data: itemRow } = h.doc || ctx.dry ? { data: null } : await db.from("case_items").select("body").eq("character_id", ctx.character.id).eq("slug", h.slug).maybeSingle();
     const { data: prior } = await db.from("facts").select("key, value").eq("campaign_id", ctx.campaignId).like("key", "leak.%");
     if ((prior ?? []).some((f) => f.key === `leak.${d.slug}`)) return ruled(`The paper already has "${d.title}". Units returned.`);
     const mine = (prior ?? []).filter((f) => (f.value as { by?: string; episode?: number }).by === ctx.character.id && (f.value as { episode?: number }).episode === episode).length;
     const surcharge = 2 * mine;
     if (surcharge > 0 && paid < VERB_COST.leak + surcharge) return ruled(`A ${mine + 1}${mine + 1 === 2 ? "nd" : mine + 1 === 3 ? "rd" : "th"} leak this episode costs ${VERB_COST.leak + surcharge} AU; ${paid} were committed. Units returned.`);
     if (!ctx.dry) {
-      await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `leak.${d.slug}`, value: { by: ctx.character.id, by_name: ctx.character.name, round: ctx.roundNo, episode, title: d.title, printed: false }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
+      await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `leak.${d.slug}`, value: { by: ctx.character.id, by_name: ctx.character.name, round: ctx.roundNo, episode, title: d.title, printed: false, ...(h.doc ? {} : { body: String(itemRow?.body ?? "").slice(0, 1500) }) }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
       await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "press.leaked", payload: { by: ctx.character.id, item: d.slug, title: d.title, round: ctx.roundNo }, idempotency_key: `leak:${ctx.campaignId}:${d.slug}`, visible_to: [ctx.character.id] });
       if (d.notice) await notify(db, ctx, `The Minot Daily News has "${d.title}". Records' log shows ${ctx.character.name} requested it.`);
     }
@@ -552,7 +619,14 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     }
     return { ...base, kind: "mitigated", summary: `${ctx.character.name}'s paperwork (${verb.replace(/_/g, " ")}) went through. The matter of "${tier.text}" is, for now, handled.` };
   }
-  if (verb === "attend") return ruled(`Nothing on the company calendar, and no invitation you hold, matched "${text}". Units returned.`);
+  if (verb === "attend") {
+    // A committee session: sit at the back and hear where the members stand on what is before them.
+    const mm = text.match(/\b([BRS]-\d{2}-\d{3})\b/i);
+    let orgName = committeeByName(text);
+    if (!orgName && mm) { const { data: mo } = await db.from("motions").select("organizations(name)").eq("campaign_id", ctx.campaignId).eq("number", mm[1].toUpperCase()).maybeSingle(); orgName = ((Array.isArray(mo?.organizations) ? mo?.organizations[0] : mo?.organizations) as { name: string } | null)?.name ?? null; }
+    if (orgName) return attendSession(db, ctx, base, orgName);
+    return ruled(`Nothing on the company calendar, and no invitation you hold, matched "${text}". Units returned. Committee sessions can be attended: ATTEND the Board, the Research Committee or the Safety Committee.`);
+  }
   return ruled(`The clerk could not make an order of "${text}". Units returned. Say what you want to request, watch, search, examine, or whom you want to see.`);
 }
 

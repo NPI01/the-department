@@ -851,7 +851,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       }
     }
     if (phase === "governance") {
-      const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id, finding, organizations(name, slug)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number);
+      const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id, finding, organizations(name, slug)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number).order("number");
       for (const m of motions ?? []) {
         if ((m as { kind?: string }).kind === "election") {
           // Plurality of cohort votes cast; ties to the earliest-created candidate; the winner is seated with clearance 2.
@@ -860,14 +860,18 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           for (const v of ev ?? []) tally.set(v.candidate_id as string, (tally.get(v.candidate_id as string) ?? 0) + 1);
           const { data: cands } = tally.size ? await db.from("characters").select("id, name, created_at, clearance").in("id", [...tally.keys()]) : { data: [] };
           const ranked = (cands ?? []).sort((x, y) => (tally.get(y.id as string)! - tally.get(x.id as string)!) || (x.created_at as string).localeCompare(y.created_at as string));
-          const winner = ranked[0] ?? null;
+          // One employee seat per person: a candidate already seated on another body is passed over.
+          const { data: seated } = await db.from("memberships").select("character_id, organization_id, organizations!inner(campaign_id)").eq("role", "Employee representative").eq("organizations.campaign_id", round.campaign_id).neq("organization_id", m.organization_id);
+          const holds = new Set((seated ?? []).map((s) => s.character_id as string));
+          const passedOver = ranked.filter((c) => holds.has(c.id as string)).map((c) => c.name as string);
+          const winner = ranked.find((c) => !holds.has(c.id as string)) ?? null;
           if (winner) {
             await db.from("memberships").upsert({ organization_id: m.organization_id, character_id: winner.id, role: "Employee representative", voting_weight: 1, since_round: round.number }, { onConflict: "organization_id,character_id" });
             if (Number(winner.clearance) < 2) await db.from("characters").update({ clearance: 2 }).eq("id", winner.id);
           }
           await db.from("motions").update({ status: winner ? "passed" : "failed" }).eq("id", m.id);
           const { data: everyone } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).not("player_id", "is", null);
-          await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "election.closed", payload: { motion_id: m.id, number: m.number, title: m.title, winner: winner?.id ?? null, winner_name: winner?.name ?? null, votes: Object.fromEntries([...tally.entries()]), cast: (ev ?? []).length }, idempotency_key: `election:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
+          await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "election.closed", payload: { motion_id: m.id, number: m.number, title: m.title, winner: winner?.id ?? null, winner_name: winner?.name ?? null, votes: Object.fromEntries([...tally.entries()]), cast: (ev ?? []).length, passed_over: passedOver }, idempotency_key: `election:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
           continue;
         }
         // Directors who have not voted vote by their lean; only members' votes count; quorum is half the seats.

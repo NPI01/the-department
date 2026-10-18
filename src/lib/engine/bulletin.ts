@@ -51,7 +51,8 @@ export async function publishBulletin(db: SupabaseClient, campaignId: string, ro
   const { data: leaks } = await db.from("facts").select("key, value").eq("campaign_id", campaignId).like("key", "leak.%");
   const pending = (leaks ?? []).filter((f) => !(f.value as { printed?: boolean }).printed);
   const docs = documentsFor(round.episode);
-  const leaked = pending.map((f) => ({ fact: f, doc: docs.find((d) => d.slug === (f.key as string).slice("leak.".length)) ?? null })).filter((x) => x.doc);
+  // An index document, or a held copy the leak carried with it (title and body in the fact).
+  const leaked = pending.map((f) => { const slug = (f.key as string).slice("leak.".length); const v = f.value as { title?: string; body?: string }; return { fact: f, doc: docs.find((d) => d.slug === slug) ?? (v.body ? { slug, title: v.title ?? "a document", body: v.body, grants: [] as string[] } : null) }; }).filter((x) => x.doc);
   for (const { doc } of leaked) items.push({ kind: "leak", slug: doc!.slug, text: `A document described as "${doc!.title}" reached this newspaper this week from a source who asked not to be named. ${doc!.body.replace(/\*\*/g, "").replace(/\s+/g, " ").slice(0, 400)}` });
   // The week's weather at the company, as the paper would notice it.
   const band = pressureFor(round.episode).find((t) => round.episodeRound >= t.rounds[0] && round.episodeRound <= t.rounds[1]);

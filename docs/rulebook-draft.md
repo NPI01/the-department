@@ -252,7 +252,8 @@ could not be done is refunded in the morning.
 | `ANALYZE <item>` | 6 | Put something you hold, or a copy sent to you, through your department's laboratory. Each department reads a thing its own way (Biological Sciences a sample, Advanced Materials a fragment, Information Systems a log, Applied Physics a power ledger); the report is evidence in your Case File. If your department has nothing to add, the clerk says whose work it is. Where `EXAMINE` is the close reading anyone can do, `ANALYZE` is what a laboratory adds, and why departments trade copies. |
 | `RESEARCH <subject>` | 10 | Read up on a subject in the company library, the county records and the newspaper morgue. A Research Brief is filed in your Case File, under Research, by morning: what a diligent reader could have found in 1977, and a note of what the shelves do not hold. Intelligence, never evidence. One brief per subject. |
 | `TRAVEL <town or place>` | 5 | Drive beyond the fence to Tagus, Minot, Split Rock Basin or Stanley, or to a place out there. The trip goes before anything else that night (§6.6), so your other orders happen there. You stay until an order on campus, or `TRAVEL` back, brings you home; while away, orders there cost no further trip, and nobody is watching your desk (§6.7). Gate 2 logs you out; a motor pool truck makes the trip free (§5.2). Your dispatch says where you are. |
-| `MEET <person>` | 3 | Talk in person. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. |
+| `MEET <person> about <what you say>` | 3 | Talk in person. With a colleague: they hear it the next morning in your own words, in a section of their dispatch; you must both be in the same place (on campus, or the same town), and if you name a place, anyone else there sees you together. With staff or a local, a conversation as `INTERVIEW` has it. Nothing said at a meeting is on paper, so it cannot be intercepted, but it also cannot be quoted as evidence. `INTERVIEW` or `LOBBY` naming a colleague is read as `MEET`. |
+| `ATTEND <committee>` | 4 | Sit at the back of a session of the Board, the Research Committee or the Safety Committee and hear where each staff member stands on every motion before it; members' own ballots are not shown. Anyone else who attends sees you there. Also: a meeting named in an invitation you hold. |
 | `CONTACT <person or organization>` | 4 | Reach someone outside the company who has not written to you. They may not answer. |
 | `SURVEIL <person or place>` | 8 | Watch who comes and goes and who writes to whom. Shows connections, never letter contents. Can be standing. |
 | `PROTECT my desk \| <item> \| <file> \| myself` | 4 | A guard for one night, laid before anything else moves (§6.6). *My desk* covers everything you hold and your department's files; an item, or a file your department keeps, covers that one thing; *myself* keeps your movements out of every contact report (§6.7). Write it again to keep it. |
@@ -470,7 +471,9 @@ employee representative: projects, experiments, data classification, clearance),
 internal investigations, emergency authority). The full charter is a separate document.
 
 **8.2 The employee seats.** [PROPOSED] In Round 3 of Episode 1 your cohort elects two of
-its own to the employee seats, one per committee, by plurality of votes cast. They are
+its own to the employee seats, one per committee, by plurality of votes cast. No one holds
+both: a candidate seated on one body is passed over for the other, and the next in the
+count takes it. They are
 full voting seats and the first real power a new hire can hold.
 
 **8.3 Motions.** Any member may sponsor a motion; any employee may, with one member's
@@ -607,6 +610,8 @@ Command lines (start of a line, any email to the game):
   ORDER: ANALYZE <item>                   your department's laboratory report; 6 AU
   ORDER: TRAVEL <town or place>           beyond the fence, there until you come home; 5 AU
   ORDER: SPONSOR_MOTION <body> "<title>" CLOSES <round>   a motion before a committee; 5 AU
+  ORDER: MEET <colleague> about …         in person, off the record; 3 AU
+  ORDER: ATTEND <committee>               hear where the members stand; 4 AU
   ORDER: EMERGENCY_DIRECTIVE "<text>"     officers only; seal, suspend, curfew, open; no charge
   STANDING ORDER: <order> / CC            repeats each night; full price, then 2 AU
   CANCEL STANDING <n> / CANCEL ORDERS

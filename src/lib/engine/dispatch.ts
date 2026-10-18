@@ -84,6 +84,8 @@ export function renderHelp(first: string) {
     `  ORDER: REQUISITION <item>        a camera, a recorder, a truck or a badge from stores`,
     `  ORDER: OBTAIN <file> / <item> FROM <name>   take what you are not entitled to; 8 AU`,
     `  ORDER: PROTECT my desk | <item> | <file> | myself   a guard for the night; 4 AU`,
+    `  ORDER: MEET <colleague> about …  in person, off the record; they hear it next morning; 3 AU`,
+    `  ORDER: ATTEND <committee>        hear where staff members stand on what is before it; 4 AU`,
     `  ORDER: RECRUIT <name> / DISMISS <name>   an informant who knows you; 10 AU, then 2 a round`,
     `  ORDER: ANALYZE <item>            your department's laboratory report on something held; 6 AU`,
     `  ORDER: TRAVEL <town or place>    beyond the fence, and there until you come home; 5 AU`,

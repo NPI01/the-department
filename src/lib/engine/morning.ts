@@ -38,6 +38,7 @@ const VERBS: Record<string, string> = {
   analyze: "put something you hold through your department's laboratory; a report by morning if the department has something to say about it",
   travel: "drive beyond the fence to a town or a place and stay there until an order brings you home; orders there cost no further trip",
   sponsor_motion: "put a motion before the Board, the Research Committee or the Safety Committee; it opens with tomorrow's dispatch",
+  meet: "sit down in person with a colleague in the cohort, off the record",
 };
 
 type Facts = {
@@ -89,6 +90,7 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   analyze: (w) => `Analyze ${w}`,
   travel: (w) => `Drive to ${w}`,
   sponsor_motion: (w) => `Sponsor a motion ${w}`,
+  meet: (w) => `Sit down with ${w}`,
 };
 
 /* The line the player reads is the action and its target, built from the verb;
@@ -241,6 +243,9 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
     const cur = bySender.get(who) ?? { n: 0, subject: null }; bySender.set(who, { n: cur.n + 1, subject: l.subject ?? cur.subject });
   }
   for (const [who, v] of bySender) arrived.push(v.n === 1 ? `a letter from ${who} (subject: ${v.subject ?? "none"}); the player has read it` : `${v.n} letters from ${who}, the latest on "${v.subject ?? "no subject"}"; the player has read them`);
+  const { data: meets } = await db.from("events").select("payload").eq("kind", "meet.held").contains("visible_to", [ch.id]).gte("created_at", since);
+  const inPerson = (meets ?? []).map((e) => e.payload as { from_name: string; to: string; words: string; place: string | null }).filter((v) => v.to === ch.id).map((v) => `• ${v.from_name} sat down with you${v.place ? ` at ${v.place}` : ""} and said: "${v.words}"`);
+  if (inPerson.length) arrived.push(`colleagues sat down with the player in person (${inPerson.length}); their words are set out below the letter, off the record`);
   const { data: evs } = await db.from("events").select("kind, payload").contains("visible_to", [ch.id]).gte("created_at", since).in("kind", ["form.filed", "motion.closed", "election.closed", "goal.met", "goal.failed", "contact.seen", "contact.watch", "condition.fired", "bulletin.published", "research.briefed", "equipment.returned", "equipment.seized", "contact.theft", "contact.theft_failed", "informant.lapsed", "directive.issued", "proxy.given", "transfer.received", "agreement.proposed", "agreement.active", "agreement.breached", "agreement.fulfilled", "grace.ended", "newsletter.published"]).limit(20);
   for (const e of evs ?? []) { const v = e.payload as { form?: string; index?: string; motion_id?: string; number?: string; title?: string; passed?: boolean; winner_name?: string | null; awarded?: number; partial?: boolean; goal_key?: string; text?: string; condition?: string; issue?: string };
     if (e.kind === "contact.seen") arrived.push(`a contact report: ${v.text} (the player saw this themselves last night)`);
@@ -299,7 +304,7 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   ];
   // What the clerk returned last night, in the clerk's own words: the narration may soften a refusal, this does not.
   const returned = lastNight.filter((o) => /\(ruling\)|^skipped/.test(o.status)).map((o) => `• ${o.label.replace(/^(\w+(?: \w+)?): /, (_m, v: string) => `${v.toUpperCase()}: `)} — ${o.ruling ?? "beyond your balance at the lock"}`);
-  const body = [out.narrative, ...(returned.length ? ["", "## Returned by the clerk", ...returned] : []), "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), ...(standingLines.length ? ["", "## Standing", ...standingLines, "• Change these with AUTHORIZE, REVOKE or ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE. The people named are never told."] : []), "", "## Your orders for tonight", menuBlock].join("\n");
+  const body = [out.narrative, ...(returned.length ? ["", "## Returned by the clerk", ...returned] : []), ...(inPerson.length ? ["", "## In person, off the record", ...inPerson, "• Nothing said in person is on paper: it cannot be filed, forwarded or quoted."] : []), "", "## What arrived overnight", ...out.overnight.map((l) => `• ${l}`), ...(ballotLines.length ? ["", "## Ballots", ...ballotLines] : []), ...(standingLines.length ? ["", "## Standing", ...standingLines, "• Change these with AUTHORIZE, REVOKE or ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE. The people named are never told."] : []), "", "## Your orders for tonight", menuBlock].join("\n");
   const subject = `${facts.date} — Round ${round.number} of ${Number(await rule(db, round.campaign_id, "episode.rounds", 14))} — ${facts.episodeTitle}`;
   const { data: row, error } = await db.from("correspondence").insert({ campaign_id: round.campaign_id, round_id: round.id, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email], subject, body_text: body, raw: { letter_kind: "dispatch", model: out.model, fallback: out.fallback, menu: out.menu, rejected: out.rejected } }).select("id").single();
   if (error) throw new Error(error.message);

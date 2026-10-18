@@ -74,6 +74,7 @@ export function orderContinuation(lines: string[], i: number): number[] {
   for (let j = i + 1; j < lines.length; j++) {
     const l = lines[j].trim();
     if (!l || l.startsWith(">") || COMMAND_START.test(l) || /^IF\s/.test(l) || SIGN_OFF.test(l) || /^On .{5,120} wrote:\s*$/.test(l)) break;
+    if (/^(?:note\b|notes?\s*(?:to|for)\b|n\.?\s?b\.?(?:\s|:)|p\.?\s?s\.?(?:\s|:)|\(note)/i.test(l)) break;   // "Note to the clerk: …" is a note
     out.push(j);
   }
   return out;
