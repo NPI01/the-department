@@ -10,7 +10,7 @@ import { dispatchBallotLines, loadBallots } from "@/lib/game/ballots";
 import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
 import { rule } from "./rounds";
-import { pressureFor, episodeOf } from "./world";
+import { pressureFor, episodeOf, labWorkFor, paperworkFor } from "./world";
 import { VERB_COST } from "./resolve";
 import { standingFor } from "./contacts";
 import { listStanding, STANDING_UPKEEP } from "./standing";
@@ -28,7 +28,6 @@ const VERBS: Record<string, string> = {
   examine: "study something you hold or can reach",
   visit: "go somewhere on campus or in the county",
   lobby: "work on a committee member before a vote",
-  submit_manifest: "file paperwork that puts something on the record",
   search: "look through a room, a drawer, a locker",
   attend: "be present at a meeting, a test, a service",
   research: "read up on a subject in the company library and the county records; a Research Brief by morning",
@@ -40,6 +39,8 @@ const VERBS: Record<string, string> = {
   sponsor_motion: "put a motion before the Board, the Research Committee or the Safety Committee; it opens with tomorrow's dispatch",
   meet: "sit down in person with a colleague in the cohort, off the record",
 };
+/* Paperwork verbs reach only this week's matter; the menu offers one only when the facts give it. */
+const PAPERWORK: Record<string, string> = { submit_manifest: "file a manifest", approve_overtime: "approve overtime", reconcile_maps: "reconcile the maps", approve_corridors: "approve flight corridors", clear_invoices: "clear the invoices", issue_statement: "issue an official statement" };
 
 type Facts = {
   first: string; name: string; title: string | null; department: string | null;
@@ -48,7 +49,9 @@ type Facts = {
   mode: string | null;
   arrived: string[];
   scheduled: string[];
-  cabinet: string[];     // titles the player holds, for EXAMINE and ANALYZE options
+  cabinet: string[];     // titles the player holds, for EXAMINE options
+  analyzable?: string[]; // the held titles the player's own department can ANALYZE
+  paperwork?: { verb: string; matter: string } | null; // this week's mitigation, when the player's department may file it and it is not yet through
 };
 
 function fallbackMenu(f: Facts): MenuOption[] {
@@ -81,6 +84,11 @@ const VERB_LINE: Record<string, (what: string) => string> = {
   visit: (w) => `Go to ${w}`,
   lobby: (w) => `Lobby ${w}`,
   submit_manifest: (w) => `File ${w}`,
+  approve_overtime: (w) => `Approve overtime: ${w}`,
+  reconcile_maps: (w) => `Reconcile ${w}`,
+  approve_corridors: (w) => `Approve corridors: ${w}`,
+  clear_invoices: (w) => `Clear ${w}`,
+  issue_statement: (w) => `Issue a statement: ${w}`,
   search: (w) => `Search ${w}`,
   attend: (w) => `Attend ${w}`,
   research: (w) => `Research ${w}`,
@@ -115,7 +123,7 @@ export function parse(text: string): { narrative: string; overnight: string[]; m
   // The model's cost column is ignored: an option costs what the rulebook says its verb costs (VERB_COST).
   for (const m of tail.matchAll(/^\s*([A-D])\s*\|\s*([a-z_]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*(?:\|\s*\d{1,2}\s*)?$/gim)) {
     const verb = m[2].toLowerCase();
-    if (!VERBS[verb] || VERB_COST[verb] === undefined) continue;
+    if ((!VERBS[verb] && !PAPERWORK[verb]) || VERB_COST[verb] === undefined) continue;
     menu.push({ code: m[1].toUpperCase(), verb, args: m[3].trim(), label: menuLabel(verb, m[3].trim(), m[4].trim().replace(/\.$/, "")), cost: VERB_COST[verb] });
   }
   return { narrative: top.trim(), overnight, menu, complete: rest.length > 0 };
@@ -131,7 +139,8 @@ RULES
 - Do not explain the plot. Do not tell the player what to think. No bullet points or headers in the narrative.
 - On a night with no orders, do not inventory the mail; the OVERNIGHT lines do that. Write the morning instead: the building, the weather, one small thing out of place on the desk, and the day ahead.
 - Every MENU line names its target so a clerk could act on it: a person by name, a file by its title, a place by its name. Never "him", "the note", "the data".
-- An EXAMINE or ANALYZE option must name one of the items the player holds (listed in the facts), by its title; if they hold nothing, offer no such option.
+- An EXAMINE option must name one of the items the player holds (listed in the facts), by its title; if they hold nothing, offer no such option. An ANALYZE option must name one of the items the facts list as work for the player's department; if none is listed, offer no ANALYZE option.
+- Offer paperwork only when the facts give THIS WEEK'S PAPERWORK, and then only with the verb given there.
 
 FORMAT. Two short paragraphs of narrative (120 to 200 words in all). Then a line of exactly three tildes: ~~~
 Then:
@@ -149,7 +158,9 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
     f.lastNight.length ? `LAST NIGHT'S ORDERS AND WHAT THE CLERK RECORDED:\n${f.lastNight.map((o) => `- ${o.label} → ${o.status}${o.ruling ? ` (${o.ruling})` : ""}`).join("\n")}` : `LAST NIGHT: ${f.mode === "leave" ? "the player is on leave, away from Station R; no orders are expected and staff do not write to them first" : f.mode === "hold" ? "the player held (no orders; kept their units)" : "the player sent no orders"}.`,
     f.arrived.length ? `WHAT ARRIVED OR HAPPENED, FROM THE RECORD:\n${f.arrived.map((a) => `- ${a}`).join("\n")}` : "WHAT ARRIVED: nothing addressed to the player.",
     f.scheduled.length ? `SCHEDULED FOR TODAY (the company's calendar; mention only what the player would notice):\n${f.scheduled.map((a) => `- ${a}`).join("\n")}` : "",
-    f.cabinet.length ? `WHAT THE PLAYER HOLDS (the only things EXAMINE or ANALYZE may name):\n${f.cabinet.map((a) => `- ${a}`).join("\n")}` : "THE PLAYER HOLDS NOTHING YET: offer no EXAMINE or ANALYZE option.",
+    f.cabinet.length ? `WHAT THE PLAYER HOLDS (the only things EXAMINE may name):\n${f.cabinet.map((a) => `- ${a}`).join("\n")}` : "THE PLAYER HOLDS NOTHING YET: offer no EXAMINE or ANALYZE option.",
+    f.analyzable?.length ? `WORK FOR THE PLAYER'S DEPARTMENT LABORATORY (the only things ANALYZE may name):\n${f.analyzable.map((a) => `- ${a}`).join("\n")}` : "NOTHING THE PLAYER HOLDS IS WORK FOR THEIR LABORATORY: offer no ANALYZE option.",
+    f.paperwork ? `THIS WEEK'S PAPERWORK (the player's department may file it; offer it as ${f.paperwork.verb}): ${f.paperwork.matter}` : "",
     "Write the dispatch.",
   ].filter(Boolean).join("\n\n");
   const ask = (sys: string) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag: "dispatch", temperature: 0.8, maxTokens: 1200, think: false, timeoutMs: 120_000, model: process.env.DISPATCH_MODEL || undefined, onLedger });
@@ -164,7 +175,12 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
       // A menu short of four options is padded from the standard list rather than thrown away.
       // An EXAMINE or ANALYZE of something the player does not hold is a refund in the morning: name a held item instead, or drop it.
       const held = (t: string) => f.cabinet.find((c) => c.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(c.toLowerCase().slice(0, 24)));
+      const labbed = (t: string) => (f.analyzable ?? []).find((c) => c.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(c.toLowerCase().slice(0, 24)));
       const kept = out.menu.flatMap((m) => {
+        // Paperwork the week does not call for, or that this player cannot file, is a refund in the morning: drop it.
+        if (PAPERWORK[m.verb]) return f.paperwork?.verb === m.verb ? [m] : [];
+        // An ANALYZE of something no laboratory of theirs can read becomes an EXAMINE of it.
+        if (m.verb === "analyze" && !labbed(m.args)) { const t = held(m.args); return t ? [{ ...m, verb: "examine", args: t, label: menuLabel("examine", t, ""), cost: VERB_COST.examine }] : []; }
         if (m.verb !== "examine" && m.verb !== "analyze") return [m];
         if (held(m.args)) return [m];
         if (!f.cabinet.length) return [];
@@ -210,7 +226,7 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const { data: round } = await db.from("rounds").select("id, campaign_id, number, episode_round, opens_at, episodes(number, title)").eq("id", p.roundId).single();
   if (!round) throw new Error("round missing");
   const ep = (Array.isArray(round.episodes) ? round.episodes[0] : round.episodes) as { number: number; title: string } | null;
-  const { data: ch } = await db.from("characters").select("id, name, title, divisions(name), players(email, mail_token, file_token, display_name)").eq("id", p.characterId).single();
+  const { data: ch } = await db.from("characters").select("id, name, title, divisions(name, slug), players(email, mail_token, file_token, display_name)").eq("id", p.characterId).single();
   if (!ch) throw new Error("character missing");
   type P = { email: string; mail_token: string; file_token: string | null; display_name: string | null };
   const pl = (ch as unknown as { players?: P | P[] | null }).players;
@@ -276,8 +292,12 @@ export async function sendMorningDispatch(db: SupabaseClient, p: { roundId: stri
   const band = pressureFor(epNo).find((t) => (round.episode_round ?? round.number) >= t.rounds[0] && (round.episode_round ?? round.number) <= t.rounds[1]);
   if (band && epNo !== 1) scheduled.push(`around the company: ${band.text}`);
 
-  const { data: heldItems } = await db.from("case_items").select("title").eq("character_id", ch.id).eq("status", "held").neq("drawer", "correspondence").order("created_at", { ascending: false }).limit(12);
-  const facts: Facts = { first, name: ch.name, title: ch.title, department, date: gameDate(round.number), round: round.number, episodeRound: round.episode_round ?? round.number, episodeTitle: ep?.title ?? "Orientation", au: Number(au?.balance ?? 0), lastNight, mode, arrived, scheduled, cabinet: (heldItems ?? []).map((i) => i.title as string) };
+  const divisionSlug = (Array.isArray(ch.divisions) ? ch.divisions[0]?.slug : (ch.divisions as { slug: string } | null)?.slug) ?? null;
+  const pw = paperworkFor(epNo, round.episode_round ?? round.number);
+  const { data: pwDone } = pw.tier && pw.verbs.length ? await db.from("facts").select("key").eq("campaign_id", round.campaign_id).eq("key", `pressure.ep${epNo}.tier${pw.tier.tier}.mitigated`).maybeSingle() : { data: null };
+  const paperwork = pw.tier && pw.verbs.length && !pwDone && (!pw.departments || (divisionSlug && pw.departments.includes(divisionSlug))) ? { verb: pw.verbs[0], matter: pw.tier.text } : null;
+  const { data: heldItems } = await db.from("case_items").select("slug, title").eq("character_id", ch.id).eq("status", "held").neq("drawer", "correspondence").order("created_at", { ascending: false }).limit(12);
+  const facts: Facts = { first, name: ch.name, title: ch.title, department, date: gameDate(round.number), round: round.number, episodeRound: round.episode_round ?? round.number, episodeTitle: ep?.title ?? "Orientation", au: Number(au?.balance ?? 0), lastNight, mode, arrived, scheduled, cabinet: (heldItems ?? []).map((i) => i.title as string), analyzable: (heldItems ?? []).filter((i) => divisionSlug && labWorkFor(i.slug as string, i.title as string).includes(divisionSlug)).map((i) => i.title as string), paperwork };
   const out = await composeDispatch(facts, onLedger);
   await recordMenu(db, round.campaign_id, round.id, ch.id, out.menu);
   const menuBlock = renderMenu(out.menu, facts.au).split("\n").slice(1).join("\n");

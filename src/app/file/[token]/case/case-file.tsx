@@ -242,6 +242,7 @@ function ItemView({ token, item: i, items, notes, setNotes, byKey, go, close, pe
     ["Your copy", i.copy ?? "—"],
     ["Filed", roundLabel(i.round)],
     ["Grade", <span key="g"><b>{GRADE_LABEL[i.grade]}.</b> {GRADE_HELP[i.grade]}</span>],
+    ...(i.lab && !gone ? [["Laboratory", i.lab.length ? `${i.lab.join(" or ")} can ANALYZE it; anyone else can SEND a copy there.` : "Nothing a laboratory could add. EXAMINE it instead."] as [string, string]] : []),
     ...(gone ? [["Status", `${STATUS_LABEL[i.status]}${i.statusRound != null ? `, Round ${i.statusRound}` : ""}${i.statusNote ? `. ${i.statusNote}` : ""}`] as [string, string]] : []),
   ];
 

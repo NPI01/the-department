@@ -32,6 +32,7 @@ export type CaseItem = {
   status: ItemStatus;
   statusNote: string | null;
   statusRound: number | null;
+  lab?: string[] | null;      // departments whose laboratory can ANALYZE it; [] = none; absent for letters. Set by the page (server only).
 };
 
 export type CaseNote = { id: string; itemKey: string | null; quote: string | null; body: string; links: string[]; round: number | null; createdAt: string };

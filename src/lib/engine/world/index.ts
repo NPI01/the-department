@@ -24,3 +24,22 @@ export const placesFor = (episode: number) => [...ALL_PLACES, ...LIVE_PLACES.fil
 export const pressureFor = (episode: number) => ALL_PRESSURE.filter((t) => (t.episode ?? 1) === episode);
 export const scheduledFor = (episode: number): ScheduledItem[] => (episode === 1 ? SCHEDULED : episode === 2 ? SCHEDULED_02 : episode === 3 ? SCHEDULED_03 : []);
 export const episodeOf = (roundNumber: number, perEpisode = 14) => Math.floor((roundNumber - 1) / perEpisode) + 1;
+
+export const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
+export const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
+
+/* The departments whose laboratories can add something to a held item (ANALYZE), by the index entry it is
+   a copy of (a copy sent on or taken counts); none means the page is what it is. */
+export function labWorkFor(slug: string, title?: string | null): string[] {
+  const base = slug.replace(/-from-.*$|-taken-r\d+$/, "");
+  const all = documentsFor(99);
+  const d = all.find((x) => x.slug === base) ?? (title ? all.find((x) => x.title.toLowerCase() === title.toLowerCase()) : undefined);
+  return (d?.analyses ?? []).map((a) => a.department);
+}
+
+/* The paperwork (mitigation order) that can reach this week's matter, if any. */
+export function paperworkFor(episode: number, episodeRound: number) {
+  const tier = pressureFor(episode).find((t) => episodeRound >= t.rounds[0] && episodeRound <= t.rounds[1]) ?? null;
+  return { tier, verbs: tier?.mitigation?.verbs ?? [], departments: tier?.mitigation?.department ?? null };
+}
+export const PAPERWORK_VERBS = ["submit_manifest", "approve_overtime", "reconcile_maps", "approve_corridors", "clear_invoices", "issue_statement"];

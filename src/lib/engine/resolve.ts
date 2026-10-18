@@ -4,7 +4,7 @@
    in the Case File, knowledge rows, a note in Security's memory, a refund.
    The outcome summary is for the morning narrator and is player-safe. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { documentsFor, placesFor, pressureFor, episodeOf } from "./world";
+import { documentsFor, placesFor, pressureFor, episodeOf, deptName, labWorkFor, paperworkFor, PAPERWORK_VERBS } from "./world";
 import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
@@ -165,8 +165,15 @@ async function meetColleague(db: SupabaseClient, ctx: Ctx, base: { learned: stri
   // What was said: quoted words, or what follows "about" or a colon; else the order itself.
   const quoted = text.match(/["\u201c](.{3,600}?)["\u201d]/)?.[1];
   const after = text.match(/\b(?:about|re|regarding|to say|and say|and tell (?:them|him|her))\b\s*(.{3,600})$/i)?.[1] ?? text.match(/:\s*(.{3,600})$/)?.[1];
+  // The place is named before what is said ("MEET Osei at the barn about …"); a place mentioned in the words is not where they sat.
+  const cut = Math.min(...[quoted, after].filter((x): x is string => Boolean(x)).map((x) => text.indexOf(x)).filter((i) => i >= 0), text.length);
+  const place = findPlace(text.slice(0, cut), episode);
+  // A bare MEET (a name, perhaps a place) has nothing to hear in the morning: the clerk asks for the subject.
+  if (!quoted && !after) {
+    const rest = norm(text).replace(norm(mate.name), " ").replace(norm(mate.name.split(" ").slice(-1)[0]), " ").replace(place ? norm(place.name) : "\u0000", " ").replace(/\b(?:with|at|in|the|a|an|on|over|for|up|sit|down|meet|coffee|lunch|campus|tonight|today)\b/g, " ").trim();
+    if (rest.split(/\s+/).filter((w) => w.length > 1).length < 3) return ruledMeet(`${ctx.character.name} named ${mate.name} but not what to say, and there is nothing for ${mate.name} to hear in the morning. Units returned. Write: MEET ${mate.name} about <what you want to say>.`);
+  }
   const words = (quoted ?? after ?? text).trim().replace(/\s+/g, " ").slice(0, 600);
-  const place = findPlace(text, episode);
   const where = place ? ` at ${place.name}` : "";
   if (!ctx.dry) {
     await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "meet.held", payload: { from: ctx.character.id, from_name: ctx.character.name, to: mate.id, to_name: mate.name, words, place: place?.name ?? null, round: ctx.roundNo }, idempotency_key: `meet:${ctx.roundId}:${ctx.character.id}:${mate.id}`, visible_to: [ctx.character.id, mate.id] });
@@ -178,8 +185,6 @@ async function meetColleague(db: SupabaseClient, ctx: Ctx, base: { learned: stri
   return { ...base, kind: "met", target: mate.slug, summary: `${ctx.character.name} sat down with ${mate.name}${where}. What was said is off the record: nothing on paper to file, forward, intercept or quote. ${mate.name} hears it in the morning, in ${ctx.character.name}'s own words.`, learned: [`met.${mate.slug}.r${ctx.roundNo}`], presence: place ? [{ kind: "place", slug: place.slug, name: place.name, verb: "visit" }] : undefined };
 }
 
-const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };
-const deptName = (slug: string | null) => slug ? (DEPT_NAMES[slug] ?? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())) : "your department";
 /* The thing in the character's Case File that the words name: by the index's vocabulary first (a document's
    aliases), then by the held item's own title or short name. A copy (sent on, taken) counts. Returns the
    held row and the index document it is a copy of, if any; items with no index entry (the orientation pack,
@@ -356,7 +361,11 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!h) { const d0 = findDocument(text, episode); return ruled(d0 ? `${ctx.character.name} does not hold "${d0.title}". Units returned; a laboratory needs the thing itself, or a copy.` : `Nothing in the Case File matches "${text}". Units returned.`); }
     const d = h.doc;
     base.target = h.slug;
-    if (!d?.analyses?.length) return ruled(`There is nothing a laboratory could add to "${h.title}"; the page is what it is. Units returned. EXAMINE it instead.`);
+    if (!d?.analyses?.length) {
+      const { data: rows } = ctx.dry ? { data: [] } : await db.from("case_items").select("slug, title").eq("character_id", ctx.character.id).eq("status", "held").neq("drawer", "correspondence");
+      const ours = ((rows ?? []) as { slug: string; title: string }[]).filter((i) => labWorkFor(i.slug, i.title).includes(ctx.character.division ?? "")).map((i) => `"${i.title}"`);
+      return ruled(`There is nothing a laboratory could add to "${h.title}"; the page is what it is. Units returned. EXAMINE it instead. ${ours.length ? `Of what you hold, ${deptName(ctx.character.division)} can analyze ${ours.slice(0, 3).join(", ")}.` : `Nothing you hold is work for the ${deptName(ctx.character.division)} laboratory yet; the Case File marks what is.`}`);
+    }
     const mine = d.analyses.find((a) => a.department === ctx.character.division);
     if (!mine) return ruled(`"${d.title}" is work for ${d.analyses.map((a) => deptName(a.department)).join(" or ")}, not ${deptName(ctx.character.division)}. Units returned. SEND a copy to someone there.`);
     const slug = `analysis-${d.slug}`.slice(0, 44) + `-${(ctx.character.division ?? "x").slice(0, 10)}`;
@@ -386,7 +395,7 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!who) {
       // A colleague: the sitting is a MEET (in person, off the record); the price difference comes back.
       const mate = findPerson(text, people.filter((p) => p.player && p.id !== ctx.character.id));
-      if (mate) { const out = await meetColleague(db, { ...ctx }, { ...base, verb: "meet" }, mate, text, episode); return out.kind === "met" ? { ...out, refund: out.refund + Math.max(0, paid - VERB_COST.meet) } : out; }
+      if (mate) { const out = await meetColleague(db, { ...ctx }, { ...base, verb: "meet" }, mate, text, episode); return out.kind === "met" ? { ...out, refund: out.refund + Math.max(0, paid - VERB_COST.meet) } : { ...out, refund: paid }; }
     }
     if (!who && verb === "interview") {
       // Nobody named: whoever the living world put at the place is met (grow.ts), and from now on is in the directory.
@@ -607,10 +616,17 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     }
     return { ...base, kind: "leaked", summary: `A copy of "${d.title}" went to the Minot Daily News by way of the counter on Main, left with a man who did not give his name. It will be in the paper's next issue.${d.notice ? " Records keeps a log of who asks for that file." : ""}`, noticed: Boolean(d.notice), refund: Math.max(0, paid - VERB_COST.leak - surcharge), presence: [{ kind: "document", slug: d.slug, name: d.title, verb: "leak", covert: true }] };
   }
-  if (["submit_manifest", "approve_overtime", "reconcile_maps", "approve_corridors", "clear_invoices", "issue_statement"].includes(verb)) {
-    const tier = pressureFor(episode).find((t) => t.mitigation?.verbs.includes(verb) && ctx.episodeRound >= t.rounds[0] && ctx.episodeRound <= t.rounds[1]);
-    if (!tier) return ruled(`There is nothing for ${verb.replace(/_/g, " ")} to act on this week. Units returned.`);
-    if (tier.mitigation?.department && !(ctx.character.division && tier.mitigation.department.includes(ctx.character.division))) return ruled(`${verb.replace(/_/g, " ")} must come from ${tier.mitigation.department.join(" or ")}. Units returned.`);
+  if (PAPERWORK_VERBS.includes(verb)) {
+    // Paperwork reaches one thing: this week's matter, by the form that matter calls for, from the department it names.
+    const label = (v: string) => v.toUpperCase();
+    const pw = paperworkFor(episode, ctx.episodeRound);
+    const tier = pw.verbs.includes(verb) ? pw.tier : null;
+    if (!pw.verbs.length) return ruled(`No paperwork reaches what is happening this week; it will run its course. Units returned. Do not file ${label(verb)} again until the dispatch offers paperwork.`);
+    const from = pw.departments ? `, from ${pw.departments.map(deptName).join(" or ")}` : "";
+    if (!tier) return ruled(`${label(verb)} is not the paperwork this week calls for. Units returned. This week's is ${pw.verbs.map(label).join(" or ")}${from}.`);
+    const { data: done } = ctx.dry ? { data: null } : await db.from("facts").select("value").eq("campaign_id", ctx.campaignId).eq("key", `pressure.ep${episode}.tier${tier.tier}.mitigated`).maybeSingle();
+    if (done) { const by = (done.value as { by?: string; round?: number }); return ruled(`This week's paperwork is already through${by.by === ctx.character.id ? ", filed by you" : ""}${by.round ? ` on Round ${by.round}` : ""}. Units returned.`); }
+    if (pw.departments && !(ctx.character.division && pw.departments.includes(ctx.character.division))) return ruled(`${label(verb)} must come${from.slice(1)}. Units returned. Ask someone there to file it.`);
     if (!ctx.dry) {
       await db.from("facts").upsert({ campaign_id: ctx.campaignId, key: `pressure.ep${episode}.tier${tier.tier}.mitigated`, value: { by: ctx.character.id, round: ctx.roundNo }, established_round: ctx.roundNo, secret: true }, { onConflict: "campaign_id,key" });
       const { data: idx } = await db.from("rules").select("value").eq("campaign_id", ctx.campaignId).eq("key", "convergence.index").maybeSingle();

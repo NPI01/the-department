@@ -10,6 +10,7 @@ import { chatJson, type LedgerRow } from "@/lib/cobble";
 import { parseGrammar, parseSalutation, parseToLines } from "@/lib/email/inbound";
 import { gameMailbox, newMessageId } from "@/lib/email/resend";
 import { HELP_SECTIONS } from "@/lib/game/help";
+import { deptName, labWorkFor } from "@/lib/engine/world";
 
 type Db = SupabaseClient;
 
@@ -51,7 +52,9 @@ export async function playerView(db: Db, p: { campaignId: string; characterId: s
     `STAFF AND LOCALS: ${listed.filter((r) => !r.player_id).map((r) => `${r.name}${r.title ? `, ${r.title}` : ""}${dept(r) ? ` (${dept(r)})` : " (off campus)"}`).join("; ")}`,
   ].join("\n");
   const mail = (letters ?? []).map((l) => { const who = ((Array.isArray(l.characters) ? l.characters[0] : l.characters) as { name: string } | null)?.name ?? ((l.raw as { office?: { office: string } } | null)?.office?.office ?? "The Department"); return `FROM ${who} · "${l.subject ?? ""}"\n${String(l.body_text ?? "").slice(0, 1400)}`; }).join("\n\n---\n\n");
-  const cabinet = (items ?? []).map((i) => `- ${i.slug} · ${i.title} (${i.kind}, ${i.grade})${i.body ? `: ${String(i.body).replace(/\s+/g, " ").slice(0, 220)}…` : ""}`).join("\n");
+  // The Case File's Laboratory line, as the player would read it on the item.
+  const lab = (i: { slug: string; title: string }) => { const d = labWorkFor(i.slug, i.title).map(deptName); return d.length ? `; laboratory: ${d.join(" or ")}` : ""; };
+  const cabinet = (items ?? []).map((i) => `- ${i.slug} · ${i.title} (${i.kind}, ${i.grade}${lab(i)})${i.body ? `: ${String(i.body).replace(/\s+/g, " ").slice(0, 220)}…` : ""}`).join("\n");
   const rec = receipt?.payload as { onFile?: string[]; ignored?: string[] } | null;
   return {
     name: ch?.name ?? "", title: ch?.title ?? null, department: dept(ch ?? {}),

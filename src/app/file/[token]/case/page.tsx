@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { FileNav } from "../file-nav";
 import { supabaseAdmin, supabaseConfigured } from "@/lib/supabase/admin";
 import { characterForToken, loadCaseFile } from "@/lib/game/case-file";
+import { deptName, labWorkFor } from "@/lib/engine/world";
 import { CaseFileView } from "./case-file";
 
 /* The player's Case File: everything their character holds, and their private
@@ -27,7 +28,10 @@ async function Content({ params }: { params: PageProps<"/file/[token]/case">["pa
   const db = supabaseAdmin();
   const me = await characterForToken(db, token);
   if (!me) notFound();
-  const file = await loadCaseFile(db, me);
+  const loaded = await loadCaseFile(db, me);
+  // Which laboratories can ANALYZE each held item; worked out here so the world index never reaches the browser.
+  const letterKinds = new Set(loaded.items.filter((i) => i.drawer === "correspondence").map((i) => i.key));
+  const file = { ...loaded, items: loaded.items.map((i) => letterKinds.has(i.key) ? i : { ...i, lab: labWorkFor(i.key, i.title).map(deptName) }) };
   const { data: others } = await db.from("characters").select("id, slug, name, title, player_id").eq("campaign_id", me.campaignId).eq("status", "active").neq("id", me.id).order("name");
   const people = ((others ?? []) as { id: string; slug: string; name: string; title: string | null; player_id: string | null }[]).map((o) => ({ slug: o.slug, name: o.name, title: o.title, player: Boolean(o.player_id) }));
 
