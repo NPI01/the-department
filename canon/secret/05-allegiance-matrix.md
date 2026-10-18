@@ -39,6 +39,12 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 | **Capt. Thomas Bradley** | None (Contractor) | Financially enslaved; experiencing sensory bleed from Convergence. | None |
 | **Tech. Sgt. Arthur Doyle** | SENTINEL (Unwitting) | Unwitting asset; passes radar anomalies to P.O. Box in Fargo. | None |
 | **Martin Sayer** | Ascendant (Contact) | Correspondent of rogue Ascendant; copies Son of Sam imagery; no link to murders. | None |
+| **Lyle Brandvold** | None (Disturbed) | PGS surveyor; came up the same night he went down after what he lived as three days; at the Rud farm; will not go back. PROPOSED (Episode 4). | **YES** |
+| **Agnes Rud** | Keeper (Senior) | Keeps the farm and the account book; Clara Wren's niece; drove Marsh to the second property; hides Brandvold. PROPOSED (Episode 4). | **YES** |
+| **Ole Sandvik** | Keeper | The ghost employee: PGS pay since 1969 against badge 0000; drew Sketch B; was on the stairs with Brandvold on 23 November. PROPOSED (Episode 4; closes open question 1). | **YES** |
+| **Curtis Mahlum** | None (Local) | Reached the wall and tells it as the bottom; ran the cable for the installation; knows the 1975 core came up warm. PROPOSED (Episode 4). | **YES** |
+| **Dennis Pfeifer** | None (Paid by Voss) | Drove the 1974 concrete and signed the receipts; poured the ventilation shaft's collar; $80 a month from Voss to say there was no digging. PROPOSED (Episode 4). | **YES** |
+| **Conrad Ashby** | SENTINEL | Contracting officer for DSA-69-114; Baines's contact; knows the April date and that the 1969 depths were the Government's own. PROPOSED (Episode 4). | **YES** |
 
 ### Detailed Secret Entries
 
@@ -72,14 +78,24 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 **Dr. Evelyn Marsh (Missing)**
 *   **Secret Truth:** She is alive. She left Station R voluntarily after Sloane opened his investigation, with help from Dorothy Armitage. She is at a second Keeper property. She has descended the stairway once.
 
+
+**The Tagus six (Episode 4; PROPOSED 2026-10-18)**
+*   **Brandvold.** Record lie: "I never went below the first landing." His field book's last line and the page he sends on day 13 say otherwise. He carries the first disturbance row of the season (the page dated three days in one ink).
+*   **Rud.** Record lie: "the book is a farm diary." It is the account book. She is the Keeper intermediary Episode 4 and 5 need: the practice (write yours, do not read theirs first) is offered through her.
+*   **Sandvik.** Record lie: "I left PGS in 1971." The 1977 payroll pays him against badge 0000; he is the extra name on the October roster that Episode 1's ghost-employee goal noticed. He went down ahead of Brandvold on the 23rd to keep him from going far.
+*   **Mahlum.** Record lie: "I saw the bottom." He reached the wall. Harmless and loud; the militia's recruit in Episode 8.
+*   **Pfeifer.** Record lie: "there was never any digging." He signed the 1974 Dakota Concrete receipts (the invoice Episode 1's ep1-1 traces). Breaks when shown the invoice by anyone but Voss, and gives up the ventilation shaft, which is Episode 5's covert way in if the door is sealed.
+*   **Ashby.** Record lie: "the contract is for agricultural monitoring equipment." The index says containment, Verification Site T. He is the SENTINEL program officer of 03's seed table, outside the fence; Baines is the one inside.
+
 ---
 
 ## OPEN QUESTIONS
 
-1.  **The "Ghost Employee" Identity:** While Thorne knows the ghost employee is a Keeper agent, the specific identity of the operative is not yet defined. Is it a known NPC or an off-screen asset?
+1.  **The "Ghost Employee" Identity:** While Thorne knows the ghost employee is a Keeper agent, the specific identity of the operative is not yet defined. Is it a known NPC or an off-screen asset? **PROPOSED answer (2026-10-18): Ole Sandvik, PGS field surveyor since 1969, badge 0000; see the Tagus six.**
 2.  **Kessler's Current Location:** Dr. Miriam Kessler is IGCC's source, but her exact location and method of communication with Dr. Sarah Ely are not yet defined.
 3.  **The "Vetch Page" Origin:** Marsh sent the Vetch page to herself (or had it sent) to prove records are being revised. The exact mechanism of how she obtained the original date vs. the copy is open for Episode 9.
 
 ---
 
 **CHANGELOG:** v1 establishes the 25-NPC roster, corrects Mercer/Greeley/Sayer to match canon, assigns two checkable record lies (Thorne, Voss), and separates Public/Secret canon.
+v1.1 (2026-10-18): the Tagus six added with record lies; Sandvik proposed as the ghost employee.

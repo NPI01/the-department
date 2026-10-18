@@ -4,13 +4,15 @@ import { DOCUMENTS, PLACES, PRESSURE } from "./episode-01";
 import { DOCUMENTS_02, PLACES_02, PRESSURE_02 } from "./episode-02";
 import { DOCUMENTS_03, PLACES_03, PRESSURE_03 } from "./episode-03";
 import { SCHEDULED_03 } from "./episode-03-mail";
+import { DOCUMENTS_04, PLACES_04, PRESSURE_04 } from "./episode-04";
+import { SCHEDULED_04 } from "./episode-04-mail";
 import { SCHEDULED, type ScheduledItem } from "./episode-01-mail";
 import { SCHEDULED_02 } from "./episode-02-mail";
 import type { DocumentDef, PlaceDef, PressureTier } from "./types";
 
-const ALL_DOCUMENTS: DocumentDef[] = [...DOCUMENTS, ...DOCUMENTS_02, ...DOCUMENTS_03];
-const ALL_PLACES: PlaceDef[] = [...PLACES, ...PLACES_02, ...PLACES_03];
-const ALL_PRESSURE: PressureTier[] = [...PRESSURE.map((t) => ({ episode: 1, ...t })), ...PRESSURE_02, ...PRESSURE_03];
+const ALL_DOCUMENTS: DocumentDef[] = [...DOCUMENTS, ...DOCUMENTS_02, ...DOCUMENTS_03, ...DOCUMENTS_04];
+const ALL_PLACES: PlaceDef[] = [...PLACES, ...PLACES_02, ...PLACES_03, ...PLACES_04];
+const ALL_PRESSURE: PressureTier[] = [...PRESSURE.map((t) => ({ episode: 1, ...t })), ...PRESSURE_02, ...PRESSURE_03, ...PRESSURE_04];
 
 let LIVE_DOCUMENTS: DocumentDef[] = [];
 export function setLiveDocuments(docs: DocumentDef[]) { LIVE_DOCUMENTS = docs; }
@@ -22,7 +24,7 @@ let LIVE_PLACES: PlaceDef[] = [];
 export function setLivePlaces(places: PlaceDef[]) { LIVE_PLACES = places; }
 export const placesFor = (episode: number) => [...ALL_PLACES, ...LIVE_PLACES.filter((l) => !ALL_PLACES.some((p) => p.slug === l.slug))].filter((p) => (p.episode ?? 1) <= episode);
 export const pressureFor = (episode: number) => ALL_PRESSURE.filter((t) => (t.episode ?? 1) === episode);
-export const scheduledFor = (episode: number): ScheduledItem[] => (episode === 1 ? SCHEDULED : episode === 2 ? SCHEDULED_02 : episode === 3 ? SCHEDULED_03 : []);
+export const scheduledFor = (episode: number): ScheduledItem[] => (episode === 1 ? SCHEDULED : episode === 2 ? SCHEDULED_02 : episode === 3 ? SCHEDULED_03 : episode === 4 ? SCHEDULED_04 : []);
 export const episodeOf = (roundNumber: number, perEpisode = 14) => Math.floor((roundNumber - 1) / perEpisode) + 1;
 
 export const DEPT_NAMES: Record<string, string> = { "procurement-logistics": "Procurement & Logistics", "personnel-administration": "Personnel & Administration", "corporate-security": "Corporate Security", "information-systems": "Information Systems", "biological-sciences": "Biological Sciences", "applied-physics": "Applied Physics", "advanced-materials": "Advanced Materials", "aerospace-systems": "Aerospace Systems" };

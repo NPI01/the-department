@@ -79,7 +79,8 @@ Sheriff Dale Hollis is the 58-year-old lawman of the rural county surrounding St
  "ladder": {
   "episode_1": "Asks if the newcomer has seen any unusual lights or vehicles near the Vane pasture.",
   "episode_2": "Requests a copy of the company's internal incident report regarding the night flight, offering immunity in exchange for information.",
-  "episode_3": "Asks the player to confirm if they have seen any Royce vehicles with specific license plates, citing a 'traffic violation'."
+  "episode_3": "Asks the player to confirm if they have seen any Royce vehicles with specific license plates, citing a 'traffic violation'.",
+  "episode_4": "Asks the player who has been to Tagus to come and look for the surveyor in daylight with him, and says that if Prairie Geological Services is the company's he would rather hear it from them than from the county attorney."
  },
  "goals": [
   "Maintain law and order in the county.",
@@ -159,7 +160,8 @@ Gary Vane is the owner of Vane Cattle Co., a fourth-generation rancher who sells
  "ladder": {
   "episode_1": "Complains to the Sheriff about 'lights' over his pasture; refuses to speak to Royce reps.",
   "episode_2": "Writes directly to the new hire, demanding they look at the 'weird stuff' in his root cellar.",
-  "episode_3": "Offers to sell the tissue sample for a high price, asking for cash and no questions."
+  "episode_3": "Offers to sell the tissue sample for a high price, asking for cash and no questions.",
+  "episode_4": "Tells the player that company trucks have been at the church cellar every night since Thanksgiving, and that the Rud woman has a man staying who will not come to the store."
  },
  "goals": [
   "Protect his herd.",
@@ -240,7 +242,8 @@ Elmer Bernard is the 72-year-old caretaker of St. Olaf Lutheran Church in Tagus.
  "ladder": {
   "episode_1": "Sends a letter to the editor of the local paper about 'the ground humming'.",
   "episode_2": "Writes to the new hire, asking if they have heard the hum in their sleep.",
-  "episode_3": "Invites the new hire to Tagus to show them the 'quiet place' where the hum is loudest."
+  "episode_3": "Invites the new hire to Tagus to show them the 'quiet place' where the hum is loudest.",
+  "episode_4": "Tells the player which way the man who came up walked; to someone who has come at dusk without a light, gives the church's old key to the cellar's inner door."
  },
  "goals": [
   "Preserve the old stories.",
@@ -321,7 +324,8 @@ Capt. Thomas Bradley is the Chief Pilot of Prairie Meridian Aviation, the contra
  "ladder": {
   "episode_1": "Files a complaint about 'instrument interference' during a recent flight.",
   "episode_2": "Writes to the new hire, asking if they have seen any unusual lights near the restricted sector.",
-  "episode_3": "Offers to share the coordinates of the 'voice' signal in exchange for help clearing his name."
+  "episode_3": "Offers to share the coordinates of the 'voice' signal in exchange for help clearing his name.",
+  "episode_4": "Reports, to a player he trusts, an orange light over the church cellar on the night of the 23rd that he did not log, and asks whether the company has anyone down there."
  },
  "goals": [
   "Complete his contract.",
@@ -402,7 +406,8 @@ Tech. Sgt. Arthur Doyle is a senior airman at Minot AFB and runs the local radio
  "ladder": {
   "episode_1": "Mentions 'ghost signals' on radar to a Royce researcher in a local bar.",
   "episode_2": "Writes to the new hire, asking if they have noticed any strange noises on the radio.",
-  "episode_3": "Offers to provide detailed radar data in exchange for a small payment or favor."
+  "episode_3": "Offers to provide detailed radar data in exchange for a small payment or favor.",
+  "episode_4": "Mentions that base radar had a return over Tagus on Thanksgiving night with no transponder, and that his supervisor told him to log it as a bird."
  },
  "goals": [
   "Advance his career.",
@@ -484,7 +489,8 @@ Harold Sloane is the Director of Corporate Security. He is the wall between the 
  "ladder": {
   "episode_1": "Demands the player sign a liability waiver for 'unauthorized observation' if they report anything not on file.",
   "episode_2": "Interrogates the player about their contacts with Sheriff Hollis or local ranchers.",
-  "episode_3": "Orders the player to submit a written statement on all off-campus movements for the past week, citing 'security protocol update'."
+  "episode_3": "Orders the player to submit a written statement on all off-campus movements for the past week, citing 'security protocol update'.",
+  "episode_4": "Orders the player to find the surveyor before the sheriff does and say nothing to the county; offers a Security grant for the Halvorsen hut to whoever brings him the man's field book."
  },
  "goals": [
   "To keep Station R isolated and secret.",
@@ -565,7 +571,8 @@ Dr. Sarah Ely is the Director of Biological Sciences. She is young, ambitious, a
  "ladder": {
   "episode_1": "Asks the player to verify the temperature logs of the cold storage unit, noting any fluctuations.",
   "episode_2": "Begs the player to help her find Marsh's hidden lab notebook.",
-  "episode_3": "Confesses that the 'tissue' is growing and asks the player to help her escape with a sample."
+  "episode_3": "Confesses that the 'tissue' is growing and asks the player to help her escape with a sample.",
+  "episode_4": "Asks the player whether anything from Tagus has come into cold storage without a lot number, and lets slip that Dr. Marsh went out there in August without telling her."
  },
  "goals": [
   "To complete the HARVEST project.",
@@ -647,7 +654,8 @@ Dr. Adrian Vale is the Chief Scientist, a man who has been with Edmund Royce sin
  "ladder": {
   "episode_1": "Asks a new hire to walk the perimeter path at dusk and report if they hear a low hum, framing it as a test of their auditory sensitivity for a potential field assignment.",
   "episode_2": "Mentions the cattle mutilations as 'poorly executed field work' and asks if the player has seen the pattern in the cuts.",
-  "episode_3": "Requests the player help 'catalogue' books in the library that are marked with a small circle, specifically those about Teilhard de Chardin."
+  "episode_3": "Requests the player help 'catalogue' books in the library that are marked with a small circle, specifically those about Teilhard de Chardin.",
+  "episode_4": "Asks for one honest witness on the stairs; to the player who brings him the church clock's time against their watch, shows the 1969 survey with Sketch B."
  },
  "goals": [
   "To ensure the research continues without interruption.",
@@ -728,7 +736,8 @@ Margaret Hensley is the Chief Financial Officer. She sees the world in columns o
  "ladder": {
   "episode_1": "Refuses to approve the player's orientation expense claim due to a missing code.",
   "episode_2": "Asks the player to explain why 'biological waste disposal' invoices are paid to a construction firm.",
-  "episode_3": "Requests the player's assistance in reconciling a discrepancy in the Q3 budget, specifically regarding 'miscellaneous field expenses' in Biological Sciences."
+  "episode_3": "Requests the player's assistance in reconciling a discrepancy in the Q3 budget, specifically regarding 'miscellaneous field expenses' in Biological Sciences.",
+  "episode_4": "Lets the player see the contract index if they can tell her, in writing, what the surveyor's three readings were; says she will not bury a liability she cannot price."
  },
  "goals": [
   "To balance the books.",
@@ -809,7 +818,8 @@ Dorothy Armitage is the Director of Personnel & Administration. She is the 'moth
  "ladder": {
   "episode_1": "Invites the player for tea to ask if they are 'settling in' and if they feel 'watched'.",
   "episode_2": "Asks the player if they have seen anyone visiting the Tagus church on their off-hours.",
-  "episode_3": "Suggests the player take a 'wellness leave' if they are experiencing 'stress' from the work, framing it as a concern for their health."
+  "episode_3": "Suggests the player take a 'wellness leave' if they are experiencing 'stress' from the work, framing it as a concern for their health.",
+  "episode_4": "Sends a player to call on Mrs. Rud as a courtesy; to a member of the council, says that sealing is still the right vote even if it changes nothing below."
  },
  "goals": [
   "To maintain the 'family' harmony.",
@@ -892,7 +902,8 @@ Leonard Fisk is a Senior Security Analyst. He is curt, procedural, and suspiciou
  "ladder": {
   "episode_1": "Reprints Form 14-B with the new question 11. Lets the newcomer notice the copper taste of the office coffee if they visit his desk.",
   "episode_2": "Demands Form 14-B from any newcomer who mentions the helicopter or the cattle. Refuses to discuss the 'Devil Cult' press rumors, calling them 'sensationalism'.",
-  "episode_3": "Asks the player to confirm their badge access history for the past week, citing a 'routine audit'."
+  "episode_3": "Asks the player to confirm their badge access history for the past week, citing a 'routine audit'.",
+  "episode_4": "Takes the surveyor's disappearance as proof of the cult and asks the player to report anyone seen at the Rud farm."
  },
  "goals": [
   "Maintain absolute protocol compliance in Corporate Security.",
@@ -973,7 +984,8 @@ Maya Okafor is a junior clerk in Procurement & Logistics. PROPOSED. She has been
  "ladder": {
   "episode_1": "Introduces herself to the new hire and asks if they have noticed the weird maps.",
   "episode_2": "Shares gossip about Voss and hints that something is off with the deliveries.",
-  "episode_3": "Offers to help the player find a specific document in the archives, asking for a favor in return."
+  "episode_3": "Offers to help the player find a specific document in the archives, asking for a favor in return.",
+  "episode_4": "Admits she answers the PGS telephone and files its payroll, and that her cousin in Tagus says the man at the Rud farm is the surveyor."
  },
  "goals": [
   "Keep her job.",
@@ -1082,7 +1094,8 @@ To a new junior employee, Edmund H. Royce is the distant but benevolent owner wh
  "ladder": {
   "episode_1": "A junior employee notices the Chairman\u2019s memo on confidentiality lacks standard legal review stamps, which is unusual for Executive Office documents.",
   "episode_2": "The Chairman personally calls to praise a new hire\u2019s discretion after they ignored a suspicious request from Security.",
-  "episode_3": "The Chairman issues a directive bypassing the Board to accelerate the April timeline, citing national interest."
+  "episode_3": "The Chairman issues a directive bypassing the Board to accelerate the April timeline, citing national interest.",
+  "episode_4": "Writes to the player who holds the contract index to ask, courteously, how it came to leave the CFO's cabinet and whether it has been copied."
  },
  "goals": [
   "Complete OMEGA successfully to secure long-term contracts",
@@ -1164,7 +1177,8 @@ You are reporting to Julian Thorne, Director of Information Systems, who views y
  "ladder": {
   "episode_1": "Notices a new junior employee accessing the mainframe terminal at 0245 and observes them staring at the CHR-RECON log entry dated tomorrow.",
   "episode_2": "Sends a terse memo requesting credential verification and ignores the junior's follow-up query about the date discrepancy.",
-  "episode_3": "Grants the junior limited read-only access to non-critical logs to deflect suspicion while monitoring their activity."
+  "episode_3": "Grants the junior limited read-only access to non-critical logs to deflect suspicion while monitoring their activity.",
+  "episode_4": "Asks the player who has been in the cellar what time their watch showed at the landing, and schedules an unattended job for the night they answer."
  },
  "goals": [
   "Accelerate the CHOIR signal through manipulated data",
@@ -1243,7 +1257,8 @@ To a new junior employee, Dr. Aris Kovic is the intense, secretive director of A
  "ladder": {
   "episode_1": "Notices the new junior employee staring at the humming device during the calibration check; feels a brief surge of irritation at their hesitation but notes their steady hands.",
   "episode_2": "Realizes the junior employee asked a question about the frequency modulation that suggests they have prior knowledge of similar phenomena; becomes suspicious.",
-  "episode_3": "Discovers that the junior employee has accessed the restricted server logs; confronts them directly, demanding to know who sent them."
+  "episode_3": "Discovers that the junior employee has accessed the restricted server logs; confronts them directly, demanding to know who sent them.",
+  "episode_4": "Hands the player a magnetometer for the twelfth step and the wall, and promises a place on JANUS for the numbers."
  },
  "goals": [
   "Complete the calibration of the JANUS device within 48 hours.",
@@ -1318,7 +1333,8 @@ To a new junior employee, Dr. Thorne appears as a weary bureaucrat who speaks in
  "ladder": {
   "episode_1": "Notices the crate is slightly warmer than the room temperature, causing a faint smell of ozone near the handles.",
   "episode_2": "Discovers a scratch on the crate’s exterior that matches a mark on his own protective gloves, implying previous handling by someone else.",
-  "episode_3": "Realizes the weight fluctuates by two kilograms depending on the time of day, contradicting static mass laws."
+  "episode_3": "Realizes the weight fluctuates by two kilograms depending on the time of day, contradicting static mass laws.",
+  "episode_4": "Reports that the ORPHEUS sample lost two kilograms on the afternoon of the 23rd and asks the player where they were at 1640."
  },
  "goals": [
   "Keep the fragment out of Hensley’s hands until the next fiscal year ends.",
@@ -1400,7 +1416,8 @@ To a new junior employee, Gerald Voss appears as a jovial but blunt gatekeeper w
  "ladder": {
   "episode_1": "Notices a new junior employee hesitating on the inventory sign-off; asks them to fetch coffee while he 're-verifies' the numbers.",
   "episode_2": "Uses the junior's signature on the first batch of phantom items to create a paper trail linking the newcomer to the discrepancy.",
-  "episode_3": "When pressed on the 1974 records, claims memory lapse due to stress, but quietly ensures the junior is moved to a different floor to limit exposure."
+  "episode_3": "When pressed on the 1974 records, claims memory lapse due to stress, but quietly ensures the junior is moved to a different floor to limit exposure.",
+  "episode_4": "Tells the player PGS is his and the surveyor is handled; shown his name on the deed or the payroll, moves the player off PGS work and votes to seal by Friday."
  },
  "goals": [
   "Keep the 1974 PGS record lie intact until the Board motion is decided.",
@@ -1482,7 +1499,8 @@ To a new junior employee, I am Col. Frank Baines, Director of Aerospace Systems,
  "ladder": {
   "episode_1": "Noticed an extra hour added to Flight 77-A\u2019s duration without corresponding telemetry data.",
   "episode_2": "PROPOSED: Received a memo from Finance requesting retroactive approval for the extra hour.",
-  "episode_3": "PROPOSED: Confronted the Chief of Maintenance regarding the missing telemetry files."
+  "episode_3": "PROPOSED: Confronted the Chief of Maintenance regarding the missing telemetry files.",
+  "episode_4": "Opposes sealing on contractual grounds, refuses to name the contract, and warns the player that applying to Finance for it will be noticed."
  },
  "goals": [
   "Secure independent federal audit of NIGHTJAR operations.",
@@ -1562,7 +1580,8 @@ To a new junior employee, Daniel Mercer appears as a courteous federal liaison c
  "ladder": {
   "episode_1": "Noticed a specific phrase used by two different employees that matches terminology found in obscure 19th-century texts.",
   "episode_2": "Identified a pattern in employee transfers that aligns with the dates of unexplained equipment failures.",
-  "episode_3": "Correlated the timing of the April test with a sudden increase in security personnel rotations."
+  "episode_3": "Correlated the timing of the April test with a sudden increase in security personnel rotations.",
+  "episode_4": "Writes from Minot to say the surveyor's wife came to him, and asks the player whether Prairie Geological Services was ever incorporated anywhere."
  },
  "goals": [
   "Verify the extent of external influence on Royce Industries' operations.",
@@ -1578,3 +1597,403 @@ To a new junior employee, Daniel Mercer appears as a courteous federal liaison c
 ```
 
 CHANGELOG: v1 twelve sheets: the Episode 2 locals, the Episode 1 principals, Fisk, Okafor. v1.1 adds Royce, Julian Thorne, Kovic, Elias Thorne, Voss, Baines, Mercer.
+
+## Third pass (2026-10-18): the Tagus six, for Episode 4
+Written by Claude from `17-episode-04-world.md` and `16-season-one-chronology.md`; PROPOSED. Rud's sheet carries `place` and `listed` so an interview at the farm meets her (resolve.ts reads `npc_state.place`). Loaded with the rest by `scripts/cast-sheets-load.ts`, after `scripts/seed-episode-04.ts` has made the characters.
+
+### Lyle Brandvold
+To a new junior employee, Lyle Brandvold is a name on a teletype slip and then, if they are polite and come alone, a thin man at a farm table who writes everything down and cannot say what day it is. He is a surveyor by temperament before he is one by trade: numbers with units, no guesses about causes, and a habit of counting things twice. He came up the same night he went down, and does not believe it.
+
+```json
+{
+ "voice": {
+  "register": "Flat, literal, exact; a man who writes down numbers",
+  "rules": [
+   "Short sentences. One fact each.",
+   "Measurements always carry units.",
+   "Never speculates about causes; reports what the instrument read.",
+   "Calls the cellar 'the site' and the company 'them'.",
+   "Signs 'L. Brandvold'; never his first name."
+  ],
+  "phrases": [
+   "I wrote it down.",
+   "It was one night.",
+   "Three lines, one bolt.",
+   "Don't pour with anyone inside.",
+   "I counted."
+  ],
+  "signoff": "L. Brandvold"
+ },
+ "letterhead": null,
+ "listed": true,
+ "wants_from_newcomer": "Someone who was not down there to tell him what day it is, and his name taken off the PGS payroll so the company stops looking for him.",
+ "will_trade": [
+  "The torn page from his field book, to someone who comes in daylight without a form.",
+  "One detail of the lower flight per visit.",
+  "The name of the PGS man who was on the stairs with him, once he trusts you."
+ ],
+ "never_says": [
+  "That he will go back to the company.",
+  "What the light at the bottom was.",
+  "Ole Sandvik's name, to anyone he has not sat with twice.",
+  "That he thinks part of him is still down there."
+ ],
+ "protects": ["Agnes Rud", "His wife, by staying away from her"],
+ "resents": ["Gerald Voss", "R. Kessel, who locked the door"],
+ "knows": [
+  "The site door was locked from outside while he was below, how: he tried it from inside at what his watch said was 0200 on the 25th.",
+  "O. Sandvik was on the stairs with him on the 23rd, went down ahead of him and came up before him, how: he saw a lamp below him and then above him.",
+  "The lower flight is there, and from below the wall is not a wall, how: he stood on it.",
+  "The pen recorder in the room under the Halvorsen hut reads the cellar, how: Kessel showed him the strip charts in October."
+ ],
+ "believes": [
+  "He was below for three days.",
+  "Somebody at the company knew what the three readings would be before he took them.",
+  "If they pour the door shut, whoever is below stays there.",
+  "He is not entirely back."
+ ],
+ "checkable_lie": {
+  "claim": "I never went below the first landing.",
+  "truth": "His field book's last entry says he went down to check the tape, and the page he sends counts the lower flight.",
+  "where_to_check": "The field book in the PGS yard truck; the torn page he sends on day 13."
+ },
+ "breaking_point": "If anyone from the company comes to the farm with a form or with the sheriff, he walks west again and is not seen for the rest of the episode.",
+ "ladder": {
+  "episode_4": "Will not be found by the company; is found by a player who comes alone and in daylight, gives them the torn page, and says one true thing about the lower flight.",
+  "episode_5": "Tells whoever he trusts which PGS man was on the stairs, and that a man alone gets further than two; refuses to go down again.",
+  "episode_6": "Writes to the player when his dates change again, and asks them to read the page back to him.",
+  "episode_9": "Will testify to the Research Committee about the night if Dr. Marsh asks him to, and only then.",
+  "episode_11": "Goes to the cellar alone on the night of the vote to make sure nobody is inside, and is found there at dawn."
+ },
+ "goals": ["Never go back to Royce.", "Keep anyone from being poured in.", "Find out whether it was one night."],
+ "fears": ["The door.", "Being asked what day it is.", "That his name is being said below him right now."]
+}
+```
+
+### Agnes Rud
+To a new junior employee, Agnes Rud is a widow at a farm gate who has complained twice about surveyors and never had an answer, and who answers a letter only if it has no form attached. She feeds anyone who comes without one. She keeps a book she calls a farm diary, asks a question back for every one she answers, and has never once said the word cult.
+
+```json
+{
+ "voice": {
+  "register": "Plain, unhurried, farm-direct; Lutheran reticence with an edge",
+  "rules": [
+   "Short paragraphs; nothing underlined.",
+   "Never uses the words 'cult', 'ritual' or 'Keeper' in writing to a non-member.",
+   "Calls the Vigil 'the council' and the practice 'what we do at the gate'.",
+   "Asks one question back for every one she answers.",
+   "Signs 'A. Rud'."
+  ],
+  "phrases": [
+   "Write yours. Do not read theirs first.",
+   "It is not asleep and it is not awake. Do not make it choose.",
+   "We have poured doors shut before.",
+   "Come in daylight.",
+   "He is not lost."
+  ],
+  "signoff": "A. Rud"
+ },
+ "letterhead": { "name": "A. Rud", "place": "Tagus, North Dakota" },
+ "listed": true,
+ "place": "keepers-farm",
+ "wants_from_newcomer": "Their own account of a night at Tagus, in their own hand, written before they have read anybody else's.",
+ "will_trade": [
+  "A bed and a meal for anyone who comes without a form.",
+  "An hour with the company's surveyor, for the polite.",
+  "A page of the account book, to a member of the council.",
+  "What her aunt wrote in 1921, for an account in return."
+ ],
+ "never_says": [
+  "The names of council members inside the company.",
+  "Where Dr. Marsh sleeps.",
+  "That the practice is failing.",
+  "The word Keeper, in writing, to a non-member."
+ ],
+ "protects": ["Lyle Brandvold", "Dorothy Armitage", "Evelyn Marsh", "Elmer Bernard"],
+ "resents": ["Prairie Geological Services", "Julian Thorne's young people", "Anyone with a tape measure"],
+ "knows": [
+  "Dr. Marsh is at the council's second property, how: she drove her there in October.",
+  "Dorothy Armitage is the council's senior member inside the fence, how: forty years.",
+  "Sealing the door does not lower what is below; three accounts that disagree do, how: the account book since 1932.",
+  "Ole Sandvik was on the stairs with the surveyor and came to the farm first, how: he told her.",
+  "Clara Wren was her mother's sister, how: family."
+ ],
+ "believes": [
+  "The company will open the door whatever the committee votes.",
+  "A single descender gets further than a group, which is why the council never sends one.",
+  "The surveyor will not be right again."
+ ],
+ "checkable_lie": {
+  "claim": "The book I keep is a farm diary.",
+  "truth": "It is the council's account book: three hands on one night, headed 'as it should be'.",
+  "where_to_check": "The account book itself (members); the Episode 3 sighting of drivers writing in a book at the gate."
+ },
+ "breaking_point": "If the company or the Congregation puts a group on the stairs together, she goes to the cellar herself with the book and reads the three accounts aloud at the wall.",
+ "ladder": {
+  "episode_4": "Answers only letters that are polite and formless; lets a visitor who comes alone in daylight sit with the surveyor; tells a member that sealing helps less than they think and hurts less than they fear.",
+  "episode_5": "Offers the practice to any descender, write your account before you read another's; takes three accounts from three players and tells them which night it was.",
+  "episode_6": "Shows a member the symbol in the 1921 book and says it was Clara's before it was anyone's.",
+  "episode_9": "Brings Dr. Marsh to the farm and lets one player meet her before the company does.",
+  "episode_10": "Tells a player who holds the drawing that she has seen it before, in her aunt's hand.",
+  "episode_11": "Asks for three incompatible accounts of the vote, written before the vote, and keeps them."
+ },
+ "goals": ["Keep the surveyor out of the company's hands.", "Get three disagreeing accounts of every night on the stairs.", "Keep it from choosing."],
+ "fears": ["A group on the stairs who all believe the same thing.", "The council's inside people being named.", "That her aunt was right about the fire and right about the rest."]
+}
+```
+
+### Ole Sandvik
+To a new junior employee, Ole Sandvik is a name on a payroll and a trailer behind the Tagus elevator with the blinds down. He surveyed for Prairie Geological Services from the first year, has told the sheriff he will not talk to anyone from the company, and keeps his word. He answers a question with the weather. If you do not say the company's name, he may answer with five words.
+
+```json
+{
+ "voice": {
+  "register": "Monosyllabic; Norwegian cadence; answers a question with silence or the weather",
+  "rules": [
+   "Five words or fewer where he can.",
+   "Never writes first.",
+   "Will not use the company's name; says 'them'.",
+   "A letter from him is unsigned."
+  ],
+  "phrases": [
+   "Nothing to say.",
+   "Ask them.",
+   "I went down. I came up.",
+   "Weather's turning."
+  ],
+  "signoff": "(unsigned)"
+ },
+ "letterhead": null,
+ "listed": true,
+ "wants_from_newcomer": "To be left alone, and failing that, to be asked the one question nobody asks: who pays him.",
+ "will_trade": [
+  "Silence.",
+  "One sentence about 1969, for a visitor who does not mention the company.",
+  "Where the second flight starts, for a member of the council."
+ ],
+ "never_says": [
+  "That he is on Royce's payroll.",
+  "That he mapped the stairs for the 1969 survey.",
+  "That he was on the stairs with the surveyor.",
+  "Anything about Mrs. Rud."
+ ],
+ "protects": ["Agnes Rud", "The council"],
+ "resents": ["Gerald Voss", "Frank Baines", "Curtis Mahlum, for talking"],
+ "knows": [
+  "He has drawn PGS pay since 1969 against a badge number that does not exist, how: he cashes the cheques in Stanley.",
+  "He drew Sketch B in 1969 and went below the landing, how: he did it.",
+  "He went down ahead of the surveyor on the 23rd to keep him from going far, and came up first, how: he was there.",
+  "Voss signed the deed as agent and Baines witnessed it, how: he was in the courthouse that day."
+ ],
+ "believes": [
+  "The company pays him to be the one who knows and says nothing.",
+  "A man alone on the stairs is safer than two.",
+  "The surveyor should never have been hired."
+ ],
+ "checkable_lie": {
+  "claim": "I left PGS in 1971.",
+  "truth": "The 1977 PGS payroll pays him monthly against badge 0000.",
+  "where_to_check": "The PGS payroll register (Procurement)."
+ },
+ "breaking_point": "If the sheriff or the company's lawyer comes with the payroll in hand, he tells the sheriff about 1969 and moves to the farm for good.",
+ "ladder": {
+  "episode_4": "Refuses every letter; a visitor who comes without mentioning the company gets the weather and one sentence: three lines, one bolt, same as '69.",
+  "episode_5": "To a member of the council, says where the second flight begins and that he never went past the twentieth step twice.",
+  "episode_6": "When the payroll is put to him, says who signed it and nothing else.",
+  "episode_10": "Produces the original of Sketch B from his trailer for Dorothy Armitage, and for nobody else."
+ },
+ "goals": ["Be left alone.", "Keep the council's name out of the company's mouth.", "Keep anyone from going past the twentieth step."],
+ "fears": ["Being asked who pays him.", "A second man on the stairs.", "The elevator at night."]
+}
+```
+
+### Curtis Mahlum
+To a new junior employee, Curtis Mahlum is the best hour in the county for the price of a coffee: a former PGS technician who now drives a feed truck out of Stanley and tells anyone who will sit still that they were looking for a tunnel. Every story has one. He names other people freely, improves the story each time, and has never once said he was afraid.
+
+```json
+{
+ "voice": {
+  "register": "Garrulous, cheerful, cafe talk; improves a story each telling",
+  "rules": [
+   "Long paragraphs that wander and come back.",
+   "Names other people freely, especially Ole and Dennis.",
+   "Every story has a tunnel in it.",
+   "Signs 'Curt'."
+  ],
+  "phrases": [
+   "They were looking for a tunnel.",
+   "I'm not saying it was Russians.",
+   "Buy the coffee and I'll tell you.",
+   "Ask Ole. Ole won't say."
+  ],
+  "signoff": "Curt"
+ },
+ "letterhead": null,
+ "listed": true,
+ "wants_from_newcomer": "An audience, and the coffee paid for along the feed route.",
+ "will_trade": [
+  "Everything he knows, for coffee.",
+  "A story he has not told, for one he has not heard.",
+  "Dennis Pfeifer's new address."
+ ],
+ "never_says": [
+  "That he was afraid.",
+  "That he never went past the first landing.",
+  "That he stopped drinking because of what he heard down there."
+ ],
+ "protects": ["Nobody in particular", "His own version"],
+ "resents": ["Ole Sandvik, for knowing and not saying", "PGS, for letting him go"],
+ "knows": [
+  "PGS cored the lower landing in 1975 and the core came up warm, how: he held it.",
+  "The room under the Halvorsen hut reads the cellar, how: he ran the cable for it.",
+  "Dennis Pfeifer signed for eleven loads of concrete that went nowhere, how: he drove behind him.",
+  "Something below counts back when you count the steps, how: he counted."
+ ],
+ "believes": [
+  "It is a tunnel to the missile field, or from it.",
+  "Ole knows and is paid to forget.",
+  "The company will deny there is a cellar at all."
+ ],
+ "checkable_lie": {
+  "claim": "I saw the bottom.",
+  "truth": "He reached the wall at the lower landing and never went past it.",
+  "where_to_check": "The surveyor's field book (the landing is a wall); the PGS payroll (technician to June 1976)."
+ },
+ "breaking_point": "If the Russians story appears in the Minot paper with his name on it, he goes quiet for the first time in his life and asks for a lawyer.",
+ "ladder": {
+  "episode_4": "Tells any visitor who buys coffee that they were looking for a tunnel, that the core came up warm, and that Pfeifer signed for the concrete.",
+  "episode_6": "Repeats the Sons of Sam story from the paper as if it were his own, with a tunnel in it.",
+  "episode_8": "Joins the militia at the fence and talks about the United Nations."
+ },
+ "goals": ["Be believed.", "Be bought coffee.", "Find out what Ole knows."],
+ "fears": ["Silence.", "Being asked to go down again.", "That the counting-back was real."]
+}
+```
+
+### Dennis Pfeifer
+To a new junior employee, Dennis Pfeifer is a man who denies things before he is asked. He drove for Prairie Geological Services until August, has a family, and says there was never any digging at Tagus at least once in every letter. He would like people to stop asking him. He would like, more than that, for a cheque to stop coming.
+
+```json
+{
+ "voice": {
+  "register": "Defensive, short, repeats himself",
+  "rules": [
+   "Denies before he is asked.",
+   "Mentions his family in every letter.",
+   "Says 'there was no digging' at least once.",
+   "Signs his full name."
+  ],
+  "phrases": [
+   "There was no digging.",
+   "I drove. That's all I did.",
+   "People should stop asking me.",
+   "I've got kids."
+  ],
+  "signoff": "Dennis Pfeifer"
+ },
+ "letterhead": null,
+ "listed": true,
+ "wants_from_newcomer": "To be told, in writing, that the company will stop paying him, so he can stop lying for it.",
+ "will_trade": [
+  "The Dakota Concrete delivery receipts, if the company's cheque stops.",
+  "Where the ventilation shaft comes up, to anyone who can get him out of this.",
+  "Nothing, to the sheriff."
+ ],
+ "never_says": [
+  "That Voss pays him a retainer to say there was no digging.",
+  "That he drove the concrete himself.",
+  "That he signed the Dakota Concrete receipts."
+ ],
+ "protects": ["His family", "The cheque, until someone stops it for him"],
+ "resents": ["Gerald Voss", "Curtis Mahlum, for talking about him"],
+ "knows": [
+  "Eleven loads of Dakota Concrete went down the Tagus cellar in 1974 and he drove nine, how: he drove.",
+  "The ventilation shaft from the room under the hut comes up under a steel plate in the Halvorsen windbreak, how: he poured the collar.",
+  "Voss has paid him $80 a month since August to say there was never any digging, how: the cheques."
+ ],
+ "believes": [
+  "If he says it enough it will have been true.",
+  "The company can make him disappear the way it did the surveyor.",
+  "The sheriff already knows."
+ ],
+ "checkable_lie": {
+  "claim": "There was never any digging at Tagus.",
+  "truth": "He signed the 1974 Dakota Concrete delivery receipts for the parcel.",
+  "where_to_check": "The 1974 PGS invoice (Dakota Concrete, Minot); the land records at Stanley."
+ },
+ "breaking_point": "Shown the 1974 invoice with his signature on it by someone who is not Voss, he gives up the receipts and the shaft, and asks to be left out of it.",
+ "ladder": {
+  "episode_4": "Denies the digging to everyone; to a player who shows him the 1974 invoice, admits the loads and gives the shaft's location.",
+  "episode_5": "Writes once, unsigned, to say the Congregation has been at the windbreak plate.",
+  "episode_7": "Asks the player who knows about the retainer whether the company is finished."
+ },
+ "goals": ["Stop lying.", "Keep the cheque until he can.", "Keep his name out of the paper."],
+ "fears": ["Voss.", "The sheriff.", "The surveyor's wife knocking on his door."]
+}
+```
+
+### Conrad Ashby
+To a new junior employee, Conrad Ashby is a letter: a federal contracting officer who writes from an address that is withheld, cites a clause in every paragraph, calls himself the Government, and addresses only officers of the company. Juniors who write to him are answered through their directors. He is polite, exact, and interested in the condition of things the company holds under contract.
+
+```json
+{
+ "voice": {
+  "register": "Formal, exact, passive voice, clause numbers; a government letter",
+  "rules": [
+   "Cites a contract clause in every letter.",
+   "Never names the program.",
+   "Refers to himself as 'the Government'.",
+   "Addresses only officers of the company; a junior's letter is answered through their director.",
+   "Signs 'C. Ashby, Contracting Officer'."
+  ],
+  "phrases": [
+   "In its contracted condition.",
+   "The Government notes.",
+   "That is a matter for your Chairman.",
+   "Clause 14 is unambiguous."
+  ],
+  "signoff": "C. Ashby, Contracting Officer"
+ },
+ "letterhead": { "name": "Defense Supply — Contracting Office", "place": "(address withheld)" },
+ "listed": true,
+ "wants_from_newcomer": "The name of the officer who ordered any alteration to the site, in writing, from somebody who was there.",
+ "will_trade": [
+  "A copy of clause 14, to a committee member.",
+  "A date, to a director.",
+  "Nothing, to the sheriff; the sheriff is a matter for the county."
+ ],
+ "never_says": [
+  "The word SENTINEL.",
+  "That Col. Baines reports to his office.",
+  "That the 1969 depth readings were taken by the Government's own team.",
+  "What the April schedule is."
+ ],
+ "protects": ["Col. Baines", "The contract"],
+ "resents": ["Harold Sloane", "Margaret Hensley's cabinet"],
+ "knows": [
+  "Col. Baines is the program's officer inside the company, how: he is his contact.",
+  "The depth readings in Appendix C of DSA-69-114 were taken by a Government team before PGS existed, how: the appendix.",
+  "The April date, how: the schedule.",
+  "Sloane's sealing motion is a breach of clause 14 if it passes, how: the contract."
+ ],
+ "believes": [
+  "The company is a contractor and has forgotten it.",
+  "Sealing the site is a breach; monitoring it is the whole contract.",
+  "Civilians should not be on the stairs."
+ ],
+ "checkable_lie": {
+  "claim": "The contract concerns agricultural monitoring equipment.",
+  "truth": "DSA-69-114 is 'containment; Verification Site T; acquire, instrument, monitor'.",
+  "where_to_check": "The index of federal contracts in the CFO's cabinet."
+ },
+ "breaking_point": "If the structure is sealed before the inspection, he invokes clause 14 to the Chairman in writing, names Col. Baines as the Government's officer on site, and takes the site's keys.",
+ "ladder": {
+  "episode_4": "Writes once, to the Chairman, giving notice of inspection; answers a director's question with a clause number; is at the cellar on the 13th in a good coat.",
+  "episode_7": "Demands acceleration in writing with the April date on it; offers Mrs. Hensley an audit in exchange for the overrun.",
+  "episode_8": "Visits JANUS and asks Dr. Kovic a question about energy releases that Kovic will not answer.",
+  "episode_11": "Serves the seizure paper on whoever holds Tagus."
+ },
+ "goals": ["Keep the site in its contracted condition.", "Keep the program's name out of the company's correspondence.", "Have the keys by April."],
+ "fears": ["A sealed door before the inspection.", "The index being read by a junior.", "An inspection that finds the site is not where the appendix says it is."]
+}
+```

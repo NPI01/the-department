@@ -41,6 +41,13 @@ export const GOAL_RULES: Record<string, GoalRule> = {
   "ep2-2": { episode: 2, pred: { any: [{ filed: { any_of: ["greeley-notebook", "greeley-notebook-page"], with: "research-committee" } }, { sent_doc: { any_of: ["greeley-notebook", "greeley-notebook-page"], to_org: "Research Committee" } }] } },
   "ep2-3": { episode: 2, review: true, pred: { holds: "sheriff-evidence-e76-19" } },
   "ep2-4": { episode: 2, pred: { motion: "R-77-002", result: "instructed" } },
+  // Episode 04 — The Church at Tagus (PROPOSED 2026-10-18). ep4-1 is routed mail's target: Rud writes to its holder on day 9 and Brandvold on day 13, so the goal rewards finding him before the letter does.
+  "ep4-1": { episode: 4, pred: { any: [{ knows: "tagus.pgs_man_at_farm_seen" }, { knows: "met.brandvold" }, { holds: "brandvold-page" }] }, timing: { before_day: 13, points: 20, after: 5 } },
+  "ep4-2": { episode: 4, pred: { all: [{ any: [{ holds: "pgs-payroll-1977" }, { holds: "pgs-overdue-report" }, { holds: "stanley-land-records-tagus" }] }, { any: [{ knows: "pgs.voss_is_pgs_director_noticed" }, { knows: "tagus.deed_signed_voss_baines_1969_noticed" }, { knows: "pgs.paid_through_royce_procurement" }] }] } },
+  "ep4-3": { episode: 4, until: 7, pred: { any: [{ filed: { any_of: ["sentinel-contract-index"], with: "board" } }, { sent_doc: { any_of: ["sentinel-contract-index"], to_org: "Board of Directors" } }] }, timing: { before_day: 15, points: 25, after: 10 }, partial: { pred: { all: [{ holds: "sentinel-contract-index" }, { knows: "sentinel.depths_known_in_1969_noticed" }] }, points: 10 } },
+  "ep4-4": { episode: 4, pred: { motion: "S-77-004", result: "instructed" } },
+  "ep4-5": { episode: 4, pred: { all: [{ knows: "visited.tagus-cellar" }, { any: [{ holds: "cellar-tapes" }, { knows: "tagus.two_tapes_one_bolt" }, { knows: "tagus.depths_all_correct_confirmed" }] }] } },
+  "ep4-6": { episode: 4, review: true, pred: { holds: "pgs-monitoring-log" }, partial: { pred: { knows: "tagus.installation_eleven_minutes_seen" }, points: 10 } },
 };
 
 type State = {

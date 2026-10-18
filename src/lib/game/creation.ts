@@ -102,6 +102,13 @@ export const GOALS: Record<string, { text: string; deadline: string; points: num
   "ep2-2": { text: "Get Paul Greeley's notebook, or what is left of it, in front of the Research Committee.", deadline: "November 6", points: 20 },
   "ep2-3": { text: "Get the thing in the sheriff's evidence locker into a Royce laboratory, by any means the company will survive.", deadline: "November 6", points: 25 },
   "ep2-4": { text: "Carry the Research Committee's ballot on cooperating with the county the way your department needs it to go.", deadline: "November 2", points: 20 },
+  // Episode 04 — The Church at Tagus (PROPOSED 2026-10-18): handed out from the console or by the room.
+  "ep4-1": { text: "Find Lyle Brandvold, the Prairie Geological Services surveyor who did not come back from Tagus.", deadline: "December 6", points: 20 },
+  "ep4-2": { text: "Establish what Prairie Geological Services is, and who at Royce runs it.", deadline: "December 7", points: 20 },
+  "ep4-3": { text: "Get the index of federal contracts out of the Finance cabinet and in front of the Board.", deadline: "December 7", points: 25 },
+  "ep4-4": { text: "Carry the Safety Committee's ballot on sealing the Tagus structure the way your department needs it to go.", deadline: "November 30", points: 20 },
+  "ep4-5": { text: "Stand on the Tagus stairs yourself and bring back a measurement a laboratory can use.", deadline: "December 7", points: 15 },
+  "ep4-6": { text: "Get into the room under the Halvorsen instrument hut and bring out its log.", deadline: "December 7", points: 25 },
 };
 
 export const ALL_GOAL_KEYS = Object.keys(GOALS);

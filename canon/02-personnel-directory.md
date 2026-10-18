@@ -175,7 +175,46 @@ messages are memos and letters, never "email".
 *   **Voice:** Passionate, detailed, slightly paranoid. Quotes sources.
 *   **Round 1 Hook:** A letter sent to a new hire’s home address, referencing "the pattern" and enclosing a newspaper clipping with a symbol circled.
 
+### Tagus and the county (Episode 4; PROPOSED 2026-10-18)
+
+**Lyle Brandvold**
+*   **Title:** Field Surveyor, Prairie Geological Services
+*   **Department:** External (Contractor)
+*   **Public Profile:** 34, of Minot. Three seasons surveying for PGS at Tagus. Careful, literal, writes everything down. Overdue since the afternoon before Thanksgiving; his wife has been to the sheriff.
+*   **Voice:** Flat, literal, exact. Measurements with units. Signs "L. Brandvold."
+
+**Agnes Rud**
+*   **Title:** Farmer, west of Tagus
+*   **Department:** External (Local Resident)
+*   **Public Profile:** 67. Keeps the farm west of the siding alone since her husband died, and the only guest room in Tagus. Has complained twice to the company about surveyors crossing her land at night and never had an answer. Feeds anyone who comes without a form.
+*   **Voice:** Plain, unhurried, farm-direct. Asks a question back. Signs "A. Rud."
+
+**Ole Sandvik**
+*   **Title:** Formerly Prairie Geological Services
+*   **Department:** External (Local Resident)
+*   **Public Profile:** Early sixties. Surveyed for PGS at Tagus from the first year and lives in a trailer behind the elevator. Has told the sheriff he will not talk to anyone from the company.
+*   **Voice:** Five words or fewer. The weather. Unsigned.
+
+**Curtis Mahlum**
+*   **Title:** Formerly Prairie Geological Services
+*   **Department:** External (Local Resident)
+*   **Public Profile:** Technician for PGS until 1976; now drives a feed truck out of Stanley. Says they were looking for a tunnel, and will say it to anybody who buys the coffee.
+*   **Voice:** Garrulous, cheerful; every story has a tunnel. Signs "Curt."
+
+**Dennis Pfeifer**
+*   **Title:** Formerly Prairie Geological Services
+*   **Department:** External (Local Resident)
+*   **Public Profile:** Drove for PGS until August. Says there was never any digging at Tagus and that people should stop asking him. Has a family.
+*   **Voice:** Defensive, short, repeats himself. Signs his full name.
+
+**Conrad Ashby**
+*   **Title:** Contracting Officer, Defense Supply
+*   **Department:** External (Federal)
+*   **Public Profile:** A federal contracting officer who writes from an address that is withheld. Polite, exact, and interested in the condition of things the company holds under contract. Addresses only officers of the company.
+*   **Voice:** Formal, passive voice, clause numbers. Signs "C. Ashby, Contracting Officer."
+
 ---
 
 CHANGELOG: v1 promotes the agent-team directory of 23 named NPCs with public profiles, voices and Round 1 hooks.
 v1.1 (2026-10-13): Hollis's county is Ward County; Maya Okafor added (PROPOSED).
+v1.2 (2026-10-18): the Tagus six for Episode 4 (Brandvold, Rud, Sandvik, Mahlum, Pfeifer, Ashby), PROPOSED.

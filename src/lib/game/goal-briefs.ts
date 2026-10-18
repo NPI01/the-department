@@ -29,6 +29,42 @@ export const GOAL_BRIEFS: Record<string, GoalBrief> = {
     leads: ["Lobby committee members in person (ORDER: LOBBY <name> FOR or AGAINST); each has a price.", "Ely moves on proof that 77-B was unsigned; Kovic moves on word of the fragment in the county locker.", "The employee seat was elected in Episode 1; whoever holds it votes."],
     proof: "The ballot closing the way your department requires.",
   },
+  "ep4-1": {
+    what: "Lyle Brandvold, a surveyor for Prairie Geological Services, sent three depth readings for one hole under the utility cellar at Tagus on the afternoon before Thanksgiving and has not been seen since. His wife has been to the sheriff. Find him.",
+    known: "His truck is at the PGS yard and his field book is not in it. The cellar door was locked from outside the next morning. Elmer Bernard says a man came up out of the ground that night and walked west.",
+    leads: ["Write to Elmer Bernard, who saw the man; he will say which way he went.", "Watch the cellar and the farm west of Tagus at night; a surveyor who will not go home has to be somewhere.", "Write to Mrs. Agnes Rud at the farm, politely and without a form; she answers the polite.", "Sheriff Hollis has the missing-person report and would rather find the man with the company's help than without it."],
+    proof: "Seeing him, meeting him, or holding a page in his hand that says where he has been.",
+  },
+  "ep4-2": {
+    what: "Prairie Geological Services maintains 'agricultural monitoring equipment' near Tagus, loses a surveyor and tells Procurement rather than Security, and answers its telephone in Building 1. Establish what it is and who at Royce runs it.",
+    known: "PGS is paid through Procurement's cost centre 4410. Its field supervisor wrote to Gerald Voss as 'Director, PGS'. The county land records at Stanley are public.",
+    leads: ["Request the PGS payroll register and the overdue memo from Procurement; Voss holds both and will not want to.", "Go to the Mountrail County courthouse at Stanley and read the deed for the church parcel; anyone may.", "Maya Okafor files what arrives for PGS and has family in Tagus.", "Three former PGS men are in the county: Sandvik will not talk, Mahlum says they were looking for a tunnel, Pfeifer says there was never any digging."],
+    proof: "A PGS paper in your Case File and a name on it that is also on Royce's books.",
+  },
+  "ep4-3": {
+    what: "Finance keeps an index of the company's federal contracts in the CFO's cabinet. The Aerospace member of the Safety Committee has as good as said the Tagus structure is held under one of them. Get the index out and in front of the Board.",
+    known: "Margaret Hensley keeps it and has never shown it. Col. Baines has told the Committee to apply to her for it and then explain themselves to the Chairman. Walter Crane reads anything about money.",
+    leads: ["Write to Margaret Hensley; she is nearer to showing it than she lets on, and the surveyor has made it a liability.", "Examine the index if you get it; the 1969 line for the Tagus parcel says more than it should.", "File it with the Board, or hand a copy to any director; Crane and Hensley are the two who want it read.", "This goal is judged through Episode 7: the Board will take it up when it must, and it pays more if it goes in now."],
+    proof: "The index, or a copy of it, in a director's hands.",
+  },
+  "ep4-4": {
+    what: "Ballot S-77-004 asks the Safety Committee to pour concrete into the Tagus utility structure and fence the parcel. Your department has told you which way it must go. Carry it.",
+    known: "Sloane sponsors it and Armitage leans with him; Voss leans for and can be made certain; Baines is against and cannot be moved; Hensley is near the middle and moves on what the measurements mean. The employee seat votes.",
+    leads: ["Lobby committee members in person (ORDER: LOBBY <name> FOR or AGAINST); each has a price.", "Voss moves once his own name is on a PGS paper; Hensley moves on a laboratory's word that the three depths are real.", "The ballot opens on the 26th and closes at the lock of the 30th."],
+    proof: "The ballot closing the way your department requires.",
+  },
+  "ep4-5": {
+    what: "Three instruments hung from one bolt in the Tagus cellar gave three depths. Dr. Vale wants a witness and Dr. Kovic wants a number. Go down the company's stairs as far as the landing and bring back a measurement a laboratory can use.",
+    known: "The upper flight is twenty-one steps of 1920s concrete to a landing and a wall. Two steel tapes are still clipped to the bolt there. Kovic has a hand magnetometer in the cabinet by bench 4.",
+    leads: ["Travel to Tagus and visit the utility cellar; the door has a PGS lock and Bernard knows who has keys.", "Search the landing; take what is there.", "Have Applied Physics or Advanced Materials analyze what you bring back.", "Vale wants the church clock's time against your watch; Kovic wants the magnetometer back with its numbers."],
+    proof: "Having stood on the landing, and a tape, a reading or a laboratory report that says what the hole does to a measurement.",
+  },
+  "ep4-6": {
+    what: "Under the instrument hut on the Halvorsen parcel there is a room with eight years of strip charts in it. Prairie Geological Services calls it a pump house. Get in and bring out its log.",
+    known: "The hatch inside the hut is padlocked. Two men go down most nights at 2330 with a case. The monitoring is paid for under a federal contract that Security has never been shown.",
+    leads: ["Watch the Halvorsen parcel at night; the hatch opens on a schedule.", "Security clearance or a Security grant gets a search past the padlock; so does the Congregation, which knows another way in.", "Information Systems can read the log's trace against its own job log; Applied Physics can read the baseline.", "Sloane wants the log to prove the site is nobody's business but his; Vale wants it to prove the opposite."],
+    proof: "The monitoring log in your Case File.",
+  },
   "ep1-1": {
     what: "Prairie Geological Services, a Royce subsidiary, has been paying for concrete, cable and well-drilling at a parcel near Tagus where nothing has ever been built. Somebody at Royce approved those shipments. Find out who.",
     known: "You have seen the 1974 payables summary on a Procurement desk: eleven loads of concrete to the Halvorsen parcel, approved with two initials.",
