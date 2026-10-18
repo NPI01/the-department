@@ -44,6 +44,8 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 | **Ole Sandvik** | Keeper | The ghost employee: PGS pay since 1969 against badge 0000; drew Sketch B; was on the stairs with Brandvold on 23 November. PROPOSED (Episode 4; closes open question 1). | **YES** |
 | **Curtis Mahlum** | None (Local) | Reached the wall and tells it as the bottom; ran the cable for the installation; knows the 1975 core came up warm. PROPOSED (Episode 4). | **YES** |
 | **Dennis Pfeifer** | None (Paid by Voss) | Drove the 1974 concrete and signed the receipts; poured the ventilation shaft's collar; $80 a month from Voss to say there was no digging. PROPOSED (Episode 4). | **YES** |
+| **Walter Nygaard** | None (Witness) | Night custodian; was in room 2-C on 12 July with Greeley and two of Thorne's people, who ran first; kept a second page. PROPOSED (Episode 2). | **YES** |
+| **Ruth Greeley** | None (Family) | Paul's sister; holds his May–June letters naming "friends in Building 3" and took his midnight call on 10 July. PROPOSED (Episode 2). | **YES** |
 | **Conrad Ashby** | SENTINEL | Contracting officer for DSA-69-114; Baines's contact; knows the April date and that the 1969 depths were the Government's own. PROPOSED (Episode 4). | **YES** |
 
 ### Detailed Secret Entries
@@ -79,6 +81,11 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 *   **Secret Truth:** She is alive. She left Station R voluntarily after Sloane opened his investigation, with help from Dorothy Armitage. She is at a second Keeper property. She has descended the stairway once.
 
 
+**Episode 2 (PROPOSED 2026-10-18)**
+*   **Nygaard.** Record lie: "I was never in 2-C before October." The July badge log says otherwise. He is one of the three who were in the room; the other two are Thorne's, from Building 3, and one of them signs batch authorizations. He has a second folded page.
+*   **Ruth Greeley.** Record lie: "Paul never discussed his work with me." His letters home do, and she keeps them. She is the family the company broke a promise to, and the route by which the players can learn Greeley was encouraged.
+*   **The Fisk quotation.** Voss had Kessel telephone the Daily News from the PGS yard with Fisk's name, so the denial sat on Security's book; the yard's phone log holds the line. Fisk does not know. (13 §The Fisk quotation.)
+
 **The Tagus six (Episode 4; PROPOSED 2026-10-18)**
 *   **Brandvold.** Record lie: "I never went below the first landing." His field book's last line and the page he sends on day 13 say otherwise. He carries the first disturbance row of the season (the page dated three days in one ink).
 *   **Rud.** Record lie: "the book is a farm diary." It is the account book. She is the Keeper intermediary Episode 4 and 5 need: the practice (write yours, do not read theirs first) is offered through her.
@@ -99,3 +106,4 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 
 **CHANGELOG:** v1 establishes the 25-NPC roster, corrects Mercer/Greeley/Sayer to match canon, assigns two checkable record lies (Thorne, Voss), and separates Public/Secret canon.
 v1.1 (2026-10-18): the Tagus six added with record lies; Sandvik proposed as the ghost employee.
+v1.2 (2026-10-18): Nygaard and Ruth Greeley; the Fisk quotation's source.

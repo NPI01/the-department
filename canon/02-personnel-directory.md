@@ -213,8 +213,23 @@ messages are memos and letters, never "email".
 *   **Public Profile:** A federal contracting officer who writes from an address that is withheld. Polite, exact, and interested in the condition of things the company holds under contract. Addresses only officers of the company.
 *   **Voice:** Formal, passive voice, clause numbers. Signs "C. Ashby, Contracting Officer."
 
+### Episode 2 (PROPOSED 2026-10-18)
+
+**Walter Nygaard**
+*   **Title:** Custodian, Building 2
+*   **Department:** Facilities (nights)
+*   **Public Profile:** Night custodian for Buildings 2 and 3 since 1974. Keeps to himself, keeps the floors, and was told after July to hand anything from room 2-C to Security.
+*   **Voice:** Quiet, careful, blue-collar polite. Three lines and a misspelling. Signs "W. Nygaard."
+
+**Ruth Greeley**
+*   **Title:** Schoolteacher, Fargo
+*   **Department:** External (Family)
+*   **Public Profile:** Paul Greeley's sister. Received his effects in July and a letter promising a notebook that never came. Has written to the company three times and numbers her letters.
+*   **Voice:** Plain, schoolteacher-correct, one direct question per letter. Signs "Ruth Greeley."
+
 ---
 
 CHANGELOG: v1 promotes the agent-team directory of 23 named NPCs with public profiles, voices and Round 1 hooks.
 v1.1 (2026-10-13): Hollis's county is Ward County; Maya Okafor added (PROPOSED).
 v1.2 (2026-10-18): the Tagus six for Episode 4 (Brandvold, Rud, Sandvik, Mahlum, Pfeifer, Ashby), PROPOSED.
+v1.3 (2026-10-18): Walter Nygaard and Ruth Greeley for Episode 2, PROPOSED.

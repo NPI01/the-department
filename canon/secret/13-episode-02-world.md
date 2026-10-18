@@ -17,13 +17,44 @@ Royce cannot explain: 5–7 (Halvorsen, June 1976: drained, cut; metal debris 3 
 logged as ordnance, tag E-76-19, never referred). The engine's truth: the debris is an
 R-1 fragment, the third of three; Kovic wants it.
 
+## Two people (added 2026-10-18; sheets in 11, fourth pass; seeded by `seed-episode-02.ts`)
+**Walter Nygaard**, night custodian, Buildings 2 and 3: the man who handed Security the
+page on day 7. He was in room 2-C on 12 July with Greeley and two visitors from Building 3
+(Thorne's cell), who ran first and told him to say he found the body on his rounds; he kept a
+second folded page. The Building 2 badge reader log for July puts his badge in at 2250 and out
+at 2341 on a shift that starts at 0600. `npc_state.place = building-2-lockers`: an interview
+there meets him. **Ruth Greeley**, Fargo, Paul's sister: writes on day 5 as herself now (not
+through the mail room), answers anyone who signs their name, and holds Paul's May and June
+letters home, which name "friends in Building 3", and the midnight telephone call of 10 July
+("it answered"). She gives the letters for a page of the notebook.
+
+## The Fisk quotation (truth, added 2026-10-18)
+The "Royce spokesman" who gave Haugen Fisk's name telephoned from the PGS yard at 0740 on
+24 October, collect, on Voss's instruction: R. Kessel, the field supervisor, logged it
+"statement, per G.V." in the yard's telephone log. Voss wanted the denial on Security's book,
+not Procurement's. Haugen now says the call came on a Tagus exchange number; the yard's
+phone log (a search of the yard; cl. 4 or Security/Procurement) carries the line. Fisk does not
+know who used his name.
+
+## Form 22 and the decision versus the disclosure (added 2026-10-18)
+A player who is ready to say what the eleven cases were files **Form 22** (06-forms; engine
+`ledger.ts`): one letter per case, scored against the truth above; 9 of 11 is a
+reconstruction (`ledger.reconstructed`), an ordinary or unexplained case laid on HARVEST is
+`ledger.false_accusation`, and question 14 may send the statement to the sheriff, who
+answers in his own words. Goal ep2-1 is judged by the form now. R-77-002's finding and the
+disclosure it authorizes are two facts: a passed finding is carried out on day 14 (Records
+furnishes the authorizations and the PGS logs, `disclosure.harvest_to_county`); a failed one
+is announced by Vale. Hollis writes on Episode 3 day 1 on one branch or the other.
+
 ## Documents (holder; access)
 minot-daily-news-steer (mail room; anyone) · sheriff-case-ledger (Hollis; via him) ·
 sheriff-evidence-e76-19 (the locker; sealed; search cl. 5 or Hollis) · vane-sample-jar
 (Vane; via him) · pgs-field-log-sep-77 (Procurement cl. 2 / Voss; in the PGS yard) ·
 motor-pool-log-oct-77 (Facilities; anyone) · harvest-protocol-1975 (Ely; cl. 3 / Bio Sci)
 · greeley-effects-inventory (Armitage; cl. 2 / Personnel) · greeley-lab-entry-12-july
-(Kovic; cl. 3 / Applied Physics) · pma-contract-1976 (Baines; cl. 3 / Aerospace). Each
+(Kovic; cl. 3 / Applied Physics) · pma-contract-1976 (Baines; cl. 3 / Aerospace) · building-2-badge-log-july-77 (Security; cl. 3 /
+Fisk; the custodian's badge on 12 July) · pgs-yard-phone-log-oct-77 (the yard; the call to the
+paper). Each
 carries a wrong detail EXAMINE can notice; together they let a player sort the ledger,
 tie MP-14 to the steer, show 77-B's tissue was outside protocol, and show the notebook was
 withheld by H.S.

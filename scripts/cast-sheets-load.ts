@@ -2,9 +2,9 @@
      pnpm tsx scripts/cast-sheets-load.ts [path]      default canon/secret/11-cast-sheets.md
      pnpm tsx scripts/cast-sheets-load.ts --dry [path] parse and report only
    A sheet is a "### <Name>" heading followed by a ```json block. Names are
-   matched to characters by full name (titles stripped), then by surname when
-   exactly one character has it; an ambiguous surname (the two Thornes) is
-   reported and not loaded, as is a name that matches nobody. */
+   matched to characters by full name with titles stripped, and by nothing
+   else: a surname alone would put Ruth Greeley's sheet on Paul and Elias
+   Thorne's on Julian. A name that matches nobody is reported, not loaded. */
 import { config } from "dotenv";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -45,8 +45,9 @@ async function main() {
   for (const s of sheets) {
     const byFull = (chars ?? []).filter((c) => norm(c.name) === norm(s.name));
     const bySurname = (chars ?? []).filter((c) => surname(c.name) === surname(s.name));
-    const hit = byFull.length === 1 ? byFull[0] : bySurname.length === 1 ? bySurname[0] : null;
-    const status = hit ? (s.problems.length ? `problems: ${s.problems.join(", ")}` : "ok") : bySurname.length > 1 ? `AMBIGUOUS surname: ${bySurname.map((c) => c.slug).join(", ")} (not loaded)` : "NO CHARACTER";
+    // Full name only. A surname alone is never enough: Ruth Greeley must not land on Paul, nor Elias Thorne on Julian.
+    const hit = byFull.length === 1 ? byFull[0] : null;
+    const status = hit ? (s.problems.length ? `problems: ${s.problems.join(", ")}` : "ok") : bySurname.length ? `NO CHARACTER by full name (surname matches ${bySurname.map((c) => c.slug).join(", ")}; not loaded)` : "NO CHARACTER";
     console.log(` ${s.name.padEnd(28)} → ${(hit?.slug ?? "-").padEnd(10)} ${status}`);
     if (!hit || dry || s.problems.some((p) => p.startsWith("no json") || p.startsWith("bad json"))) continue;
     const { error } = await db.from("characters").update({ npc_state: s.sheet }).eq("id", hit.id);

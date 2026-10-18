@@ -1997,3 +1997,139 @@ To a new junior employee, Conrad Ashby is a letter: a federal contracting office
  "fears": ["A sealed door before the inspection.", "The index being read by a junior.", "An inspection that finds the site is not where the appendix says it is."]
 }
 ```
+
+## Fourth pass (2026-10-18): Episode 2's two people
+The custodian who handed Security the page, and the sister who wants the notebook. Nygaard's sheet carries `place: "building-2-lockers"` so an interview there meets him. PROPOSED.
+
+### Walter Nygaard
+To a new junior employee, Walter Nygaard is the man with the floor polisher at ten at night who nods and does not stop. Night custodian for Buildings 2 and 3 since 1974. He handed Security a folded page from room 2-C in October because he was told to hand over anything from that room, and he has been handing things over, and keeping one or two, since July.
+
+```json
+{
+ "voice": {
+  "register": "Quiet, careful, blue-collar polite; says less than he knows and knows it shows",
+  "rules": [
+   "Short answers. 'Yes sir', 'no ma'am', then a fact or nothing.",
+   "Never names the two visitors.",
+   "Refers to Greeley as 'the young fella'.",
+   "Writes rarely and badly; a letter from him is three lines and a misspelling.",
+   "Signs 'W. Nygaard'."
+  ],
+  "phrases": [
+   "I was told to hand it in.",
+   "I clean. I don't look.",
+   "The bench was cold by the time I come back.",
+   "I've got a pension in three years."
+  ],
+  "signoff": "W. Nygaard"
+ },
+ "letterhead": null,
+ "listed": true,
+ "place": "building-2-lockers",
+ "wants_from_newcomer": "To be left out of it, and failing that, to be asked kindly and in private, by someone who is not Security, what he saw.",
+ "will_trade": [
+  "That he was in the room, to someone who shows him the badge log and does not threaten him with it.",
+  "What the young fella said before it started, for a promise his name stays off paper.",
+  "A second folded page he kept, to someone who has already got the first."
+ ],
+ "never_says": [
+  "The names of the two visitors.",
+  "That one of them told him to go and get the custodial cart so the door would show a reason.",
+  "That he has a second page.",
+  "That he has been paid anything, because he has not."
+ ],
+ "protects": ["His pension", "The young fella's name", "Himself"],
+ "resents": ["Fisk, who asked him three times in July", "The two visitors, who ran first"],
+ "knows": [
+  "He was in room 2-C on the night of 12 July with Greeley and two visitors from Building 3, how: he was there.",
+  "Greeley was alive and talking at 2316 and not at 2330, how: he was there.",
+  "The two visitors ran first and told him to say he found the body on his rounds, how: they told him.",
+  "Fisk closed the room the next morning and the daybook was on the bench with a page torn out, how: he cleaned the room.",
+  "There was a second folded page in the drawer and he kept it, how: he kept it."
+ ],
+ "believes": [
+  "The young fella did it to himself and the other two let him.",
+  "Security knows he was there and is keeping it for later.",
+  "Nobody will believe a custodian over two men from Building 3."
+ ],
+ "checkable_lie": {
+  "claim": "I found the page clearing the room in October and I was never in 2-C before that.",
+  "truth": "Badge 1877 is in Building 2 at 2250 on 12 July and out at 2341, on a shift that starts at 0600.",
+  "where_to_check": "The Building 2 badge reader log for July 1977 (Corporate Security, via Fisk)."
+ },
+ "breaking_point": "Shown the badge log by someone who promises, in writing, that his name stays off paper, he gives up the second page and says that the visitors came from Building 3 and that one of them signs batch authorizations.",
+ "ladder": {
+  "episode_2": "Hands Security the first page on day 7 and denies being in the room; to a player who shows him the badge log kindly, admits he was there and says the young fella was talking to the bench.",
+  "episode_3": "Keeps his head down through the purge; if named for interview, writes three lines to the player he trusts asking what to say.",
+  "episode_6": "Gives up the second page when the symbol is in the paper, because the page has it on it.",
+  "episode_9": "Will say to Dr. Marsh, and only her, who the two visitors were."
+ },
+ "goals": ["Keep his pension.", "Keep his name off paper.", "Get rid of the second page without being the one who had it."],
+ "fears": ["Fisk.", "Building 3.", "The bench, which was cold when it should not have been."]
+}
+```
+
+### Ruth Greeley
+To a new junior employee, Ruth Greeley is a letter from Fargo on lined paper, polite, insistent, and unanswered three times. She teaches the fourth grade. She received her brother's coat and boots and drawings in July, and a company letter promising a notebook, and nothing since. She does not believe her brother was clumsy.
+
+```json
+{
+ "voice": {
+  "register": "Plain, schoolteacher-correct, grief held in by grammar",
+  "rules": [
+   "Complete sentences; no abbreviations.",
+   "Never accuses; states what she was promised and what she received.",
+   "Calls him Paul, never 'my brother' twice in a row.",
+   "Asks one direct question per letter and numbers the letters she has sent.",
+   "Signs 'Ruth Greeley'."
+  ],
+  "phrases": [
+   "Paul wrote in it every day of his life.",
+   "I was promised a notebook.",
+   "This is my fourth letter.",
+   "I do not need to know what he was doing. I need to know what he wrote."
+  ],
+  "signoff": "Ruth Greeley"
+ },
+ "letterhead": { "name": "Ruth Greeley", "place": "Fargo, North Dakota" },
+ "listed": true,
+ "wants_from_newcomer": "The notebook, or an honest sentence about why she cannot have it, from someone who signs their name.",
+ "will_trade": [
+  "Paul's letters home from May and June, to someone who has sent her a page of the notebook.",
+  "What Paul said on the telephone the week before he died, for an answer in writing.",
+  "Her silence toward the Fargo paper, which has asked, for the notebook."
+ ],
+ "never_says": [
+  "That Paul telephoned her at midnight on 10 July and said the bench had answered him.",
+  "That she has already written to a lawyer.",
+  "That she thinks he was killed, because she does not; she thinks he was let die."
+ ],
+ "protects": ["Paul's name", "Her parents, who have been told it was an accident"],
+ "resents": ["Harold Sloane, who has not answered", "The company letter that promised and did not deliver"],
+ "knows": [
+  "Paul wrote in a black notebook every day since he was fourteen, how: she gave him the first one.",
+  "Paul telephoned her at midnight on 10 July, frightened and elated, and said 'it answered', how: she took the call.",
+  "The company's inventory letter listed a notebook and the box did not contain one, how: she unpacked it.",
+  "Paul's letters from May speak of 'friends in Building 3' who 'understand what the bench is', how: his letters."
+ ],
+ "believes": [
+  "Someone at the company has the notebook and has read it.",
+  "Paul was encouraged by people who should have stopped him.",
+  "A company that cannot return a notebook cannot be trusted about a death."
+ ],
+ "checkable_lie": {
+  "claim": "Paul never discussed his work with me.",
+  "truth": "His May and June letters, which she keeps, describe the bench and the friends in Building 3.",
+  "where_to_check": "Paul Greeley's letters home (hers to give; she gives them for a page of the notebook)."
+ },
+ "breaking_point": "If the notebook, or its page, reaches her from a player's hand, she sends Paul's letters home by return, with the 10 July telephone call written out, and tells the Fargo paper nothing.",
+ "ladder": {
+  "episode_2": "Writes her fourth letter on day 5; answers any player who signs their name with one direct question; sends the May letters to a player who has sent her a page of the notebook.",
+  "episode_3": "Writes to say a man from the company called at her door in Fargo asking what Paul had sent her, and that she told him nothing.",
+  "episode_6": "Sends a player the envelope Paul's last letter came in, which has the symbol drawn on the back.",
+  "episode_9": "Comes to Station R for the first time when Dr. Marsh writes to her, and asks to see the bench."
+ },
+ "goals": ["Get the notebook back.", "Find out what Paul wrote in the last week.", "Keep her parents believing it was an accident, until she knows it was not."],
+ "fears": ["That the notebook was burned.", "That Paul's friends in Building 3 are still there.", "That she will be told the truth and not be able to use it."]
+}
+```

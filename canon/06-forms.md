@@ -78,4 +78,17 @@ What staff know: question 11 was added in the September 1977 reprint. Security w
 told why. Leonard Fisk assumes it is about drink or pills. Older copies of the form,
 without question 11, are still in some desk drawers.
 
-CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File. v1.2 puts badge number, supervisor, calendar and biography on the personnel file.
+### Form 22 — Statement of Livestock Cases, Ward County (Biological Sciences, Rev. 10/77)
+The Research Committee's form for an employee's reading of the county's eleven cattle
+cases since 1975. One letter per case: A, sampled under Program HARVEST with authorization
+on file; B, sampled under HARVEST with no authorization on file; C, an ordinary cause
+(weather, predators, disease, a human act unconnected with the company); D, a cause the
+company cannot establish. Question 13 names the documents relied on and any case answered
+without one; question 14 is the election whether the statement may be furnished to the
+Ward County Sheriff, under the filer's name. Biological Sciences owns and files it; the
+Committee's staff read it and remember who laid which case on the program. A statement
+released to the county reaches the sheriff by post and he answers in his own words.
+(Engine: the form is scored against the record; the score is never shown.) PROPOSED
+2026-10-18.
+
+CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File. v1.2 puts badge number, supervisor, calendar and biography on the personnel file. v1.3 adds Form 22, the Statement of Livestock Cases (Episode 2).

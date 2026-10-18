@@ -10,6 +10,14 @@ config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 async function main() {
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
   const cid = process.env.CAMPAIGN_ID!;
+  // Episode 2's two people (PROPOSED 2026-10-18): the custodian who found the page, and Greeley's sister. Sheets load from canon/secret/11 (fourth pass).
+  const people = [
+    { campaign_id: cid, slug: "nygaard", name: "Walter Nygaard", title: "Custodian, Building 2", division_id: null, clearance: 1, status: "active", public_profile: "Night custodian for Buildings 2 and 3 since 1974. Keeps to himself, keeps the floors, and was told after July to hand anything from room 2-C to Security.", npc_state: { listed: true, place: "building-2-lockers" } },
+    { campaign_id: cid, slug: "rgreeley", name: "Ruth Greeley", title: "Fargo, North Dakota", division_id: null, clearance: 0, status: "active", public_profile: "Paul Greeley's sister, a schoolteacher in Fargo. Received his effects in July and a letter promising a notebook that never came. Has written to the company three times.", npc_state: { listed: true } },
+  ];
+  const { error: pe } = await db.from("characters").upsert(people, { onConflict: "campaign_id,slug", ignoreDuplicates: false });
+  if (pe) throw pe;
+  console.log(`people: ${people.length} upserted`);
   const { data: chars } = await db.from("characters").select("id, slug").eq("campaign_id", cid);
   const id = (slug: string) => { const c = (chars ?? []).find((x) => x.slug === slug); if (!c) throw new Error(`no character ${slug}`); return c.id as string; };
   const { data: org } = await db.from("organizations").select("id").eq("campaign_id", cid).eq("name", "Research Committee").single();

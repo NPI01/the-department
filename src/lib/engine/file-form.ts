@@ -13,6 +13,7 @@ import { gameMailbox, newMessageId, sendMail } from "@/lib/email/resend";
 import { renderFooter, replyAddress, textToHtml } from "./dispatch";
 import { renderFormReceipt, summarizeSubmission } from "./forms";
 import { slugify } from "@/lib/game/case-file";
+import { scoreLedgerStatement } from "./ledger";
 
 function hashKey(text: string): string {
   let h = 5381; const t = text.toLowerCase().replace(/\s+/g, " ").trim();
@@ -115,6 +116,8 @@ export async function fileForm(db: SupabaseClient, p: { campaignId: string; char
   }, { onConflict: "character_id,slug" });
 
   await db.from("events").insert({ campaign_id: p.campaignId, round_id: round?.id ?? null, phase: "intake", kind: "form.filed", payload: { correspondence_id: correspondenceId, form: s.form, index, missing: s.missing, signed: s.signed, character: p.characterId, source: p.source, case_slug: caseSlug }, idempotency_key: key, visible_to: [p.characterId] });
+  // Form 22 is scored against the ledger the engine holds, and may go to the sheriff (ledger.ts).
+  if (s.form === "22") await scoreLedgerStatement(db, { campaignId: p.campaignId, roundId: round?.id ?? null, roundNo, characterId: p.characterId, characterSlug: (ch?.slug as string) ?? "unknown", characterName: (ch?.name as string) ?? "An employee", submission: s, index });
 
   if (player?.email) {
     const from = replyAddress(player.mail_token);

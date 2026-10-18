@@ -25,6 +25,7 @@ export type ScheduledItem = {
   body: string | ((ctx: MailCtx) => string);
   route: Route;
   when?: Condition;                    // sent only on this branch of the story (conditions.ts): a finding, an operation's result
+  sets?: { fact: string; value: Record<string, unknown> };   // a fact written the first time the item goes out: the act the letter reports (a disclosure, a delivery)
   caseItem?: { slug: string; kind: "document" | "map" | "letter" | "memo"; drawer: "documents" | "maps" | "correspondence"; title: string; body: string | ((ctx: MailCtx) => string); written?: string };
 };
 /* What a body may be written against: the recipient, and for goal-routed mail the way their instructed motion must go (facts goal.instruction.<goal>, default passed). */

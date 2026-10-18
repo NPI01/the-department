@@ -37,7 +37,7 @@ export const GOAL_RULES: Record<string, GoalRule> = {
   "ep1-7": { episode: 1, pred: { all: [{ holds: "sentinel-contract-ledger-page" }, { knows: "finance.overrun_noticed" }] } },
   "ep1-8": { episode: 1, pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }, { any: [{ holds: "jthorne-batch-authorizations" }, { knows: "is.chr_recon_authorized_before_it_existed_noticed" }, { knows: "is.operator_log_signed_by_wrong_hand_noticed" }] }] }, partial: { pred: { all: [{ holds: "is-job-log-oct-77" }, { knows: "is.future_jobs_unattended_noticed" }] }, points: 10 } },
   "ep1-9": { episode: 1, pred: { motion: "B-77-001", result: "instructed" } },
-  "ep2-1": { episode: 2, review: true, pred: { all: [{ holds: "sheriff-case-ledger" }, { holds: "pgs-field-log-sep-77" }, { holds: "motor-pool-log-oct-77" }] } },
+  "ep2-1": { episode: 2, pred: { all: [{ filed_form: "22" }, { knows: "ledger.reconstructed" }] }, partial: { pred: { knows: "ledger.statement_filed" }, points: 8 } },   // Form 22 scored by ledger.ts: 9 of 11 right is a reconstruction; any statement is worth something
   "ep2-2": { episode: 2, pred: { any: [{ filed: { any_of: ["greeley-notebook", "greeley-notebook-page"], with: "research-committee" } }, { sent_doc: { any_of: ["greeley-notebook", "greeley-notebook-page"], to_org: "Research Committee" } }] } },
   "ep2-3": { episode: 2, review: true, pred: { holds: "sheriff-evidence-e76-19" } },
   "ep2-4": { episode: 2, pred: { motion: "R-77-002", result: "instructed" } },

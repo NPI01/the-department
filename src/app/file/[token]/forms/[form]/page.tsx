@@ -45,9 +45,10 @@ async function Content({ params, searchParams }: { params: Params; searchParams:
   const residence = bioFrom(ch!.sheet as never, ch!.public_profile as string | null).residence ?? "";
   const today = p.currentRound ? longDate(roundDate(p.currentRound)) : null;
   // Question 1 and question 10 start with what Personnel already has; the player may change them.
-  const prefill: Partial<Record<number, string>> = def.id === "14-B"
-    ? { 1: [me.name, `badge ${p.badge}`, dept, p.supervisor ? `supervisor ${p.supervisor.name}` : null].filter(Boolean).join(", "), ...(residence ? { 10: residence } : {}) }
-    : {};
+  const prefill: Partial<Record<number, string>> = {
+    1: [me.name, `badge ${p.badge}`, dept, def.id === "14-B" && p.supervisor ? `supervisor ${p.supervisor.name}` : null].filter(Boolean).join(", "),
+    ...(def.id === "14-B" && residence ? { 10: residence } : {}),
+  };
   const missingSet = new Set((missing ?? "").split(",").filter(Boolean).map(Number));
 
   return (

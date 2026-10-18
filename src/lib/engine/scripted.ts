@@ -51,11 +51,15 @@ export async function deliverScheduledMail(db: SupabaseClient, campaignId: strin
   const due = (i: { key: string; round: number }) => i.round + (shift.get(i.key) ?? 0);
   const dueItems = items.filter((i) => due(i) <= round.episodeRound).sort((a, b) => due(a) - due(b));
   // Branches: an item with `when` goes out only if the fact it names holds; goal-routed items may read the goal's instruction.
-  const facts = await factsFor(db, campaignId, [...dueItems.filter((i) => i.when).map((i) => i.when!.fact), ...dueItems.filter((i) => "goal" in i.route).map((i) => `goal.instruction.${(i.route as { goal: string }).goal}`)]);
+  const facts = await factsFor(db, campaignId, [...dueItems.filter((i) => i.when).map((i) => i.when!.fact), ...dueItems.filter((i) => i.sets).map((i) => i.sets!.fact), ...dueItems.filter((i) => "goal" in i.route).map((i) => `goal.instruction.${(i.route as { goal: string }).goal}`)]);
   for (const item of dueItems) {
     if (item.when && !holds(item.when, facts)) continue;
     const to = await recipients(db, campaignId, item.route, pcs, delivered);
     const instruction = "goal" in item.route ? (((facts.get(`goal.instruction.${item.route.goal}`)?.result as "passed" | "failed" | undefined) ?? "passed")) : undefined;
+    if (item.sets && to.length && !facts.has(item.sets.fact)) {
+      await db.from("facts").upsert({ campaign_id: campaignId, key: item.sets.fact, value: { ...item.sets.value, item: item.key, round: round.number }, established_round: round.number, secret: false }, { onConflict: "campaign_id,key" });
+      facts.set(item.sets.fact, item.sets.value);
+    }
     for (const pc of to) {
       if ((delivered.get(item.key) ?? []).includes(pc.id)) continue;
       const ctx = { name: pc.name, department: pc.division, instruction };

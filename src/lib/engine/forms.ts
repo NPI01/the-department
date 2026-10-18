@@ -16,6 +16,7 @@ export type FormDef = {
   questions: { n: number; text: string; required: boolean }[];
   attestation: string;
   officeUse: string[];
+  brief?: string;             // what the owning office's staff are told about it (formBriefFor); 14-B's is the default text
 };
 
 export const FORMS: Record<string, FormDef> = {
@@ -48,6 +49,40 @@ export const FORMS: Record<string, FormDef> = {
     ],
     attestation: "I affirm that the above is true and complete to the best of my knowledge, and that I have retained no copy.",
     officeUse: ["Received by: ________  Date: ________  Index No.: S-77-____", "Disposition:  [ ] No action   [ ] Hold   [ ] Refer D-SRD   [ ] Return to observer"],
+  },
+  "22": {
+    id: "22",
+    title: "STATEMENT OF LIVESTOCK CASES, WARD COUNTY",
+    shortTitle: "Statement of Livestock Cases",
+    owner: "Biological Sciences",
+    revision: "Rev. 10/77",
+    instructions: [
+      "For the record of the Research Committee. To be completed by any employee who has examined the county's livestock cases, from the documents in that employee's possession.",
+      "For each of the eleven cases on the Ward County Sheriff's ledger (1975–77), write ONE letter: A, the animal was sampled under Program HARVEST with authorization on file; B, sampled under Program HARVEST with no authorization on file; C, an ordinary cause (weather, predators, disease, or a human act unconnected with the company); D, a cause the company cannot establish.",
+      "Where you hold no document for a case, you may still answer, and must say so in question 13.",
+      "Question 14 is your election: whether this statement may be furnished to the Ward County Sheriff. A statement furnished to the county is furnished under your name.",
+      "A false statement on this form is cause for dismissal under Section 4 of the Employee Handbook. What you lay on the company, or take off it, is on the record.",
+    ],
+    questions: [
+      { n: 1, text: "Full name, badge number and department.", required: true },
+      { n: 2, text: "Case 1 (4/75, county road 12): A, B, C or D.", required: true },
+      { n: 3, text: "Case 2 (9/75, Vane north): A, B, C or D.", required: true },
+      { n: 4, text: "Case 3 (11/75, Halvorsen): A, B, C or D.", required: true },
+      { n: 5, text: "Case 4 (4/76, Vane north): A, B, C or D.", required: true },
+      { n: 6, text: "Case 5 (6/76, Halvorsen): A, B, C or D.", required: true },
+      { n: 7, text: "Case 6 (6/76, Halvorsen): A, B, C or D.", required: true },
+      { n: 8, text: "Case 7 (6/76, Halvorsen; the debris): A, B, C or D.", required: true },
+      { n: 9, text: "Case 8 (9/76, county road 12): A, B, C or D.", required: true },
+      { n: 10, text: "Case 9 (7/77, Vane north): A, B, C or D.", required: true },
+      { n: 11, text: "Case 10 (9/77, Vane north): A, B, C or D.", required: true },
+      { n: 12, text: "Case 11 (10/9/77, Vane north; the animal in the newspaper): A, B, C or D.", required: true },
+      { n: 13, text: "Documents relied on, by title, and any case answered without one.", required: true },
+      { n: 14, text: "Release. May this statement be furnished to the Ward County Sheriff? Write YES or NO.", required: true },
+      { n: 15, text: "Signature. Type your full name. By signing you affirm that the above is your honest reading of the documents named.", required: true },
+    ],
+    attestation: "I affirm that the above is my honest reading of the documents named.",
+    officeUse: ["Received by: ________  Date: ________  Index No.: S-77-____", "Cases as scored by the Director: ____ of 11   [ ] To the Committee's file   [ ] Furnished to the county   [ ] Returned"],
+    brief: "Form 22 (Rev. 10/77), Statement of Livestock Cases, is the Research Committee's form for an employee's reading of the county's eleven cattle cases, one letter per case (A authorized sampling, B sampling with no authorization on file, C ordinary cause, D unexplained), with an election at question 14 whether it may go to the sheriff. Your office owns it and files it to the Committee. You read what employees assert on it and remember who laid which case on the program; you do not say on paper which letters are right.",
   },
 };
 
@@ -134,7 +169,7 @@ export function renderFormReceipt(p: { first: string; form: string; index: strin
 export function formBriefFor(department: string | null): string {
   const own = Object.values(FORMS).filter((f) => f.owner === department);
   const lines: string[] = [];
-  for (const f of own) lines.push(`Form ${f.id} (${f.revision}), ${f.shortTitle}, is your office's form for any sighting or incident. You may require it, and you may decline to discuss a sighting in writing until it is on file. A writer gets a blank by replying FORM ${f.id}; the clerk files what comes back and tells you. The September revision added question 11 (sleep, appetite and sense of time since the observation); you were not told why, you assume it is about drink or pills, and you do not speculate in writing.`);
+  for (const f of own) lines.push(f.brief ?? `Form ${f.id} (${f.revision}), ${f.shortTitle}, is your office's form for any sighting or incident. You may require it, and you may decline to discuss a sighting in writing until it is on file. A writer gets a blank by replying FORM ${f.id}; the clerk files what comes back and tells you. The September revision added question 11 (sleep, appetite and sense of time since the observation); you were not told why, you assume it is about drink or pills, and you do not speculate in writing.`);
   if (!own.length) lines.push(`Sightings and incidents are reported to Corporate Security on Form 14-B; you refer such matters there and do not take statements yourself.`);
   return lines.join("\n");
 }

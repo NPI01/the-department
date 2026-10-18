@@ -1,7 +1,7 @@
 /* The world across episodes. A document, place, sighting or tier belongs to an
    episode (default 1) and exists from that episode on. */
 import { DOCUMENTS, PLACES, PRESSURE } from "./episode-01";
-import { DOCUMENTS_02, PLACES_02, PRESSURE_02 } from "./episode-02";
+import { DOCUMENTS_02, DOCUMENTS_02_MORE, PLACES_02, PRESSURE_02 } from "./episode-02";
 import { DOCUMENTS_03, PLACES_03, PRESSURE_03 } from "./episode-03";
 import { SCHEDULED_03 } from "./episode-03-mail";
 import { DOCUMENTS_04, PLACES_04, PRESSURE_04 } from "./episode-04";
@@ -10,7 +10,7 @@ import { SCHEDULED, type ScheduledItem } from "./episode-01-mail";
 import { SCHEDULED_02 } from "./episode-02-mail";
 import type { DocumentDef, PlaceDef, PressureTier } from "./types";
 
-const ALL_DOCUMENTS: DocumentDef[] = [...DOCUMENTS, ...DOCUMENTS_02, ...DOCUMENTS_03, ...DOCUMENTS_04];
+const ALL_DOCUMENTS: DocumentDef[] = [...DOCUMENTS, ...DOCUMENTS_02, ...DOCUMENTS_02_MORE, ...DOCUMENTS_03, ...DOCUMENTS_04];
 const ALL_PLACES: PlaceDef[] = [...PLACES, ...PLACES_02, ...PLACES_03, ...PLACES_04];
 const ALL_PRESSURE: PressureTier[] = [...PRESSURE.map((t) => ({ episode: 1, ...t })), ...PRESSURE_02, ...PRESSURE_03, ...PRESSURE_04];
 

@@ -27,7 +27,7 @@ are not closed by the engine: a `goal.proposed_met` event asks the showrunner to
 | ep1-7 appropriation | holds the 77-S ledger page and noticed the overrun | |
 | ep1-8 future-dated entries | holds the job log, noticed the jobs ran unattended, and holds J-T's authorizations or noticed the authorization predates the series or the operator log's wrong hand; partial 10 for log + unattended | |
 | ep1-9 the motion | B-77-001 closes as instructed | |
-| ep2-1 sort the ledger | holds the sheriff's ledger, the PGS field log and the motor pool log | yes |
+| ep2-1 sort the ledger | filed Form 22 and `ledger.reconstructed` (9 of 11 cases right, scored by ledger.ts); partial 8 for any Form 22 on file | |
 | ep2-2 the notebook | filed the notebook or its page with the Research Committee, or handed it to a member | |
 | ep2-3 the fragment | holds the county fragment | yes |
 | ep2-4 R-77-002 | closes as instructed | |

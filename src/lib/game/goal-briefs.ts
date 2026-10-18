@@ -8,8 +8,8 @@ export const GOAL_BRIEFS: Record<string, GoalBrief> = {
   "ep2-1": {
     what: "The county has eleven dead-cattle cases on its books since 1975. Some were Royce's HARVEST crews sampling tissue, authorized or not; some were lightning and coyotes; at least one is something nobody can explain. Sort them.",
     known: "The Minot paper has run the steer story. HARVEST's 1976 lots are authorized; the 1977 continuation sheet has a lot with no signatures. The sheriff keeps his own ledger and lets nobody else touch it.",
-    leads: ["Write to Sheriff Hollis for his livestock case ledger; he will want something in return.", "Request the PGS field unit log from Procurement; it says which nights a crew went out and in which truck.", "The motor pool sign-out log is open to anyone; match trucks to nights.", "Visit the Vane barn and the Halvorsen parcel; ask who comes at night."],
-    proof: "A list in your Case File that puts each case in one of three columns, with a document behind each.",
+    leads: ["Write to Sheriff Hollis for his livestock case ledger; he will want something in return.", "Request the PGS field unit log from Procurement; it says which nights a crew went out and in which truck.", "The motor pool sign-out log is open to anyone; match trucks to nights.", "Visit the Vane barn and the Halvorsen parcel; ask who comes at night.", "When you are ready to say it under your name, reply FORM 22 for the Statement of Livestock Cases: one letter per case, and question 14 decides whether the sheriff may have it."],
+    proof: "A Form 22 on file that puts each of the eleven cases in its right column. A statement that is mostly wrong is still a statement, and the people who read it will remember what you laid on the company.",
   },
   "ep2-2": {
     what: "Paul Greeley died in July in a laboratory accident the company says was electrical. His notebook was listed among his effects, struck off, and never reached his family. Find it, or enough of it, and put it before the Research Committee.",
