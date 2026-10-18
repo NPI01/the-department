@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { type Route } from "./world/episode-01-mail";
 import { scheduledFor } from "./world";
 import { newMessageId } from "@/lib/email/resend";
+import { factsFor, holds } from "./conditions";
 
 type PC = { id: string; slug: string; name: string; division: string | null; email: string | null; created_at: string; goal_key: string | null };
 
@@ -20,7 +21,7 @@ async function recipients(db: SupabaseClient, campaignId: string, route: Route, 
     const { data } = await db.from("character_goals").select("character_id").eq("campaign_id", campaignId).eq("goal_key", route.goal).eq("status", "open");
     const ids = new Set((data ?? []).map((g) => g.character_id as string));
     const hit = pcs.filter((p) => ids.has(p.id) || p.goal_key === route.goal);
-    return hit.length ? hit : [newest];
+    return hit.length ? hit : route.only ? [] : [newest];
   }
   if ("society" in route) {
     const { data: org } = await db.from("organizations").select("id").eq("campaign_id", campaignId).ilike("name", route.society === "vigil" ? "%Vigil%" : "%Congregation%").maybeSingle();
@@ -48,11 +49,16 @@ export async function deliverScheduledMail(db: SupabaseClient, campaignId: strin
   const { data: shifts } = await db.from("rules").select("key, value").eq("campaign_id", campaignId).like("key", "beat.shift.%");
   const shift = new Map((shifts ?? []).map((r) => [(r.key as string).slice("beat.shift.".length), Number(r.value)]));
   const due = (i: { key: string; round: number }) => i.round + (shift.get(i.key) ?? 0);
-  for (const item of items.filter((i) => due(i) <= round.episodeRound).sort((a, b) => due(a) - due(b))) {
+  const dueItems = items.filter((i) => due(i) <= round.episodeRound).sort((a, b) => due(a) - due(b));
+  // Branches: an item with `when` goes out only if the fact it names holds; goal-routed items may read the goal's instruction.
+  const facts = await factsFor(db, campaignId, [...dueItems.filter((i) => i.when).map((i) => i.when!.fact), ...dueItems.filter((i) => "goal" in i.route).map((i) => `goal.instruction.${(i.route as { goal: string }).goal}`)]);
+  for (const item of dueItems) {
+    if (item.when && !holds(item.when, facts)) continue;
     const to = await recipients(db, campaignId, item.route, pcs, delivered);
+    const instruction = "goal" in item.route ? (((facts.get(`goal.instruction.${item.route.goal}`)?.result as "passed" | "failed" | undefined) ?? "passed")) : undefined;
     for (const pc of to) {
       if ((delivered.get(item.key) ?? []).includes(pc.id)) continue;
-      const ctx = { name: pc.name, department: pc.division };
+      const ctx = { name: pc.name, department: pc.division, instruction };
       const bodyText = typeof item.body === "function" ? item.body(ctx) : item.body;
       const routing = item.original_to ? `[Copy routed to your tray. Original to ${item.original_to}.]\n\n` : "";
       const from = "npc" in item.from ? npcId(item.from.npc) ?? null : null;
@@ -65,7 +71,7 @@ export async function deliverScheduledMail(db: SupabaseClient, campaignId: strin
       if (pc.email) await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
       if (item.caseItem) {
         const ci = item.caseItem;
-        await db.from("case_items").upsert({ campaign_id: campaignId, character_id: pc.id, slug: ci.slug, kind: ci.kind, drawer: ci.drawer, title: ci.title, from_label: "npc" in item.from ? null : item.from.office, written_label: ci.written ?? null, body: typeof ci.body === "function" ? ci.body({ department: pc.division }) : ci.body, round_received: round.number, how_obtained: "Arrived in the morning mail.", copy_note: "Your copy, as issued.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug", ignoreDuplicates: true });
+        await db.from("case_items").upsert({ campaign_id: campaignId, character_id: pc.id, slug: ci.slug, kind: ci.kind, drawer: ci.drawer, title: ci.title, from_label: "npc" in item.from ? null : item.from.office, written_label: ci.written ?? null, body: typeof ci.body === "function" ? ci.body(ctx) : ci.body, round_received: round.number, how_obtained: "Arrived in the morning mail.", copy_note: "Your copy, as issued.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug", ignoreDuplicates: true });
       }
       await db.from("events").insert({ campaign_id: campaignId, round_id: round.id, phase: "open", kind: "mail.scripted", payload: { key: item.key, character: pc.id, correspondence_id: row.id }, idempotency_key: `scripted:${item.key}:${pc.id}`, visible_to: [pc.id] });
       delivered.set(item.key, [...(delivered.get(item.key) ?? []), pc.id]);

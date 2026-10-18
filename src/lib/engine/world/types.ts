@@ -2,6 +2,9 @@
    may reach it, what reading or seeing it teaches. Bodies are the player's copy
    (canon Markdown) and are short; the morning narration adds the texture. */
 
+/* A condition on recorded world state (conditions.ts): the fact must exist and carry these fields. */
+export type Condition = { fact: string; equals?: Record<string, unknown> };
+
 export type Access = {
   clearance?: number;            // minimum clearance to get it by request
   department?: string[];         // division slugs that may request it regardless of clearance
@@ -45,6 +48,7 @@ export type PlaceDef = {
   surveil: Sighting[];           // what a night's watch may show, by round band
   contains?: string[];           // document slugs a search may turn up
   searchAccess?: Access;
+  closedBy?: Condition & { text: string };   // closed by the story (a finding, an operation): visits, searches and watches refused with this text
 };
 
 export type PressureTier = { episode?: number; tier: number; rounds: [number, number]; text: string; mitigation: { verbs: string[]; department?: string[] } | null };

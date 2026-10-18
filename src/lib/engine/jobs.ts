@@ -39,6 +39,7 @@ import { fileResearchBrief } from "@/lib/engine/research";
 import { findEquipment, holdingsFor, returnDue, transferHolding, transferUnits } from "@/lib/engine/equipment";
 import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
+import { closedPlacesTonight, resolveOperations } from "@/lib/engine/operations";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
 import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
@@ -745,6 +746,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       type Live = { id: string; ctx: Ctx };
       const live: Live[] = [];
       const directives = await activeDirectives(db, round.campaign_id, round.number);
+      const closed = await closedPlacesTonight(db, round.campaign_id, episodeOf(round.number));
       for (const pk of packets ?? []) {
         const chRaw = (Array.isArray(pk.characters) ? pk.characters[0] : pk.characters) as { id: string; slug: string; name: string; clearance: number; title: string | null; specialization: string | null; divisions: { slug: string } | { slug: string }[] | null } | null;
         if (!chRaw) continue;
@@ -755,7 +757,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const authorized = await authorizedDivisions(db, round.campaign_id, chRaw.id);
         const holdings = await holdingsFor(db, chRaw.id);
         const { data: loc } = await db.from("facts").select("value").eq("campaign_id", round.campaign_id).eq("key", `location.${chRaw.id}`).maybeSingle();
-        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, directives, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization, location: (loc?.value as { slug: string; name: string; round: number } | null) ?? null } } });
+        live.push({ id: pk.id as string, ctx: { campaignId: round.campaign_id, roundId, roundNo: round.number, episodeRound: round.episode_round ?? round.number, episode, directives, closed, character: { id: chRaw.id, slug: chRaw.slug, name: chRaw.name, clearance: chRaw.clearance, division, title: chRaw.title, societies, authorizedDivisions: authorized, holdings, specialization: chRaw.specialization, location: (loc?.value as { slug: string; name: string; round: number } | null) ?? null } } });
       }
       const credit = async (characterId: string, refund: number) => {
         if (!refund) return;
@@ -832,6 +834,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (phase === "world") {
       // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
       await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
+      // Scheduled operations: what the company had on its calendar today ran, or was stopped, and the record says which (operations.ts).
+      await resolveOperations(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number), episodeRound: round.episode_round ?? round.number, directives: await activeDirectives(db, round.campaign_id, round.number) });
       // Security's purge, at the lock of Episode 3 day 7.
       if (episodeOf(round.number) === 3 && (round.episode_round ?? round.number) === 7) await securityPurge(db, round.campaign_id, { id: roundId, number: round.number });
       // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.

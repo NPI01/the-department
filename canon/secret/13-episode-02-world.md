@@ -45,7 +45,10 @@ the Vane gate.
 1 the clipping to all; Hollis's demand for the sign-out to Security and Personnel · 2 Vane
 to the newest hire · 3 Ely's continuation memo to Bio Sci and Applied Physics · 5 Ruth
 Greeley's letter, forwarded, to Personnel and Security · 7 the custodian's find: a page of
-the notebook, to Security.
+the notebook, to Security. Branches from Episode 1
+(2026-10-18, `when` on scheduled mail): day 2 Hensley with the DSRD project list if B-77-001
+carried, else Vale "as before"; day 3 Elias Thorne asking who had the calibration paper if
+the operation was stopped, else reporting the sample's weight if it ran.
 
 ## Governance
 R-77-002 "Cooperation with the County and Disclosure of HARVEST", Research Committee,

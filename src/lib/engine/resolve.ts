@@ -38,6 +38,7 @@ export type Ctx = {
   character: { id: string; slug: string; name: string; clearance: number; division: string | null; title: string | null; societies?: string[]; authorizedDivisions?: string[]; holdings?: Holding[]; specialization?: string | null; location?: { slug: string; name: string; round: number } | null };   // location: away from campus since a TRAVEL (null = Station R)   // authorizedDivisions: files opened by a colleague's AUTHORIZE; holdings: equipment in hand (equipment.ts)
   dry?: boolean;
   directives?: Directive[];   // emergency directives in force tonight (directives.ts)
+  closed?: { slug: string; text: string }[];   // places the story has closed tonight (PlaceDef.closedBy; operations.ts)
 };
 
 export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, emergency_directive: 0, meet: 3, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
@@ -324,6 +325,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!p.offCampus) await cameHome(db, ctx);
     const sl = sealed(ctx.directives ?? [], p.slug);
     if (sl) { await notify(db, ctx, `${ctx.character.name} was at ${p.name} under directive ${sl.number}, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is sealed under emergency directive ${sl.number}: a guard, a chain, a notice with the number on it. ${ctx.character.name} was seen there and turned away.`, noticed: true }; }
+    const cl = (ctx.closed ?? []).find((c) => c.slug === p.slug);
+    if (cl) { if (p.restricted) await notify(db, ctx, `${ctx.character.name} was at ${p.name}, which is closed, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${ctx.character.name} went to ${p.name}. ${cl.text}`, noticed: Boolean(p.restricted) }; }
     const pass = holds(ctx.character.holdings ?? [], "pass");
     if (verb === "visit") { if (p.restricted && !pass) await notify(db, ctx, `${ctx.character.name} was seen at ${p.name} in daylight, Round ${ctx.roundNo}.`); await learn(db, ctx, [`visited.${p.slug}`], "witnessed", null); return { ...base, kind: "visit", summary: `${ctx.character.name} went to ${p.name}${pass && p.restricted ? ", badge on the lapel, and nobody looked twice" : ""}. ${p.visit}`, learned: [`visited.${p.slug}`], noticed: p.restricted && !pass }; }
     const s = p.surveil.find((x) => (x.episode ?? 1) === episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]) ?? p.surveil.find((x) => (x.episode ?? 1) < episode && ctx.episodeRound >= x.rounds[0] && ctx.episodeRound <= x.rounds[1]);
@@ -347,6 +350,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     base.presence = [{ kind: "place", slug: p.slug, name: p.name, verb: "search" }];
     const sl = sealed(ctx.directives ?? [], p.slug);
     if (sl) { await notify(db, ctx, `${ctx.character.name} tried ${p.name} under directive ${sl.number}, Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is sealed under emergency directive ${sl.number}; ${ctx.character.name} could not get in and was seen trying.`, noticed: true }; }
+    const cl = (ctx.closed ?? []).find((c) => c.slug === p.slug);
+    if (cl) { if (p.restricted) await notify(db, ctx, `${ctx.character.name} tried ${p.name}, which is closed, on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${ctx.character.name} tried ${p.name} after dark. ${cl.text}`, noticed: Boolean(p.restricted) }; }
     const pass = holds(ctx.character.holdings ?? [], "pass");
     if (!allowed(p.searchAccess, ctx.character) && !pass) { await notify(db, ctx, `${ctx.character.name} tried to get into ${p.name} on the night of Round ${ctx.roundNo}.`); return { ...base, kind: "refused", summary: `${p.name} is locked, sealed or watched; ${ctx.character.name} could not get in and was probably seen trying.`, noticed: true }; }
     const docs = (p.contains ?? []).map((s) => documentsFor(episode).find((d) => d.slug === s)).filter((d): d is DocumentDef => Boolean(d));

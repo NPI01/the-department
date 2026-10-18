@@ -201,6 +201,24 @@ export const DOCUMENTS: DocumentDef[] = [
     from: "unknown", written: "dated 1921",
     body: "A single sheet, folded twice. A column of numbers (counts of steps?), a sketch of a doorway, and one line: *the last light is not a light.* Dated 14 October 1921. The paper is new.",
   },
+  {
+    slug: "orpheus-calibration-authorization", title: "Authorization: field calibration, Building 7, 19 October (Advanced Materials)", kind: "document",
+    aliases: ["calibration authorization", "the authorization", "calibration paper", "field calibration authorization", "thorne's authorization", "the countersigned authorization", "calibration form"],
+    holder: "ethorne", access: { clearance: 4, via: "ethorne" }, notice: true,
+    grants: ["orpheus.calibration_authorization_exists", "orpheus.calibration_scheduled_19_oct"],
+    wrongDetail: { text: "the countersignature for biological handling is S. Ely's, dated 14 October, a day Dr. Ely's own calendar puts her in Bismarck at the state veterinarian's office", grants: "orpheus.calibration_countersign_dated_wrong_noticed" },
+    from: "Advanced Materials", written: "October 1977",
+    body: "**ROYCE INDUSTRIES — AUTHORIZATION FOR FIELD PROCEDURE — Building 7**\n\nProcedure: field calibration, sample AM-3, under field. Date: 19 October 1977, 2100–0200. Requesting: E. Thorne, Director, Advanced Materials. Countersigned (biological handling): S. Ely, 14 Oct. Security release: ________. This original must be produced at the Building 7 door; Security will not admit the procedure on a copy.",
+  },
+  {
+    slug: "board-sealed-instruction", title: "Sealed memorandum on B-77-001 (Office of the Chairman)", kind: "memo",
+    aliases: ["sealed memo", "sealed memorandum", "the sealed instruction", "chairman's instruction", "the instruction on the motion", "my instructions"],
+    holder: "royce", access: { clearance: 5, via: "royce" },
+    grants: ["board.sealed_instruction_exists"],
+    wrongDetail: { text: "the memorandum is typed on the Finance office's Selectric, whose lower-case e prints a hair below the line, and not on the Chairman's office machine, which has no such fault", grants: "board.instruction_typed_on_cfo_machine_noticed" },
+    from: "Office of the Chairman", written: "11 October 1977",
+    body: "**OFFICE OF THE CHAIRMAN — SEALED — FOR THE ADDRESSEE ONLY**\n\nMotion B-77-001, Departmental Reporting Reform, closes before the Board at the lock of October 16. This office requires a result. You will not be told why. You will not file, copy or discuss this memorandum. Lobby whom you must. Report to this office by Round 5 and again on the morning of the vote.\n\nBy direction.",
+  },
 ];
 
 export const PLACES: PlaceDef[] = [

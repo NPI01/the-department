@@ -51,10 +51,10 @@ the start of an expectation profile.
 - Brandvold is met at the farm only by letter and sighting: an interview at the farm meets Rud
   (`npc_state.place`). If both should be meetable there, resolve.ts needs to pick by name
   before falling back to the place's one occupant.
-- The sealing itself (concrete on day 12 or 13) is narrated by the pressure band and the
-  sighting, not enacted: nothing in the engine closes `tagus-cellar` after a passed motion. If
-  Episode 5 needs the cellar unreachable when sealed, a `closedBy: { finding }` field on
-  PlaceDef is the smallest change.
+- The sealing is enacted (2026-10-18): `tagus-cellar` carries `closedBy` on the finding
+  `tagus_structure_sealed`, so from the morning after a passed S-77-004 a visit, search or
+  watch there is refused with the chain, the guard and the motion's number. The day 8–14
+  sighting at the cellar is therefore only reachable on the open branch, which is right.
 - Control of the site beyond sealed/open is read by Episode 5 from the finding and whether
   Ashby's inspection was held; no separate facts row is written.
 

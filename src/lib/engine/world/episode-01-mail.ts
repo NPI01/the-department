@@ -4,10 +4,12 @@
    expectation that it is shared; Bernard writes to everyone; Sayer to the
    newest hire; Bradley's memo reaches the Aerospace Engineer and Security. */
 
+import type { Condition } from "./types";
+
 export type Route =
   | { all: true }
   | { departments: string[] }          // division slugs; falls back to the newest hire if none is staffed
-  | { goal: string }                   // whoever holds this goal key; falls back to the newest hire
+  | { goal: string; only?: boolean }   // whoever holds this goal key; falls back to the newest hire unless `only`
   | { newest: true }                   // the most recently created player character
   | { sameAs: string }                 // whoever received the item with this key
   | { society: string };               // members of a society (societies.ts slug)
@@ -20,10 +22,13 @@ export type ScheduledItem = {
   subject: string;
   classification?: string;
   original_to?: string;                // for a copy of a letter between staff: who it was really addressed to
-  body: string | ((ctx: { name: string; department: string | null }) => string);
+  body: string | ((ctx: MailCtx) => string);
   route: Route;
-  caseItem?: { slug: string; kind: "document" | "map" | "letter" | "memo"; drawer: "documents" | "maps" | "correspondence"; title: string; body: string | ((ctx: { department: string | null }) => string); written?: string };
+  when?: Condition;                    // sent only on this branch of the story (conditions.ts): a finding, an operation's result
+  caseItem?: { slug: string; kind: "document" | "map" | "letter" | "memo"; drawer: "documents" | "maps" | "correspondence"; title: string; body: string | ((ctx: MailCtx) => string); written?: string };
 };
+/* What a body may be written against: the recipient, and for goal-routed mail the way their instructed motion must go (facts goal.instruction.<goal>, default passed). */
+export type MailCtx = { name: string; department: string | null; instruction?: "passed" | "failed" };
 
 const MAP_LINE: Record<string, string> = {
   "biological-sciences": 'Building 7, south-east corner, is labelled "Annex B (cold storage)". No Building 9.',
@@ -58,4 +63,31 @@ export const SCHEDULED: ScheduledItem[] = [
   { key: "letter-sayer-06", round: 6, from: { npc: "sayer" }, kind: "letter", subject: "The shapes of the rooms", route: { sameAs: "letter-sayer-02" },
     body: "Dear Colleague,\n\nYou did not write back. That is sensible. I am enclosing something you should not have, so that you understand I am not guessing. It is a layout of one of the new buildings north of the road, drawn by someone who has stood in it. Count the rooms. Then count them again tomorrow.\n\nIf you want to know who drew it, you will have to ask me in person, and I do not travel.\n\nMartin Sayer",
     caseItem: { slug: "sayer-letter-with-royce-layout", kind: "document", drawer: "documents", title: "Building layout, hand-drawn (enclosed by M. Sayer)", written: "October 1977", body: "A pencil plan on tracing paper, no title. Nine rooms around a central shaft, the shaft marked with the ring-and-bar symbol. The hand is neat, draughtsman-trained. In the corner, very small: *B9 — after the second pour.*" } },
+
+  // The pulls (PROPOSED 2026-10-18): whoever wants a goal met writes to whoever holds it, so the story reaches the player before the player reaches it. Rounds 2, 4, 5, 8, 10, 12 and 13 were empty in the beat sheet.
+  { key: "ep1-sealed-instruction", round: 2, from: { office: "Office of the Chairman", department: "Royce Industries" }, kind: "memo", subject: "SEALED: for the addressee only", classification: "Sealed", route: { goal: "ep1-9", only: true },
+    body: (c) => `[SEALED. For the addressee only.]\n\nMotion B-77-001, Departmental Reporting Reform, closes before the Board at the lock of October 16. This office requires that it ${c.instruction === "failed" ? "FAIL" : "CARRY"}. You will not be told why. You will not file, copy or discuss this memorandum. Lobby whom you must. Report to this office by Round 5 and again on the morning of the vote.\n\nBy direction.`,
+    caseItem: { slug: "board-sealed-instruction", kind: "memo", drawer: "correspondence", title: "Sealed memorandum on B-77-001 (Office of the Chairman)", written: "11 October 1977", body: (c) => `**OFFICE OF THE CHAIRMAN — SEALED — FOR THE ADDRESSEE ONLY**\n\nMotion B-77-001, Departmental Reporting Reform, closes before the Board at the lock of October 16. This office requires that it ${c.instruction === "failed" ? "FAIL" : "CARRY"}. You will not be told why. You will not file, copy or discuss this memorandum. Lobby whom you must. Report to this office by Round 5 and again on the morning of the vote.\n\nBy direction.` } },
+  { key: "ep1-okafor-lunch", round: 2, from: { npc: "okafor" }, kind: "letter", subject: "Lunch, and the basement", route: { goal: "ep1-1" },
+    body: "Hi,\n\nI sign for everything that comes in the gate, which is how I know you're new and how I know what you were asking about. The 1974 payables for the Tagus parcel are in the basement, third cabinet from the door, under PGS. Mr. Voss keeps the originals in his office and does not lend them. I filed two campus maps last spring and nobody has asked me about that either.\n\nBuy me lunch Thursday. Cafeteria, 12:15. I'll bring the cabinet key.\n\nMaya" },
+  { key: "ep1-sloane-leaker", round: 2, from: { npc: "sloane" }, kind: "memo", subject: "Outside correspondence", classification: "Limited Distribution", route: { goal: "ep1-2" },
+    body: "Letters from a Martin Sayer, Yonkers, New York, describe this campus too well for a man who has never seen it. Fisk holds the intercepts. Somebody here is writing back. Find out who. You will not discuss this with Information Systems, and you will not write to Sayer.\n\nSloane" },
+  { key: "ep1-ethorne-sample", round: 4, from: { npc: "ethorne" }, kind: "letter", subject: "A sample, and a paper", route: { goal: "ep1-3" },
+    body: "You asked about a sample. Good. The roster says who may touch it and Dr. Ely countersigns for handling, and I will put your name forward if you can do two things for me. Thursday night, help me move three prototypes from bench 4 to the cold room; they are heavier than they look and lighter than they were. And the field calibration on the 19th needs its authorization countersigned and back in my hand, and it is not back. Ask Ely's office where it is. Gently. The paper is the procedure; without it Security will not open the door.\n\nE. Thorne" },
+  { key: "ep1-armitage-roster", round: 4, from: { npc: "armitage" }, kind: "memo", subject: "A wellness interview, and the roster", classification: "Internal", route: { goal: "ep1-4" },
+    body: "Darling,\n\nCome and see me Thursday at ten for your wellness interview; everyone has one. Bring the October roster. The badge office has issued one badge fewer than the roster has names, and I would like a second pair of eyes before I ask Security why. Dr. Marsh's transfer notice is in the same cabinet. Read it. Read the form number at the bottom.\n\nD. Armitage" },
+  { key: "ep1-hensley-ledger", round: 4, from: { npc: "hensley" }, kind: "memo", subject: "Appropriation 77-S", classification: "Confidential", route: { goal: "ep1-7" },
+    body: "Appropriation 77-S does not foot. The page is in my office and I have added it three times. Come and foot it for me on Friday, and if you can tell me where $212,000 went I will tell you where the rest came from. Discretion is a condition, not a courtesy.\n\nM. Hensley, CFO" },
+  { key: "ep1-baines-night-runs", round: 5, from: { npc: "baines" }, kind: "memo", subject: "Night support, 1977 season", classification: "Internal", route: { goal: "ep1-6" },
+    body: "Has Biological Sciences requested night air support from this department this season? I have signed for none. If a HARVEST crew has flown, I want the lot number, the night, and the signature that put it in the air. Put it in writing and put it on my desk, not Dr. Ely's.\n\nF. Baines, Col. (Ret.)" },
+  { key: "ep1-jthorne-log", round: 5, from: { npc: "jthorne" }, kind: "memo", subject: "Noise", classification: "Internal", route: { goal: "ep1-8" },
+    body: "Noise in the October job log: entries dated after today. Read the operator shift log against it. Do not reconcile anything, do not re-run anything. Report what you find to me and to nobody in Building 1.\n\nJ.T." },
+  { key: "ep1-crane-return", round: 8, from: { npc: "crane" }, kind: "letter", subject: "A return", route: { goal: "ep1-7" },
+    body: "I have read the numbers. I have not read a return.\n\nIf anyone in the October cohort can put money leaving this company without one into a memorandum before the 16th, with a page behind it, I will read that too, and I will vote on what I read.\n\nW. Crane" },
+  { key: "ep1-hollis-statement", round: 10, from: { npc: "hollis" }, kind: "letter", subject: "Statement on the Vane trucks", classification: "Public Record", original_to: "Harold Sloane, Director of Corporate Security", route: { departments: ["corporate-security", "personnel-administration"] },
+    body: "Mr. Sloane,\n\nI asked for a heads-up two weeks ago and I got a lawyer. I want a written statement on the company trucks at the Vane place by Friday: whose they were, what they were doing, who sent them. Send it and we are square. Don't, and the county attorney writes the next letter.\n\nD. Hollis, Sheriff" },
+  { key: "ep1-vale-dusk", round: 12, from: { npc: "vale" }, kind: "letter", subject: "The perimeter path", route: { goal: "ep1-3" },
+    body: "Colleague,\n\nYou have been asking about samples, which is the right question asked too early. Walk the perimeter path at dusk this week, from Gate 2 to the south-east corner and back, and write to me whether you hear anything under the wind. Not what. Whether. Then we will talk about samples, and I will have something to put my name to.\n\nPatience is a form of instrumentation.\n\nAdrian" },
+  { key: "ep1-armitage-codes", round: 13, from: { npc: "armitage" }, kind: "memo", subject: "Access codes", classification: "Internal", route: { all: true },
+    body: "To all staff. Access codes rotate at 0600 Monday. Collect new badges from the window in Building 1 between 0800 and 1000; old badges will not open anything after that hour. Night flights are suspended until further notice. Staff are not to ask the window why.\n\nD. Armitage, Personnel & Administration" },
 ];

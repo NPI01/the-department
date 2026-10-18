@@ -72,7 +72,9 @@ it) · sentinel_contract_ledger_page (Hensley's office) · harvest_lot_77b_sampl
 (Hensley) · vetch_page (Marsh's old office, in a drawer Armitage emptied).
 
 ## Carried forward
-Who holds Marsh's report; who saw the second map; motion outcome; employee seat
-holders; Index movement; which NPC promises were made in writing.
+Who holds Marsh's report; who saw the second map; motion outcome, recorded as the finding
+`dsrd_reports_through_finance` either way (added 2026-10-18); the calibration's result,
+`operation.orpheus_calibration_r9` { ran | stopped } (operations.ts, added 2026-10-18);
+employee seat holders; Index movement; which NPC promises were made in writing.
 
 CHANGELOG: v1 sets the crisis, the Round 7 motion with starting Board positions, the Round 3 election, clock mechanics, twelve predicate objectives with dependency pairs, seeded assets.
