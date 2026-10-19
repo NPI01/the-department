@@ -29,6 +29,19 @@ export const placesFor = (episode: number) => [...ALL_PLACES, ...LIVE_PLACES.fil
    nobody below clearance 5 could be told exist. For the clerk's suggestion. */
 const STOP = new Set(["the", "a", "an", "of", "for", "from", "to", "in", "on", "at", "and", "or", "my", "our", "his", "her", "their", "office", "department", "records", "log", "logs", "file", "files", "record", "october", "1977", "station", "r", "royce", "company", "request", "copy", "all", "any", "last", "this", "that", "with", "by", "re", "about", "please"]);
 const words = (s: string) => new Set(s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+/* The clerk's match: the longest alias, or the file's own title or the head of it
+   (before a colon or a parenthesis), that the request contains. Titles count because
+   briefs and the clerk's own suggestions quote them. */
+const normText = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+export function matchDocument(text: string, episode: number): DocumentDef | null {
+  const t = normText(text); let best: { d: DocumentDef; n: number } | null = null;
+  for (const d of documentsFor(episode)) {
+    const heads = [d.title, d.title.split(" (")[0], d.title.split(":")[0]].map(normText).filter((h) => h.length >= 12);
+    for (const a of [...d.aliases.map(normText), ...heads]) if (a && t.includes(a) && (!best || a.length > best.n)) best = { d, n: a.length };
+  }
+  return best?.d ?? null;
+}
+
 export function nearestDocuments(text: string, episode: number, n = 2): DocumentDef[] {
   const q = words(text); if (!q.size) return [];
   const scored = documentsFor(episode).filter((d) => (d.access.clearance ?? 0) < 5).map((d) => {

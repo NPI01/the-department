@@ -4,7 +4,7 @@
    in the Case File, knowledge rows, a note in Security's memory, a refund.
    The outcome summary is for the morning narrator and is player-safe. */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { documentsFor, placesFor, pressureFor, episodeOf, deptName, labWorkFor, paperworkFor, PAPERWORK_VERBS, nearestDocuments } from "./world";
+import { documentsFor, placesFor, pressureFor, episodeOf, deptName, labWorkFor, paperworkFor, PAPERWORK_VERBS, nearestDocuments, matchDocument } from "./world";
 import type { Access, DocumentDef, PlaceDef } from "./world/types";
 import { gameDate } from "@/lib/email/letter";
 import { newMessageId, gameMailbox } from "@/lib/email/resend";
@@ -47,11 +47,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
 function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
 
-function findDocument(text: string, episode = 1): DocumentDef | null {
-  const t = norm(text); let best: { d: DocumentDef; n: number } | null = null;
-  for (const d of documentsFor(episode)) for (const a of d.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { d, n }; }
-  return best?.d ?? null;
-}
+function findDocument(text: string, episode = 1): DocumentDef | null { return matchDocument(text, episode); }
 function findPlace(text: string, episode = 1): PlaceDef | null {
   const t = norm(text); let best: { p: PlaceDef; n: number } | null = null;
   for (const p of placesFor(episode)) for (const a of p.aliases.map(norm)) if (t.includes(a)) { const n = a.length; if (!best || n > best.n) best = { p, n }; }
