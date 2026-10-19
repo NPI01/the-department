@@ -307,7 +307,7 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     const d = findDocument(text, episode);
     if (!d) {
       // The miss is recorded (what players ask for and cannot get is how the index grows), and the clerk names the nearest files.
-      if (!ctx.dry) await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "records.unmatched", payload: { text, character: ctx.character.id, round: ctx.roundNo } });
+      if (!ctx.dry) { let h = 5381; for (const c of norm(text)) h = ((h << 5) + h + c.charCodeAt(0)) | 0; await db.from("events").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, phase: "strategic", kind: "records.unmatched", payload: { text, character: ctx.character.id, round: ctx.roundNo }, idempotency_key: `unmatched:${ctx.roundId}:${ctx.character.id}:${(h >>> 0).toString(36)}` }); }
       const near = nearestDocuments(text, episode);
       const keeper = (x: DocumentDef) => { const pl = placesFor(episode).find((p) => p.slug === x.holder); if (pl) return `kept at ${pl.name}`; const who = people.find((p) => p.slug === x.holder); if (who) return `kept by ${who.name}`; return `held by ${deptName(x.holder)}`; };
       const hint = near.length ? ` The nearest files on the index are ${near.map((x) => `"${x.title}" (${keeper(x)})`).join(" and ")}. Ask for one of those by name,` : " Name the file,";
