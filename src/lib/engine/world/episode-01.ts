@@ -187,7 +187,7 @@ export const DOCUMENTS: DocumentDef[] = [
   },
   {
     slug: "sayer-letter-with-royce-layout", title: "Building layout, hand-drawn (enclosed by M. Sayer)", kind: "diagram",
-    aliases: ["sayer's layout", "the layout", "building layout", "sayer's drawing", "the drawing sayer sent", "the tracing"],
+    aliases: ["sayer's layout", "the layout", "building layout", "sayer's drawing", "the drawing sayer sent", "the tracing", "b9 schematic", "the schematic", "schematic", "building 9 layout"],
     holder: "sayer", access: { clearance: 5, via: "sayer" },
     grants: ["layout.exists"], wrongDetail: { text: "the hand is draughtsman-trained and the note 'B9 — after the second pour' uses the company's own pour numbering, which no outsider would know", grants: "layout.draughtsman_hand_noticed" },
     from: "unknown", written: "October 1977",
@@ -238,7 +238,7 @@ export const PLACES: PlaceDef[] = [
     surveil: [{ rounds: [1, 14], text: "lights over the pasture at 0130, no sound; the cattle moved to the far fence and stayed there until dawn", grants: "vane.lights_over_pasture_seen" }] },
   { slug: "tagus-church", town: "tagus", offCampus: true, name: "St. Olaf Lutheran, Tagus", aliases: ["tagus church", "st. olaf", "st olaf", "the church", "church"], visit: "A white frame church, bell tower without a bell, the caretaker's truck outside. The cemetery behind it is better kept than the town.",
     surveil: [{ rounds: [1, 14], text: "at 0200 the tower hummed, a low note you felt in your teeth, for eleven minutes; the caretaker stood in the door and did not look up", grants: "tagus.tower_hum_heard" }],
-    contains: [], searchAccess: { clearance: 1 } },
+    contains: ["tagus-directory-1974"], searchAccess: { clearance: 1 } },
   { slug: "tagus-cemetery", town: "tagus", offCampus: true, name: "the Tagus cemetery", aliases: ["cemetery", "graveyard", "tagus cemetery"], visit: "Eighty graves, the newest 1976. One row of stones from 1921 with no names, only dates, all the same week in October.", surveil: [{ rounds: [1, 14], text: "nothing moved; the frost did not form on the 1921 row", grants: "tagus.1921_row_no_frost_seen" }] },
   { slug: "prairie-meridian-strip", offCampus: true, name: "the Prairie Meridian strip", aliases: ["prairie meridian", "airstrip", "the strip", "helicopter pad", "hangar"], restricted: true, visit: "A grass strip and a hangar three miles south of the fence. A helicopter under a tarp, a fuel truck, a pilot who does not look up.",
     surveil: [{ rounds: [1, 14], text: "the helicopter went out at 0105 without lights and came back at 0220; the pilot sat in the cockpit for twenty minutes before he climbed down", grants: "pma.night_run_seen", restricted: true }] },

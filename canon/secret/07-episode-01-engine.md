@@ -71,6 +71,31 @@ it) · sentinel_contract_ledger_page (Hensley's office) · harvest_lot_77b_sampl
 (Ely's file; unsigned) · greeley_notebook (locker, Building 2) · marsh_report_copy
 (Hensley) · vetch_page (Marsh's old office, in a drawer Armitage emptied).
 
+## The index, enlarged from what players asked for (2026-10-18)
+Across four simulated episodes Records could not match 114 requests (104 distinct). Nineteen
+files were written for them (`src/lib/engine/world/episode-01-more.ts`), each with one wrong
+detail that ties to something already true: the Gate 4 vehicle log (MP-14 waved in from the
+west at 0300, four nights), the Board minutes of 11 October (Crane marked present while his
+flight landed two hours after adjournment), the personnel file index (77-P-042 is O. Sandvik,
+badge 0000, the ghost employee), Julian Thorne's personnel file (he audited himself in 1976),
+the Security incident log (backfilled), the access-code rotation log (29 September, no
+reason, Sloane alone), the IS terminal log (the 0300 jobs sign on from the Director's own
+terminal on nights his badge never entered Building 3), the Facilities coordinate memo (61
+feet; the "correct" sensor is inside Building 7's wall), the prototype calibration log (every
+failure at 0.4, "per daybook p. 212"), the loading dock manifest of 28 September (three
+chilled cases out to MP-14, never received), the Q3 reconciliation (lines 40–45 are a number,
+not a stock), the insurer's letter (the claim opened the day before the accident), the
+sheriff's complaint log (nine helicopter complaints on PGS's run nights), the cold-storage
+temperature log (the door held forty minutes at 0210 on 29 September), the 1974 Tagus
+directory (PGS's number is the Procurement switchboard), the perimeter sensor log (drift at
+0300 on the unattended-job nights), the PMA invoices (three calibration nights coded to
+HARVEST, countersigned S.E.), the 14-B register (every non-NONE question 11 referred to
+D-SRD), and the maintenance log (a ring burnt into the Building 7 corridor, three Mondays
+running). With these, 69 of the 104 past requests match a file. For the rest the clerk now
+names the nearest files on the index (`nearestDocuments`, world/index.ts) and the miss is
+recorded as an event (`records.unmatched`) so the next round of writing can start from it.
+Baines's price on B-77-001 now also moves on the PMA invoices and the Gate 4 log.
+
 ## Carried forward
 Who holds Marsh's report; who saw the second map; motion outcome, recorded as the finding
 `dsrd_reports_through_finance` either way (added 2026-10-18); the calibration's result,

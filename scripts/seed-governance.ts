@@ -39,7 +39,7 @@ async function main() {
   const stances: Record<string, { lean: number; price?: { any_of: string[]; sets: number; note: string } | null }> = {
     hensley: { lean: 1 }, sloane: { lean: 0.6 }, armitage: { lean: 0.5 },
     royce: { lean: -1 }, vale: { lean: -0.8 },
-    baines: { lean: -0.5, price: { any_of: ["harvest.lot_77b_unsigned_noticed", "flight.77on_landing_unrecorded_noticed", "pma.night_run_seen"], sets: 0.6, note: "shown that the night flights serve sampling runs he never signed for; he turns" } },
+    baines: { lean: -0.5, price: { any_of: ["harvest.lot_77b_unsigned_noticed", "flight.77on_landing_unrecorded_noticed", "pma.night_run_seen", "finance.pma_invoices_coded_harvest_noticed", "sec.gate4_mp14_waved_through_noticed"], sets: 0.6, note: "shown that the night flights serve sampling runs he never signed for; he turns" } },
     crane: { lean: 0, price: { any_of: ["pgs.concrete_to_empty_parcel_noticed", "finance.overrun_noticed", "finance.appropriation_77s_exists", "pgs.invoices_1974_exist"], sets: 0.8, note: "shown money leaving without a return; he comes over" } },
   };
   for (const [slug, st] of Object.entries(stances)) await db.from("facts").upsert({ campaign_id: cid, key: `motion.${motion!.number}.stance.${slug}`, value: st, established_round: 1, secret: true }, { onConflict: "campaign_id,key" });

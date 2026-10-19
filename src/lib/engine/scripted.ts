@@ -8,6 +8,7 @@ import { type Route } from "./world/episode-01-mail";
 import { scheduledFor } from "./world";
 import { newMessageId } from "@/lib/email/resend";
 import { factsFor, holds } from "./conditions";
+import { dealUnheldGoals } from "@/lib/game/goals";
 
 type PC = { id: string; slug: string; name: string; division: string | null; email: string | null; created_at: string; goal_key: string | null };
 
@@ -34,6 +35,8 @@ async function recipients(db: SupabaseClient, campaignId: string, route: Route, 
 }
 
 export async function deliverScheduledMail(db: SupabaseClient, campaignId: string, round: { id: string; number: number; episodeRound: number; episodeNumber: number }): Promise<{ delivered: number }> {
+  // Before the mail: every goal in the episode's pool has a holder (goals.ts), so letters routed by goal have somewhere to go.
+  await dealUnheldGoals(db, campaignId, { id: round.id, number: round.number, episode: round.episodeNumber, episodeRound: round.episodeRound });
   const items = scheduledFor(round.episodeNumber);
   if (!items.length) return { delivered: 0 };
   const { data: chars } = await db.from("characters").select("id, slug, name, created_at, goal_key, divisions(slug), players(email)").eq("campaign_id", campaignId).eq("status", "active").not("player_id", "is", null);
