@@ -7,9 +7,9 @@ the document bodies in the world file are first drafts for Nathan to revise.
 
 ## The night, in order
 At the lock: `validate` funds orders in the order given (the first that does not fit,
-and the rest, are skipped; a hold pays +5 AU); `strategic` resolves each funded order by
-the rules below and writes an outcome; `world` advances the pressure clock and pays the
-round's 20 AU to the cap of 60. In the morning the dispatch narrates the outcomes.
+and the rest, are skipped); `strategic` resolves each funded order by the rules below and
+writes an outcome; `world` advances the pressure clock and pays the round's 20 AU to the cap
+of 20, so nothing carries over (2026-10-21). In the morning the dispatch narrates the outcomes.
 
 ## Costs (menu options carry their own; free-form orders are costed by step)
 request_files 6 · interview 4 · surveil 10 · visit 5 · examine 3 · search 8 · lobby 5 ·

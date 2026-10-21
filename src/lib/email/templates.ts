@@ -257,7 +257,7 @@ export const TEMPLATES: TemplateDef[] = [
     sample: {
       ...SAMPLE_PLAYER, position: "Junior Procurement Analyst", department: "Procurement & Logistics", clearance: "1", supervisor_name: "Gerald Voss", supervisor_title: "Director, Procurement & Logistics",
       summary: "Identity: Transfer. Specialization: Analyst.\nSkills: Procedure, Accounting, Interviewing.\nKnowledge: Purchasing & Logistics, Federal Procurement & the Services.",
-      au_start: "10", au_income: "20", au_cap: "60", game_address: "thedepartment@weird.delivery", game_date: "Monday, October 10, 1977",
+      au_start: "20", au_income: "20", au_cap: "20", game_address: "thedepartment@weird.delivery", game_date: "Monday, October 10, 1977",
     },
   },
   {

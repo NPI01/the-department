@@ -5,6 +5,7 @@
    with command lines, and letters to staff and colleagues. Its mail enters the
    engine the way the webhook's does: a trusted inbound correspondence row plus
    the route, grammar and extract jobs. Personas are fixed so runs compare. */
+import { GOAL_BRIEFS } from "@/lib/game/goal-briefs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, type LedgerRow } from "@/lib/cobble";
 import { parseGrammar, parseSalutation, parseToLines } from "@/lib/email/inbound";
@@ -41,7 +42,7 @@ export async function playerView(db: Db, p: { campaignId: string; characterId: s
     db.from("correspondence").select("subject, body_text, message_id").eq("round_id", p.roundId).contains("to_characters", [p.characterId]).eq("direction", "outbound").filter("raw->>letter_kind", "eq", "dispatch").order("received_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("correspondence").select("subject, body_text, from_character, raw, characters!correspondence_from_character_fkey(name)").eq("campaign_id", p.campaignId).eq("direction", "outbound").contains("to_characters", [p.characterId]).gte("received_at", p.prevOpenedAt ?? "1970-01-01").neq("raw->>letter_kind", "dispatch").order("received_at").limit(14),
     db.from("case_items").select("slug, title, kind, body, grade, status").eq("character_id", p.characterId).eq("status", "held").order("created_at", { ascending: false }).limit(24),
-    db.from("character_goals").select("text, points, status").eq("character_id", p.characterId).eq("status", "open"),
+    db.from("character_goals").select("text, points, status, goal_key").eq("character_id", p.characterId).eq("status", "open"),
     db.from("events").select("payload").eq("kind", "grammar.recorded").contains("visible_to", [p.characterId]).order("id", { ascending: false }).limit(1).maybeSingle(),
     db.from("characters").select("name, title, player_id, npc_state, divisions(name)").eq("campaign_id", p.campaignId).eq("status", "active").order("name"),
   ]);
@@ -59,7 +60,8 @@ export async function playerView(db: Db, p: { campaignId: string; characterId: s
   return {
     name: ch?.name ?? "", title: ch?.title ?? null, department: dept(ch ?? {}),
     dispatch: dispatch ? { subject: dispatch.subject as string, body: dispatch.body_text as string, messageId: dispatch.message_id as string | null } : null,
-    mail, cabinet, goals: (goals ?? []).map((g) => `${g.text} (${g.points} points)`), directory,
+    // The goal as the personnel file shows it to a human: the text, and the brief's leads (exact index titles and orders).
+    mail, cabinet, goals: (goals ?? []).map((g) => { const b = g.goal_key ? GOAL_BRIEFS[g.goal_key as string] : null; return `${g.text} (${g.points} points)${b ? `. Where to look, from your personnel file: ${b.leads.join(" ")} What would settle it: ${b.proof}` : ""}`; }), directory,
     lastReceipt: rec ? `ON FILE LAST TIME: ${(rec.onFile ?? []).join(" | ") || "nothing"}${rec.ignored?.length ? `\nNOT ACTED ON LAST TIME (fix these): ${rec.ignored.join(" | ")}` : ""}` : null,
   };
 }

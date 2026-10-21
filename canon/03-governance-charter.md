@@ -63,8 +63,9 @@ or by the Board. Security may suspend a clearance for up to two rounds pending
 investigation (then the Safety Committee decides).
 
 ## Action Units (AU)
-Income 20 AU per round; cap 60; new hires start with 10. **Hold** (`HOLD`) conserves,
-keeps standing orders and defenses, and pays +5 AU next round. **Standing orders** cost
+20 AU per round, a hard cap of 20, nothing carried over: every morning is 20, for everyone
+(2026-10-21; previously income 20 to a cap of 60 with a +5 hold bonus). **Hold** (`HOLD`)
+keeps standing orders and defenses and makes you watchful. **Standing orders** cost
 2 AU per round each while active. A **missed turn** (nothing sent) yields no bonus,
 suspends standing orders, and applies default behaviour. Voting and correspondence cost
 nothing. PROPOSED upkeep: clearance 4 and 5 pay 3 AU per round for the staff and

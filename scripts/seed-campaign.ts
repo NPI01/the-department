@@ -61,7 +61,7 @@ async function must<T = unknown>(p: PromiseLike<{ data: unknown; error: { messag
   // Starting rules. Placeholders from the brainstorm; tuned by simulation later.
   const rules: [string, unknown][] = [
     ["round.lock_time", "20:00"], ["round.dispatch_time", "09:00"], ["episode.rounds", 14],
-    ["au.per_round", 20], ["au.cap", 60], ["au.start", 20], ["au.hold_bonus", 5],
+    ["au.per_round", 20], ["au.cap", 20], ["au.start", 20], ["au.hold_bonus", 0],
     ["correspondence.daily_limit", 40],
     ["motion.default.method", "majority_of_votes"], ["motion.removal.method", "majority_of_seats"],
     ["clearance.max", 5],

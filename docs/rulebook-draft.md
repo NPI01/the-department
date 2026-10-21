@@ -162,9 +162,9 @@ breach if discovered.
 | Rule | Value |
 |---|---|
 | Income | 20 AU at each dispatch |
-| Cap | 60 AU; income above the cap is lost |
-| Starting balance | 10 AU |
-| Hold bonus | +5 AU at the next dispatch (§6.2) |
+| Cap | 20 AU, a hard cap: nothing carries over from one round to the next |
+| Starting balance | 20 AU |
+| Hold bonus | none (changed 2026-10-21); a hold is for watching, not saving |
 | Standing order upkeep | 2 AU per standing order per round |
 | Rank upkeep [PROPOSED] | clearance 4 and 5 pay 3 AU per round |
 
@@ -202,9 +202,9 @@ your dispatch; you learn where you stand from how people treat you.
 - **Orders.** You send one or more orders before the lock. They cost AU and resolve
   overnight.
 - **Hold.** You send `HOLD`. You take no new actions, your standing orders and defenses
-  stay in force, you are at your desk and watchful (§6.7), and you get +5 AU at the next
-  dispatch. Conditional orders (§6.4) may stand alongside a hold.
-- **Missed turn.** You send nothing. You get no hold bonus, your standing orders are
+  stay in force, and you are at your desk and watchful (§6.7). Units do not carry over, so a
+  hold saves nothing. Conditional orders (§6.4) may stand alongside a hold.
+- **Missed turn.** You send nothing. Your standing orders are
   suspended for the round, your character follows default behaviour, and the world still
   happens to you. You are watchful all the same: a character who sent nothing was at
   their desk.
@@ -599,7 +599,7 @@ Command lines (start of a line, any email to the game):
   ORDER: <VERB> <details>                 one action; costs AU
   IF <condition> THEN <order>             a trip-wire; units back if it never fires
   FALLBACK: <order>                       if the order above fails
-  HOLD / HOLD EXCEPT <name>, <name>       no new actions; watchful; +5 AU next round
+  HOLD / HOLD EXCEPT <name>, <name>       no new actions; watchful
   AUTHORIZE <name> / REVOKE <name>        your department's files, as if one of you
   ATTITUDE <name>: FRIENDLY | NEUTRAL | HOSTILE
   ORDER: LEAK <item>                      to the Minot Daily News; 6 AU, +2 per repeat
@@ -625,7 +625,7 @@ Command lines (start of a line, any email to the game):
   WAIVE GRACE                             end the induction grace early (§4.5)
 
 Clock: dispatch 9:00 AM ET · lock 8:00 PM ET · 14 rounds an episode
-AU:    +20 a round · cap 60 · start 10 · hold +5 · standing order 2/round
+AU:    20 a round · hard cap 20, nothing carried over · standing order 2/round
 Write: reply to a letter, or TO: <name> on the first line of a new message to the mail room
 Paper: the Minot Daily News, mornings of days 7 and 14
 Help:  reply HELP for this list · showrunner@weird.delivery (out of character) [PROPOSED]

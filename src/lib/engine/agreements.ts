@@ -98,7 +98,7 @@ export async function announceActive(db: Db, campaignId: string, roundId: string
 export async function enforceAgreements(db: Db, round: { campaignId: string; id: string; number: number }): Promise<{ done: number; breached: number; fulfilled: number }> {
   const out = { done: 0, breached: 0, fulfilled: 0 };
   const { data: ags } = await db.from("agreements").select("id, title, kind, parties, terms").eq("campaign_id", round.campaignId).eq("status", "active");
-  const cap = Number(await rule(db, round.campaignId, "au.cap", 60));
+  const cap = Number(await rule(db, round.campaignId, "au.cap", 20));
   const { data: everyone } = await db.from("characters").select("id, name, slug, player_id").eq("campaign_id", round.campaignId);
   const person = (id: string) => (everyone ?? []).find((c) => c.id === id);
   for (const ag of ags ?? []) {

@@ -423,7 +423,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         const { data: me2 } = await db.from("characters").select("name").eq("id", c.from_character).single();
         if (!who) { ignored.push(`TRANSFER … TO ${a.to} — no one in the directory by that name`); continue; }
         if (a.kind === "transfer") {
-          const cap = Number(await rule(db, c.campaign_id, "au.cap", 60));
+          const cap = Number(await rule(db, c.campaign_id, "au.cap", 20));
           const r = await transferUnits(db, { campaignId: c.campaign_id, round: round.number, from: { id: c.from_character, name: me2?.name ?? "" }, to: { id: who.id, name: who.name, player: who.player }, amount: a.amount, cap });
           if (r.ok) recorded.push(`TRANSFERRED ${r.moved} AU to ${who.name}${r.kept ? ` (${r.kept} kept: they were at the cap)` : ""}`); else ignored.push(`TRANSFER ${a.amount} AU TO ${a.to} — ${r.error}`);
         } else {
@@ -444,7 +444,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     }
     if ((orderRows.length || hold) && !acts.some((a) => a.kind === "leave") && (await endLeave(db, c.campaign_id, c.from_character))) recorded.push("RETURNED from leave — any order brings you back");
     if (orderRows.length || hold) {
-      // A hold with only conditional orders is still a hold: watchful, +5 AU, and the trip-wires stand.
+      // A hold with only conditional orders is still a hold: watchful, and the trip-wires stand.
       const unconditional = orderRows.filter((r) => !r.condition);
       const exceptIds: string[] = []; const exceptNames: string[] = [];
       for (const nm of holdExcept) { const who = findInRoster(nm, roster.filter((x) => x.id !== c.from_character)); if (who) { exceptIds.push(who.id); exceptNames.push(who.name); } else ignored.push(`HOLD EXCEPT ${nm} — no one in the directory by that name`); }
@@ -459,7 +459,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           added.push(...fresh.map((r) => r.label));
           for (const r of orderRows.filter((r) => !fresh.includes(r))) ignored.push(`${r.label} — already on file`);
         }
-        if (hold) recorded.push(unconditional.length || keep.some((k) => !k.condition) ? "HOLD — noted, but orders are on file, so they take precedence" : `HOLD — conserving; watchful at your desk${exceptNames.length ? ` (letting ${exceptNames.join(", ")} pass)` : ""}; +5 AU in the morning`);
+        if (hold) recorded.push(unconditional.length || keep.some((k) => !k.condition) ? "HOLD — noted, but orders are on file, so they take precedence" : `HOLD — conserving; watchful at your desk${exceptNames.length ? ` (letting ${exceptNames.join(", ")} pass)` : ""}`);
       }
     }
     // The full list now on file, labelled from the menu where possible.
@@ -711,7 +711,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const standing = await enqueueStanding(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
       await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "standing.queued", payload: standing, idempotency_key: `standing:${roundId}` });
       // Funding at the lock: orders are paid for in the order given; the first that does not fit, and the rest, are skipped.
-      const holdBonus = Number(await rule(db, round.campaign_id, "au.hold_bonus", 5));
+      const holdBonus = Number(await rule(db, round.campaign_id, "au.hold_bonus", 0));
       const { data: packets } = await db.from("order_packets").select("id, character_id, mode, orders(id, seq, args, status, condition, standing)").eq("round_id", roundId);
       for (const pk of packets ?? []) {
         const { data: au } = await db.from("resources").select("balance").eq("character_id", pk.character_id).eq("kind", "au").maybeSingle();
@@ -846,8 +846,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       // Informants: upkeep, lapses, and tonight's note from each (informants.ts).
       const inf = await informantReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
       await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "informants.reported", payload: inf, idempotency_key: `informants:${roundId}` });
-      // Income: every active player character draws the round's Action Units, to the cap.
-      const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 60));
+      // Income: every active player character draws the round's Action Units, to the cap. With per_round = cap (20 and 20, the season's rule since 2026-10-21) nothing carries over: every morning is 20.
+      const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 20));
       const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
       for (const ch of chars ?? []) {
         const { data: au } = await db.from("resources").select("balance").eq("character_id", ch.id).eq("kind", "au").maybeSingle();

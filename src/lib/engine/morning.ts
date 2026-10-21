@@ -9,6 +9,7 @@ import { gameDate, letterLinks } from "@/lib/email/letter";
 import { dispatchBallotLines, loadBallots } from "@/lib/game/ballots";
 import { newMessageId } from "@/lib/email/resend";
 import { recordMenu, renderMenu, type MenuOption } from "./dispatch";
+import { findEquipment } from "./equipment";
 import { rule } from "./rounds";
 import { pressureFor, episodeOf, labWorkFor, paperworkFor } from "./world";
 import { VERB_COST } from "./resolve";
@@ -141,6 +142,8 @@ RULES
 - Every MENU line names its target so a clerk could act on it: a person by name, a file by its title, a place by its name. Never "him", "the note", "the data".
 - An EXAMINE option must name one of the items the player holds (listed in the facts), by its title; if they hold nothing, offer no such option. An ANALYZE option must name one of the items the facts list as work for the player's department; if none is listed, offer no ANALYZE option.
 - Offer paperwork only when the facts give THIS WEEK'S PAPERWORK, and then only with the verb given there.
+- A REQUISITION option names the thing from the shelf, never the shelf: a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge.
+- An order the clerk returned (a ruling, "Units returned") never happened. Say in the OVERNIGHT lines only that the clerk returned it and why; never describe what the guard said, what the log showed, or what the shelf held, because nobody went.
 
 FORMAT. Two short paragraphs of narrative (120 to 200 words in all). Then a line of exactly three tildes: ~~~
 Then:
@@ -181,6 +184,8 @@ Verbs you may use, and what they mean: ${Object.entries(VERBS).map(([k, v]) => `
         if (PAPERWORK[m.verb]) return f.paperwork?.verb === m.verb ? [m] : [];
         // An ANALYZE of something no laboratory of theirs can read becomes an EXAMINE of it.
         if (m.verb === "analyze" && !labbed(m.args)) { const t = held(m.args); return t ? [{ ...m, verb: "examine", args: t, label: menuLabel("examine", t, ""), cost: VERB_COST.examine }] : []; }
+        // A REQUISITION whose target is a place or an office ("Procurement stores") is a refund in the morning: name the item from the label, or drop it.
+        if (m.verb === "requisition") { const eq = findEquipment(m.args) ?? findEquipment(m.label); return eq ? [{ ...m, args: eq.name, label: menuLabel("requisition", eq.name, ""), cost: eq.cost }] : []; }
         if (m.verb !== "examine" && m.verb !== "analyze") return [m];
         if (held(m.args)) return [m];
         if (!f.cabinet.length) return [];

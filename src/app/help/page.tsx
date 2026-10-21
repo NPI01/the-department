@@ -59,7 +59,7 @@ ATTITUDE Pruitt: NEUTRAL         nothing automatic either way`}</Code>
       <P>The Department answers every reply with a receipt listing exactly what is on file, with the Action Units each order costs. Read the receipt; it is the truth.</P>
 
       <H>Action Units</H>
-      <P>You receive 20 Action Units each round and can bank up to 60. Each order on the morning's list has a cost. Orders are funded in the order you give them; if the list runs past your balance, the receipt marks the ones beyond it, and those are not carried out unless you drop something before the lock. Holding (H) keeps your units and pays a small bonus in the morning.</P>
+      <P>You have 20 Action Units each round, and they do not carry over: what you do not spend by the lock is gone, and the morning brings 20 again. Each order on the morning's list has a cost. Orders are funded in the order you give them; if the list runs past 20, the receipt marks the ones beyond it, and those are not carried out unless you drop something before the lock. Holding (H) spends nothing and keeps you watchful at your desk.</P>
 
       <H>The lock</H>
       <P>Orders lock at 8:00 PM Eastern. Whatever is on file at that moment is what the Department carries out overnight. Your latest receipt is the record. After the lock, the night resolves and the next dispatch arrives at 9:00 AM.</P>

@@ -92,9 +92,9 @@ export async function approveApplication(db: SupabaseClient, applicationId: stri
     if (error) throw new Error(`character: ${error.message}`);
     characterId = ch.id;
     await assignGoal(db, { campaignId: cid, characterId: ch.id, goalKey });
-    // Every new hire starts with the season's au.start (20) to the cap; identity no longer changes the purse.
+    // Every new hire starts with the season's au.start (20) to the cap (20): a day's units, the same as everyone; identity does not change the purse.
     const [{ data: startRule }, { data: capRule }] = await Promise.all([db.from("rules").select("value").eq("campaign_id", cid).eq("key", "au.start").maybeSingle(), db.from("rules").select("value").eq("campaign_id", cid).eq("key", "au.cap").maybeSingle()]);
-    await db.from("resources").upsert({ character_id: characterId, kind: "au", balance: Number(startRule?.value ?? 20), cap: Number(capRule?.value ?? 60) }, { onConflict: "character_id,kind" });
+    await db.from("resources").upsert({ character_id: characterId, kind: "au", balance: Number(startRule?.value ?? 20), cap: Number(capRule?.value ?? 20) }, { onConflict: "character_id,kind" });
     if (app.identity === "transfer") await db.from("relationships").upsert({ campaign_id: cid, from_character: sup.id, to_character: characterId, trust: 0.4 }, { onConflict: "from_character,to_character" });
     if (app.identity === "referred") await db.from("relationships").upsert({ campaign_id: cid, from_character: characterId, to_character: sup.id, obligation: 0.5 }, { onConflict: "from_character,to_character" });
     await db.from("applications").update({ status: "approved", decided_at: new Date().toISOString(), character_id: characterId }).eq("id", app.id);
@@ -116,7 +116,7 @@ export async function approveApplication(db: SupabaseClient, applicationId: stri
     const links = letterLinks(player.file_token);
     const { subject, html, text } = await renderTemplate(db, "employment_file", {
       name: app.name, position, department: div[slug].name, clearance: idn.clearance, supervisor_name: sup.name, supervisor_title: sup.title ?? "",
-      summary, au_start: rule("au.start", 20), au_income: rule("au.per_round", 20), au_cap: rule("au.cap", 60), game_address: gameMailbox().address, game_date: gameDate(1),
+      summary, au_start: rule("au.start", 20), au_income: rule("au.per_round", 20), au_cap: rule("au.cap", 20), game_address: gameMailbox().address, game_date: gameDate(1),
     }, links, { to: { name: app.name, title: position } });
     const r = await sendMail({ to: player.email, subject, html, text, replyTo: gameMailbox().reply(await mailToken(db, player.id)) });
     if (r.error) throw new Error(r.error);

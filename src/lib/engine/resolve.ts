@@ -80,7 +80,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(leak|to the (?:paper|press|newspaper|reporter|minot daily news)|tip off (?:the paper|haugen|the press))\b/, "leak"],
     [/\b(research(?! committee)|look up|read up|background on|find out (?:more )?about|the library|county records|back issues|newspaper morgue)\b/, "research"],
     [/\b(requisition|sign out (?!log)|sign for a|check out a|borrow|a camera|the camera|tape recorder|a recorder|a truck|a pickup|the truck|a vehicle|a badge|temporary badge|visitor badge)\b/, "requisition"],
-    [/\b(protect|guard|lock up|lock away|hide|keep .* safe|secure my|cover my tracks|keep my head down)\b/, "protect"],
+    [/\b(protect|stand guard|guard (?:my|the|over|it)|post a guard|lock up|lock away|hide|keep .* safe|secure my|cover my tracks|keep my head down)\b/, "protect"],   // "the night guard" is a person to ask, not a thing to guard
     [/\b(recruit|as (?:an|my) informant|keep me informed|on retainer|pay .* to (?:report|tell me|keep)|be my eyes)\b/, "recruit"],
     [/\b(dismiss|release my informant|let .* go|stop paying|drop my informant|end the arrangement)\b/, "dismiss"],
     [/\b(obtain|steal|lift|pinch|swipe|get hold of|take .* (?:from|off|out of)|make off with|help myself to)\b/, "obtain"],
