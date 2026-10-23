@@ -837,29 +837,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "agreements.enforced", payload: ag, idempotency_key: `agreements:${roundId}` });
     }
     if (phase === "world") {
-      // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
-      await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
-      // Scheduled operations: what the company had on its calendar today ran, or was stopped, and the record says which (operations.ts).
-      await resolveOperations(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number), episodeRound: round.episode_round ?? round.number, directives: await activeDirectives(db, round.campaign_id, round.number) });
-      // Security's purge, at the lock of Episode 3 day 7.
-      if (episodeOf(round.number) === 3 && (round.episode_round ?? round.number) === 7) await securityPurge(db, round.campaign_id, { id: roundId, number: round.number });
-      // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.
-      const perEpisode = Number(await rule(db, round.campaign_id, "episode.rounds", 14));
-      await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
-      // Loans run out: a truck or a badge goes back on its own (equipment.ts).
-      await returnDue(db, round.campaign_id, round.number);
-      // Informants: upkeep, lapses, and tonight's note from each (informants.ts).
-      const inf = await informantReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
-      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "informants.reported", payload: inf, idempotency_key: `informants:${roundId}` });
-      // Income: every active player character draws the round's Action Units, to the cap. With per_round = cap (20 and 20, the season's rule since 2026-10-21) nothing carries over: every morning is 20.
-      const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 20));
-      const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
-      for (const ch of chars ?? []) {
-        const { data: au } = await db.from("resources").select("balance").eq("character_id", ch.id).eq("kind", "au").maybeSingle();
-        await db.from("resources").upsert({ character_id: ch.id, kind: "au", balance: Math.min(cap, Number(au?.balance ?? 0) + per), cap }, { onConflict: "character_id,kind" });
-      }
-    }
-    if (phase === "governance") {
+      // Ballots close here, after the night's orders have resolved, so a LOBBY on the closing round counts: the tally is taken at the lock of the closing round as the dispatch says, but after strategic, not before it (three simulated runs lost the closing-day lobbies to the old order).
       const { data: motions } = await db.from("motions").select("id, number, title, kind, campaign_id, threshold, organization_id, finding, organizations(name, slug)").eq("campaign_id", round.campaign_id).eq("status", "open").lte("closes_round", round.number).order("number");
       for (const m of motions ?? []) {
         if ((m as { kind?: string }).kind === "election") {
@@ -915,6 +893,29 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
           if ((everyone ?? []).length) await db.from("knowledge").insert((everyone ?? []).map((c) => ({ character_id: c.id, fact_key: `finding.${fdef.claim}`, value: { established, text: findingText, by: org?.name ?? null, motion: m.number, round: round.number }, confidence: 1, source_kind: "dispatch", learned_round: round.number })));
         }
         await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "motion.closed", payload: { motion_id: m.id, number: m.number, title: m.title, passed, for: forW, against: againstW, seats, quorum, abstain: counted.filter((v) => v.choice === "abstain").length, finding: findingText }, idempotency_key: `motion:${m.id}:closed`, visible_to: (everyone ?? []).map((c) => c.id) });
+      }
+    }
+    if (phase === "world") {
+      // The pressure clock: a tier is reached at the lock of its band's last round unless mitigated.
+      await advancePressure(db, round.campaign_id, roundId, round.episode_round ?? round.number, episodeOf(round.number));
+      // Scheduled operations: what the company had on its calendar today ran, or was stopped, and the record says which (operations.ts).
+      await resolveOperations(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number), episodeRound: round.episode_round ?? round.number, directives: await activeDirectives(db, round.campaign_id, round.number) });
+      // Security's purge, at the lock of Episode 3 day 7.
+      if (episodeOf(round.number) === 3 && (round.episode_round ?? round.number) === 7) await securityPurge(db, round.campaign_id, { id: roundId, number: round.number });
+      // Personal Goals: judged by the record every night; unmet ones fail at the episode's last lock.
+      const perEpisode = Number(await rule(db, round.campaign_id, "episode.rounds", 14));
+      await judgeGoals(db, { campaignId: round.campaign_id, roundId, roundNo: round.number, episode: episodeOf(round.number, perEpisode), episodeRound: round.episode_round ?? round.number, perEpisode });
+      // Loans run out: a truck or a badge goes back on its own (equipment.ts).
+      await returnDue(db, round.campaign_id, round.number);
+      // Informants: upkeep, lapses, and tonight's note from each (informants.ts).
+      const inf = await informantReports(db, { campaignId: round.campaign_id, id: roundId, number: round.number });
+      await db.from("events").insert({ campaign_id: round.campaign_id, round_id: roundId, phase, kind: "informants.reported", payload: inf, idempotency_key: `informants:${roundId}` });
+      // Income: every active player character draws the round's Action Units, to the cap. With per_round = cap (20 and 20, the season's rule since 2026-10-21) nothing carries over: every morning is 20.
+      const per = Number(await rule(db, round.campaign_id, "au.per_round", 20)); const cap = Number(await rule(db, round.campaign_id, "au.cap", 20));
+      const { data: chars } = await db.from("characters").select("id").eq("campaign_id", round.campaign_id).eq("status", "active").not("player_id", "is", null);
+      for (const ch of chars ?? []) {
+        const { data: au } = await db.from("resources").select("balance").eq("character_id", ch.id).eq("kind", "au").maybeSingle();
+        await db.from("resources").upsert({ character_id: ch.id, kind: "au", balance: Math.min(cap, Number(au?.balance ?? 0) + per), cap }, { onConflict: "character_id,kind" });
       }
     }
     if (phase === "send") {

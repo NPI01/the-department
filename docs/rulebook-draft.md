@@ -480,7 +480,8 @@ full voting seats and the first real power a new hire can hold.
 **8.3 Motions.** Any member may sponsor a motion; any employee may, with one member's
 countersignature. A motion is announced in the next dispatch with its number
 (e.g. `B-77-003`), stays open for two to five rounds, and is tallied at the lock of its
-closing round. You may change your vote until then. Passed motions take effect at the
+closing round, after that night's orders have run, so a LOBBY sent on the closing round
+still counts. You may change your vote until then. Passed motions take effect at the
 next dispatch. Quorum is half the seats, rounded up; ties keep things as they were;
 abstaining counts as voting.
 
