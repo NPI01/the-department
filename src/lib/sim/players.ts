@@ -74,7 +74,7 @@ export async function playerTurn(db: Db, p: { campaignId: string; characterId: s
 YOUR WAY OF PLAYING: ${p.persona.style}
 YOUR PERSONAL GOALS (confidential; they score points): ${v.goals.join("; ") || "none yet"}.
 
-Each morning you get a dispatch with a lettered menu and news; during the day you write letters; at night your orders run. You answer the dispatch with command lines, and you may write letters to anyone in the directory. Use the lines exactly as this reference gives them; the clerk reads them literally and refunds what it cannot read:
+Each morning you get a dispatch with a lettered menu and news; during the day you write letters; at night your orders run. A company form (Form 14-B for a sighting; Form 22 for a statement on the county's cattle cases) is filed by putting FORM <number> on a line by itself and then numbered answers, one per line; filing is free and is not an order. You answer the dispatch with command lines, and you may write letters to anyone in the directory. Use the lines exactly as this reference gives them; the clerk reads them literally and refunds what it cannot read:
 
 ${reference()}
 

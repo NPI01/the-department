@@ -40,6 +40,7 @@ import { findEquipment, holdingsFor, returnDue, transferHolding, transferUnits }
 import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { closedPlacesTonight, resolveOperations } from "@/lib/engine/operations";
+import { filesKeptBy, giveDocument, keepsBlock } from "@/lib/engine/handover";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
 import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
@@ -654,6 +655,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
         ? `this was not a letter: the writer came to see you in person and asked you to pass along what you see and hear, for a consideration each week. ${agreed ? "You agreed, for your own reasons; say so in your own way, say what you can and cannot be expected to pass on, and name nothing you never put in writing." : "You are Corporate Security; you did not agree, and you have reported the approach. Write the short, civil note you would send them the next morning that gives nothing away about what you did."} Four to eight lines.`
         : informantKind
         ? `this is not a letter: you have been informing for this person since Round ${(cRaw?.raw as { since?: number } | null)?.since ?? "?"}, for a consideration. Write this week's note in your own voice: what you saw from your post (the clerk's lines above are what you actually saw; use them, name the names), what you heard, and nothing you never put in writing. If there was nothing, say so in a line and ask for the consideration anyway. Two to six lines, no greeting beyond a word.`
+        : letterKind === "referral"
+        ? `this is not a letter from them: Records could not give them the file named above because you keep it, and has sent their request on to you. Decide, as yourself, whether they may have it: hand it over on the GIVES line if you would, name your price in WANTS if there is one, or decline in your own words. You need not explain yourself.`
         : letterKind === "initiative"
         ? `this is not a letter from them: it is the note above, from the showrunner, that you have decided to write to this person first. They have not written to you. Write that first letter: why you are writing, what you want, and nothing beyond what the day allows. Do not thank them for a letter they did not send.`
         : inPerson
@@ -666,15 +669,17 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const letter = batch.length > 1
         ? { subject: baseSubject(batch[batch.length - 1].subject ?? "") || null, body: batch.map((b, i) => `[Letter ${i + 1} of ${batch.length}${b.subject ? `, subject: ${baseSubject(b.subject)}` : ""}]\n${b.body_text}`).join("\n\n"), date: gameDate(roundNo), formNote: `the writer sent you these ${batch.length} letters before you answered any of them. Answer them together in one letter; say each thing once.` }
         : { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote };
-      const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter, thread, round: roundNo, memory, onLedger: ledger(db) });
+      const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter, thread, round: roundNo, memory, keeps: keepsBlock(npc.slug as string, episodeOf(roundNo)), keptTitles: filesKeptBy(npc.slug as string, episodeOf(roundNo)).filter((d) => !d.access.sealed).map((d) => d.title), onLedger: ledger(db) });
       const { data: row, error } = await db.from("correspondence").insert({
         campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
         from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
-        raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, rejected: reply.rejected, shared: reply.shared, wants: reply.wants, in_reply_to_correspondence: id, ...(merged.length ? { answers: batch.map((b) => b.id) } : {}) },
+        raw: { letter_kind: "letter", model: reply.model, guarded: reply.guarded, rejected: reply.rejected, shared: reply.shared, wants: reply.wants, gives: reply.gives, in_reply_to_correspondence: id, ...(merged.length ? { answers: batch.map((b) => b.id) } : {}) },
       }).select("id").single();
       if (error) throw new Error(error.message);
       await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
       replied = true;
+      // A file the keeper chose to hand over goes into the writer's Case File with the letter (handover.ts).
+      if (reply.gives) await giveDocument(db, { campaignId: c.campaign_id, roundId: c.round_id, roundNo, replyId: row.id as string, npc: { id: npcId, slug: npc.slug as string, name: npc.name as string }, player: { id: pc.id as string, name: pc.name as string }, title: reply.gives });
       // A recorded conversation: what they put in writing is also a transcript in the player's Case File (equipment.ts).
       if ((cRaw?.raw as { recorded?: boolean } | null)?.recorded) await db.from("case_items").upsert({ campaign_id: c.campaign_id, character_id: pc.id, slug: `transcript-${npc.slug}-r${roundNo}`, kind: "testimony", drawer: "documents", title: `Transcript: ${npc.name}, ${gameDate(roundNo)}`, from_label: npc.name, written_label: gameDate(roundNo), body: `*Cassette, transcribed by ${pc.name}. The machine was on the desk; ${npc.name} knew it was there.*\n\n${reply.body}`, round_received: roundNo, how_obtained: `Recorded in person by ${pc.name}.`, copy_note: "The tape is yours.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
       // Memory: the character remembers what they said and asked; the player's character now knows what they were told.

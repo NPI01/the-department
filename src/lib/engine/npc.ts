@@ -87,12 +87,14 @@ export type ReplyInput = {
   thread: { from: string; body: string }[];       // earlier letters between the two, oldest first
   round: number;
   memory?: Memory;
+  keeps?: string;                                   // the files this person keeps and may hand over (handover.ts keepsBlock); "" for none
+  keptTitles?: string[];                            // the same files' exact titles: a GIVES line naming anything else is dropped (Fisk once "gave" a patrol schedule that does not exist)
   review?: boolean;                                 // Skeptic pass on each draft (default true)
   onLedger?: (r: LedgerRow) => void | Promise<void>;
 };
 
 export type Rejection = { draft: string; reasons: string[] };
-export type StaffReply = { subject: string; body: string; shared: string[]; wants: string | null; model: string; guarded: boolean; rejected: Rejection[] };
+export type StaffReply = { subject: string; body: string; shared: string[]; wants: string | null; gives: string | null; model: string; guarded: boolean; rejected: Rejection[] };
 
 /* How much a staff member lets slip, by how long the writer has been here.
    Round 1 is the writer's first Monday. The arc opens the ground in Episode 4;
@@ -206,7 +208,7 @@ export async function generateStaffReply(input: ReplyInput): Promise<StaffReply>
     ? `\nWHAT YOU REMEMBER
 ${mem.heardFromThisPerson.length ? `This person has told you: ${mem.heardFromThisPerson.join("; ")}.\n` : ""}${mem.saidToThisPerson.length ? `You have already told this person: ${mem.saidToThisPerson.join("; ")}. Do not repeat it; build on it or move on.\n` : ""}${mem.saidToOthers.length ? `You have told others: ${mem.saidToOthers.map((s) => `(to ${s.to}) ${s.text}`).join("; ")}. Keep your story consistent with that.\n` : ""}${mem.filed?.length ? `Forms this person has on file: ${mem.filed.join("; ")}.\n` : `This person has filed no forms with any office.\n`}`
     : "";
-  const formsBlock = d.outsider ? "" : `\nFORMS\n${formBriefFor(d.department)}\n`;
+  const formsBlock = (d.outsider ? "" : `\nFORMS\n${formBriefFor(d.department)}\n`) + (input.keeps ?? "");
   const episode = Math.max(1, Math.ceil(input.round / 14));
   const sheet = sheetBlock(d.sheet, episode);
   const who = d.outsider
@@ -238,10 +240,11 @@ ${pacing(input.round, d.outsider)}${input.round <= 3 && !d.outsider ? `
 Words you do not use this week unless the writer used them first: cult, ritual, occult, conspiracy, cover-up, disinformation. Words you use only to refuse, never to report: surveillance, sensor, log, camera, footage, radar, record, manifest, investigation, suspect, anomaly. If you must refer to a record, call it "the file" or "my notes" and say nothing of what is in it.` : ""}
 
 FORMAT. Write the letter as plain text. Then, on its own line, write exactly three tildes: ~~~
-After the tildes, three lines for the clerk, which the writer never sees:
+After the tildes, four lines for the clerk, which the writer never sees:
 SUBJECT: <the subject line of your reply>
 SHARED: <every piece of information in your letter that the writer did not already have, including small things you made up about your work; separated by semicolons; or "none">
-WANTS: <what you want from the writer, in one line, or "none">`;
+WANTS: <what you want from the writer, in one line, or "none">
+GIVES: <the exact title of ONE file you keep that you are handing over with this letter, or "none">`;
 
   const history = input.thread.length ? `EARLIER LETTERS BETWEEN YOU, OLDEST FIRST:\n${input.thread.map((t) => `--- ${t.from} wrote:\n${t.body}`).join("\n\n")}\n\n` : "";
   const user = `${history}TODAY IS ${input.letter.date} (Round ${input.round}).\n\nLETTER FROM ${input.player.name}${input.player.title ? `, ${input.player.title}` : ""}${input.player.department ? ` (${input.player.department})` : ""}${input.letter.subject ? `\nSubject: ${input.letter.subject}` : ""}:\n\n${input.letter.body}${input.letter.formNote ? `\n\n[Clerk's note, not part of the letter: ${input.letter.formNote}]` : ""}\n\nWrite your reply.`;
@@ -262,10 +265,11 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const own = new RegExp(`^(?:dear\\s+)?(?:${[d.name.split(" ").pop() ?? "", ...(d.title ?? "").split(/[,\s]+/).filter((w) => w.length > 3)].filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*[,:—-]?\\s*$`, "i");
     const firstLine = body.split("\n")[0]?.trim() ?? "";
     if (firstLine && own.test(firstLine)) body = `Mr. ${input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop()},` + body.slice(body.indexOf("\n") >= 0 ? body.indexOf("\n") : body.length);
-    const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS");
+    const sharedRaw = line("SHARED"); const wantsRaw = line("WANTS"); const givesRaw = line("GIVES");
     const shared = sharedRaw && !/^none\b/i.test(sharedRaw) ? sharedRaw.split(/;\s*/).map((x) => x.trim()).filter(Boolean) : [];
     const wants = wantsRaw && !/^none\b/i.test(wantsRaw) ? wantsRaw : null;
-    return { body, subject, shared, wants, complete: rest.length > 0 };
+    const gives = givesRaw && !/^none\b/i.test(givesRaw) ? givesRaw.replace(/^["“]|["”]$/g, "").trim() : null;
+    return { body, subject, shared, wants, gives, complete: rest.length > 0 };
   };
   const ask = (sys: string, tag: string, temperature: number) => chat([{ role: "system", content: sys }, { role: "user", content: user }], { tag, temperature, maxTokens: 1400, think: false, timeoutMs: 120_000, model: process.env.NPC_MODEL || undefined, onLedger: input.onLedger });
 
@@ -311,10 +315,12 @@ WANTS: <what you want from the writer, in one line, or "none">`;
     const surname = input.player.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).pop() || "Colleague";
     const sign = d.sheet?.voice?.signoff ? `— ${d.sheet.voice.signoff.replace(/^[—-]\s*/, "")}` : `— ${d.name.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ")}`;
     out = d.outsider
-      ? { body: `Mr. ${surname},\n\nI got your letter. I don't put things like this down on paper for people I haven't met. If you want to talk, you know where to find me; come on your own time, not the company's.\n\n${sign}`, subject: null, shared: [], wants: "A visit in person, on the writer's own time", complete: true }
-      : { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n${sign}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand", complete: true };
+      ? { body: `Mr. ${surname},\n\nI got your letter. I don't put things like this down on paper for people I haven't met. If you want to talk, you know where to find me; come on your own time, not the company's.\n\n${sign}`, subject: null, shared: [], wants: "A visit in person, on the writer's own time", gives: null, complete: true }
+      : { body: `Mr. ${surname},\n\nYour letter is received. I do not discuss matters of this kind in writing. Put what you have to say on the proper form, sign it, and bring it to my office by hand before the end of the week. Bring your badge and nothing else.\n\n${sign}`, subject: null, shared: [], wants: "A signed statement on the proper form, brought by hand", gives: null, complete: true };
     guarded = true;
   }
   const subject = out.subject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
-  return { subject, body: out.body, shared: out.shared, wants: out.wants, model, guarded, rejected };
+  const normT = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  const gives = !guarded && out.gives && (input.keptTitles ?? []).some((t) => normT(t) === normT(out!.gives!) || normT(t).includes(normT(out!.gives!)) || normT(out!.gives!).includes(normT(t).split(" (")[0])) ? out.gives : null;
+  return { subject, body: out.body, shared: out.shared, wants: out.wants, gives, model, guarded, rejected };
 }

@@ -317,7 +317,15 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     base.presence = [{ kind: "document", slug: d.slug, name: d.title, verb: "request_files" }];
     const op = opened(ctx.directives ?? [], d.slug);
     if (allowed(d.access, ctx.character) || op) { const item = await deliver(db, ctx, d, op ? `Requested through Records under directive ${op.number}.` : "Requested through Records."); return { ...base, kind: "document", summary: `Records delivered a copy of "${d.title}"${op ? ` under directive ${op.number}` : ""}. It is in the Case File.`, learned: d.grants, item, noticed: d.notice }; }
-    if (d.access.via) { const who = people.find((p) => p.slug === d.access.via); return { ...base, kind: "referred", summary: `Records does not hold "${d.title}"; it is kept by ${who?.name ?? d.access.via} personally. The request was logged and referred; a letter to them might do what a requisition cannot.`, noticed: d.notice }; }
+    if (d.access.via) {
+      const who = people.find((p) => p.slug === d.access.via);
+      // Records sends the request on to the keeper as a letter; they answer in their own words, and may hand the file over (handover.ts).
+      if (who && !ctx.dry) {
+        const { data: row } = await db.from("correspondence").insert({ campaign_id: ctx.campaignId, round_id: ctx.roundId, direction: "inbound", message_id: newMessageId(), from_character: ctx.character.id, to_characters: [who.id], to_addresses: [gameMailbox().address], subject: `Referred by Records: ${d.title}`, body_text: `[Referred by Records, ${gameDate(ctx.roundNo)}.] ${ctx.character.name} asked Records for "${d.title}". Records does not hold it; you keep it. The request as written: "${text}".`, trusted: true, raw: { letter_kind: "referral", verb: "request_files", document: d.slug, source: "records" } }).select("id").single();
+        if (row) await db.from("jobs").insert({ kind: "npc_reply", payload: { correspondence_id: row.id, character_id: who.id }, run_after: new Date(Date.now() + 120_000).toISOString() });
+      }
+      return { ...base, kind: "referred", summary: `Records does not hold "${d.title}"; it is kept by ${who?.name ?? d.access.via} personally. Records has sent the request on to them, and what they make of it arrives in their own words.`, noticed: d.notice };
+    }
     return { ...base, kind: "refused", summary: `Records refused "${d.title}": clearance ${d.access.clearance ?? 3} required${d.access.department ? ` (or a request from ${d.access.department.join(" or ")})` : ""}. The request was logged.`, noticed: d.notice };
   }
   if (verb === "surveil" || verb === "visit") {
