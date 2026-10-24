@@ -91,4 +91,13 @@ released to the county reaches the sheriff by post and he answers in his own wor
 (Engine: the form is scored against the record; the score is never shown.) PROPOSED
 2026-10-18.
 
-CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File. v1.2 puts badge number, supervisor, calendar and biography on the personnel file. v1.3 adds Form 22, the Statement of Livestock Cases (Episode 2).
+### Form 23 — Report of Descent, Tagus Structure (Applied Physics, Rev. 12/77)
+Required of any employee who has gone below the first landing of the utility structure at
+Tagus, within twenty-four hours and before reading any other report: steps counted down and
+up, as numbers; light; sound; the watch against the church clock; the lowest point reached;
+others present; instrument readings. Dr. Kovic requires it before he will discuss a descent.
+A report compared with another before filing is useless to the department; the farm west of
+Tagus says the same thing for its own reasons. (Engine: accounts are compared by the count;
+the comparison is never shown.) PROPOSED 2026-10-23.
+
+CHANGELOG: v1 adds the forms mechanic and Form 14-B. v1.1 hosts forms on the personnel file and files a copy in the Case File. v1.2 puts badge number, supervisor, calendar and biography on the personnel file. v1.3 adds Form 22, the Statement of Livestock Cases (Episode 2). v1.4 adds Form 23, the Report of Descent (Episode 5).

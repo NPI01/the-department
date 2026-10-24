@@ -48,6 +48,13 @@ export const GOAL_RULES: Record<string, GoalRule> = {
   "ep4-4": { episode: 4, pred: { motion: "S-77-004", result: "instructed" } },
   "ep4-5": { episode: 4, pred: { all: [{ knows: "visited.tagus-cellar" }, { any: [{ holds: "cellar-tapes" }, { knows: "tagus.two_tapes_one_bolt" }, { knows: "tagus.depths_all_correct_confirmed" }] }] } },
   "ep4-6": { episode: 4, review: true, pred: { holds: "pgs-monitoring-log" }, partial: { pred: { knows: "tagus.installation_eleven_minutes_seen" }, points: 10 } },
+  // Episode 05 — The Unfinished Descent (PROPOSED 2026-10-23). Knowledge keys from stairway.ts.
+  "ep5-1": { episode: 5, pred: { any: [{ knows: "descent.threshold.2" }, { knows: "descent.threshold.3" }, { knows: "descent.threshold.4" }] }, partial: { pred: { knows: "descended.tagus" }, points: 8 } },
+  "ep5-2": { episode: 5, pred: { all: [{ filed_form: "23" }, { knows: "descended.tagus" }] } },
+  "ep5-3": { episode: 5, pred: { all: [{ knows: "tagus.instruments_disagree_measured" }, { any: [{ sent_doc: { any_of: ["tagus-readings"], to_org: "Research Committee" } }, { knows: "descent.threshold.2" }] }] }, partial: { pred: { knows: "tagus.instruments_disagree_measured" }, points: 10 } },
+  "ep5-4": { episode: 5, pred: { motion: "R-77-005", result: "instructed" } },
+  "ep5-5": { episode: 5, pred: { any: [{ knows: "encounter.marsh" }, { knows: "encounter.greeley" }, { knows: "encounter.wren" }] } },
+  "ep5-6": { episode: 5, pred: { knows: "vigil.containment_achieved" }, partial: { pred: { knows: "account.filed" }, points: 8 } },
 };
 
 type State = {

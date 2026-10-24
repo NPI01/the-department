@@ -46,6 +46,7 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 | **Dennis Pfeifer** | None (Paid by Voss) | Drove the 1974 concrete and signed the receipts; poured the ventilation shaft's collar; $80 a month from Voss to say there was no digging. PROPOSED (Episode 4). | **YES** |
 | **Walter Nygaard** | None (Witness) | Night custodian; was in room 2-C on 12 July with Greeley and two of Thorne's people, who ran first; kept a second page. PROPOSED (Episode 2). | **YES** |
 | **Ruth Greeley** | None (Family) | Paul's sister; holds his May–June letters naming "friends in Building 3" and took his midnight call on 10 July. PROPOSED (Episode 2). | **YES** |
+| **Reinhold Kessel** | None (Self) | PGS field supervisor; locked the door on Brandvold at 2310; made the Fisk call for Voss; never below the landing. PROPOSED (Episode 5). | **YES** |
 | **Conrad Ashby** | SENTINEL | Contracting officer for DSA-69-114; Baines's contact; knows the April date and that the 1969 depths were the Government's own. PROPOSED (Episode 4). | **YES** |
 
 ### Detailed Secret Entries
@@ -86,6 +87,10 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 *   **Ruth Greeley.** Record lie: "Paul never discussed his work with me." His letters home do, and she keeps them. She is the family the company broke a promise to, and the route by which the players can learn Greeley was encouraged.
 *   **The Fisk quotation.** Voss had Kessel telephone the Daily News from the PGS yard with Fisk's name, so the denial sat on Security's book; the yard's phone log holds the line. Fisk does not know. (13 §The Fisk quotation.)
 
+**Episode 5 (PROPOSED 2026-10-23)**
+*   **Kessel.** Record lie: "the door was found locked at 0700; I do not know who locked it." The monitoring log's 2310 entry says he did, and the yard's own protocol made it his duty. Breaks when shown the entry by anyone but Voss.
+*   **Marsh** now has a sheet (11, fifth pass): met on the stairs at the fourth threshold in Episode 5 ("You are early. Find the original date."; a card on the twelfth step), written to from Episode 9. Her record lie is the transfer itself.
+
 **The Tagus six (Episode 4; PROPOSED 2026-10-18)**
 *   **Brandvold.** Record lie: "I never went below the first landing." His field book's last line and the page he sends on day 13 say otherwise. He carries the first disturbance row of the season (the page dated three days in one ink).
 *   **Rud.** Record lie: "the book is a farm diary." It is the account book. She is the Keeper intermediary Episode 4 and 5 need: the practice (write yours, do not read theirs first) is offered through her.
@@ -107,3 +112,4 @@ involves no weapon; the sheriff's "debris" is R-1 class material.
 **CHANGELOG:** v1 establishes the 25-NPC roster, corrects Mercer/Greeley/Sayer to match canon, assigns two checkable record lies (Thorne, Voss), and separates Public/Secret canon.
 v1.1 (2026-10-18): the Tagus six added with record lies; Sandvik proposed as the ghost employee.
 v1.2 (2026-10-18): Nygaard and Ruth Greeley; the Fisk quotation's source.
+v1.3 (2026-10-23): Kessel; Marsh's sheet.

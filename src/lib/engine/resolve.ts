@@ -21,9 +21,10 @@ import { findTown } from "./world/towns";
 import { parseMotion, sponsorMotion } from "./motions";
 import { endGrace, underGrace } from "./grace";
 import { curfew, holdsEmergencyAuthority, issueDirective, opened, parseDirective, sealed, type Directive } from "./directives";
+import { descend } from "./stairway";
 
 export type Outcome = {
-  kind: "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "directed" | "attended" | "met" | "ruling";
+  kind: "descended" | "document" | "refused" | "referred" | "sighting" | "visit" | "found" | "nothing" | "conversation" | "lobbied" | "mitigated" | "examined" | "leaked" | "research" | "requisitioned" | "obtained" | "protected" | "recruited" | "analyzed" | "travelled" | "sponsored" | "directed" | "attended" | "met" | "ruling";
   summary: string;            // one or two sentences for the narrator; what the player now knows
   learned: string[];          // knowledge keys granted
   refund: number;             // Action Units returned (a ruling that nothing could be done)
@@ -41,7 +42,7 @@ export type Ctx = {
   closed?: { slug: string; text: string }[];   // places the story has closed tonight (PlaceDef.closedBy; operations.ts)
 };
 
-export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, sponsor_motion: 5, emergency_directive: 0, meet: 3, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
+export const VERB_COST: Record<string, number> = { report: 3, request_files: 6, interview: 4, surveil: 10, visit: 5, examine: 3, search: 8, lobby: 5, attend: 4, leak: 6, research: 10, requisition: 4, obtain: 8, protect: 4, recruit: 10, dismiss: 1, analyze: 6, travel: 5, descend: 10, sponsor_motion: 5, emergency_directive: 0, meet: 3, submit_manifest: 4, approve_overtime: 4, reconcile_maps: 6, approve_corridors: 6, clear_invoices: 6, issue_statement: 6 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const EQUIPMENT_NAMES = "a 35mm camera, a cassette recorder, a motor pool truck for the night, a temporary badge (Security or Personnel only)";
@@ -96,6 +97,7 @@ export function inferVerb(text: string): { verb: string; target: string } {
     [/\b(ask|talk|speak|interview|question|lunch|coffee with|meet with|see him|see her|chat|introduce|approach|walk up to)\b/, "interview"],
     [/\b(request|pull|get the|obtain|copy of|file|files|records|ledger|log|logs|report|invoices|authorizations|memo)\b/, "request_files"],
     [/\b(travel|drive (?:out |up |down |over )?to|go (?:out |up |down |over )?to (?:tagus|minot|split rock|stanley|town)|head (?:out |up |down )?(?:to|for)|spend the night in|stay (?:the night )?in|overnight in|return to (?:station r|campus|the campus)|go back to (?:station r|campus|the campus)|come (?:back )?home)\b/, "travel"],
+    [/\b(descend|go down the (?:stairs|stairway|steps|cellar stairs|shaft)|down the (?:stairs|stairway|shaft)|below the landing|the lower flight|under the plate|into the shaft)\b/, "descend"],
     [/\b(go to|visit|drive|walk to|look at|see the|check out|go into|go inside|enter|head to|go out to|go back to)\b/, "visit"],
     [/\b(attend|sit in|be present)\b/, "attend"],
   ];
@@ -497,6 +499,21 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (!r.ok) return ruled(`${r.error}. Units returned.`);
     base.target = r.number;
     return { ...base, kind: "sponsored", summary: r.summary };
+  }
+  if (verb === "descend") {
+    // DESCEND (stairway.ts): the Tagus stairs, from Tagus; by the door, or by the shaft under the windbreak plate once the Committee has sealed the door.
+    if (episode < 4) return ruled(`There is nothing at Tagus to go down yet. Units returned.`);
+    if (ctx.character.location?.slug !== "tagus") return ruled(`${ctx.character.name} is not at Tagus. Units returned. TRAVEL Tagus first, or put the trip and the descent in one order.`);
+    const doorShut = (ctx.closed ?? []).some((c) => c.slug === "tagus-cellar");
+    if (doorShut) {
+      const { data: kn } = ctx.dry ? { data: [] } : await db.from("knowledge").select("fact_key").eq("character_id", ctx.character.id).in("fact_key", ["visited.tagus-shaft"]);
+      if (!(kn ?? []).length && !(ctx.character.societies ?? []).includes("congregation")) return ruled(`The cellar door is poured shut and guarded, and ${ctx.character.name} knows no other way down. Units returned.`);
+    } else await notify(db, ctx, `${ctx.character.name} went down the Tagus stairs on the night of Round ${ctx.roundNo}.`);
+    const r = await descend(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, episode, character: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name }, withInstrument: Boolean(holds(ctx.character.holdings ?? [], "readings")), dry: Boolean(ctx.dry) });
+    base.target = "tagus-cellar";
+    base.presence = [{ kind: "place", slug: doorShut ? "tagus-shaft" : "tagus-cellar", name: doorShut ? "the windbreak plate" : "the utility cellar by St. Olaf, Tagus", verb: "descend", covert: doorShut }];
+    await learn(db, ctx, r.learned, "witnessed", null);
+    return { ...base, kind: "descended", summary: r.summary, learned: r.learned, ...(r.item ? { item: r.item } : {}), noticed: !doorShut };
   }
   if (verb === "travel") {
     // TRAVEL: the trip beyond the fence, made before anything else moves (jobs.ts). You are there until an order brings you home.

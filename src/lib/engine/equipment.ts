@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameDate } from "@/lib/email/letter";
 
-export type Effect = "photograph" | "transcript" | "vehicle" | "pass";
+export type Effect = "photograph" | "transcript" | "vehicle" | "pass" | "readings";
 
 export type EquipmentDef = {
   slug: string;
@@ -35,6 +35,9 @@ export const EQUIPMENT: EquipmentDef[] = [
   { slug: "truck", name: "Motor pool pickup (one night)", aliases: ["truck", "pickup", "vehicle", "a truck", "a vehicle", "motor pool truck", "company truck", "the truck"], cost: 3, effect: "vehicle", loan: 1,
     log: { key: "motor-pool", line: (who, r) => `${gameDate(r)} · MP-07 · out 1800 · in 0700 · ${who}` },
     blurb: "The trip beyond the fence costs nothing tonight. Your name goes in the motor pool log." },
+  { slug: "magnetometer", name: "Hand magnetometer (Applied Physics, bench 4 cabinet)", aliases: ["magnetometer", "the magnetometer", "hand magnetometer", "kovic's instrument", "the instrument from bench 4"], cost: 4, effect: "readings", departments: ["applied-physics"],
+    log: { key: "requisitions", line: (who, r) => `${gameDate(r)} · hand magnetometer, bench 4 · ${who} · returnable` },
+    blurb: "Carried down the Tagus stairs it reads the field at each step, twice, and the two readings are written down whether or not they agree. Applied Physics signs for it; Dr. Kovic wants it back with the numbers." },
   { slug: "badge", name: "Temporary access badge (one night)", aliases: ["badge", "access badge", "temporary badge", "a badge", "visitor badge", "pass", "a pass"], cost: 6, effect: "pass", loan: 1, departments: ["corporate-security", "personnel-administration"], clearance: 2, notice: true,
     log: { key: "badges", line: (who, r) => `${gameDate(r)} · temp badge T-${(r * 7) % 90 + 10} · ${who} · 24h` },
     blurb: "One restricted place, one night, without a patrol truck slowing down. Security issued it and knows who holds it." },

@@ -31,6 +31,13 @@ are not closed by the engine: a `goal.proposed_met` event asks the showrunner to
 | ep2-2 the notebook | filed the notebook or its page with the Research Committee, or handed it to a member | |
 | ep2-3 the fragment | holds the county fragment | yes |
 | ep2-4 R-77-002 | closes as instructed | |
+| ep4-1..6 (2026-10-18) | see `goal-predicates.ts`: find Brandvold (timing before day 13), what PGS is, the contract index before the Board (judged through Episode 7), S-77-004 as instructed, stand on the stairs, the monitoring log (review) | |
+| ep5-1 past the wall | `descent.threshold.2` or higher; partial 8 for any descent | |
+| ep5-2 descend and file | filed Form 23 and `descended.tagus` | |
+| ep5-3 readings | `tagus.instruments_disagree_measured` and (threshold 2 or readings sent to the Research Committee); partial 10 | |
+| ep5-4 R-77-005 | closes as instructed | |
+| ep5-5 who is on the stairs | an `encounter.*` key (Marsh, Greeley or Wren) | |
+| ep5-6 the practice | `vigil.containment_achieved`; partial 8 for a filed account | |
 
 ## Open
 - Findings: a motion may carry `finding {claim, on, text, false_text}`; at the close the body's

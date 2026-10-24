@@ -227,9 +227,18 @@ messages are memos and letters, never "email".
 *   **Public Profile:** Paul Greeley's sister. Received his effects in July and a letter promising a notebook that never came. Has written to the company three times and numbers her letters.
 *   **Voice:** Plain, schoolteacher-correct, one direct question per letter. Signs "Ruth Greeley."
 
+### Episode 5 (PROPOSED 2026-10-23)
+
+**Reinhold Kessel**
+*   **Title:** Field Supervisor, Prairie Geological Services
+*   **Department:** External (Contractor)
+*   **Public Profile:** Runs the PGS yard on the Tagus road and its two trucks. Signs the field log, locks the doors, and telephones Procurement when something goes wrong. Has worked the parcel since 1972.
+*   **Voice:** Procedural, defensive; quotes the field protocol by paragraph. Signs "R. Kessel, Field Supv."
+
 ---
 
 CHANGELOG: v1 promotes the agent-team directory of 23 named NPCs with public profiles, voices and Round 1 hooks.
 v1.1 (2026-10-13): Hollis's county is Ward County; Maya Okafor added (PROPOSED).
 v1.2 (2026-10-18): the Tagus six for Episode 4 (Brandvold, Rud, Sandvik, Mahlum, Pfeifer, Ashby), PROPOSED.
 v1.3 (2026-10-18): Walter Nygaard and Ruth Greeley for Episode 2, PROPOSED.
+v1.4 (2026-10-23): Reinhold Kessel for Episode 5, PROPOSED; Dr. Marsh's sheet exists now (secret).

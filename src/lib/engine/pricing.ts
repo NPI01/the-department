@@ -18,7 +18,7 @@ export const UNREAD_COST = 5;
 
 const VERB_NAME: Record<string, string> = {
   request_files: "files", interview: "a conversation", surveil: "a night's watch", visit: "a visit", examine: "a close reading",
-  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", research: "research", requisition: "a requisition", travel: "the trip", sponsor_motion: "a motion", emergency_directive: "a directive (no charge)", submit_manifest: "a manifest", approve_overtime: "overtime",
+  search: "a search", lobby: "lobbying", attend: "attending", leak: "a leak to the paper", research: "research", requisition: "a requisition", travel: "the trip", descend: "the descent", sponsor_motion: "a motion", emergency_directive: "a directive (no charge)", submit_manifest: "a manifest", approve_overtime: "overtime",
   reconcile_maps: "reconciling maps", approve_corridors: "corridors", clear_invoices: "invoices", issue_statement: "a statement", report: "a report to Security",
 };
 

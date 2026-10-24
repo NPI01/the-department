@@ -109,6 +109,13 @@ export const GOALS: Record<string, { text: string; deadline: string; points: num
   "ep4-4": { text: "Carry the Safety Committee's ballot on sealing the Tagus structure the way your department needs it to go.", deadline: "November 30", points: 20 },
   "ep4-5": { text: "Stand on the Tagus stairs yourself and bring back a measurement a laboratory can use.", deadline: "December 7", points: 15 },
   "ep4-6": { text: "Get into the room under the Halvorsen instrument hut and bring out its log.", deadline: "December 7", points: 25 },
+  // Episode 05 — The Unfinished Descent (PROPOSED 2026-10-23).
+  "ep5-1": { text: "Go down the Tagus stairs past the wall, and come back up.", deadline: "December 24", points: 20 },
+  "ep5-2": { text: "Go down the Tagus stairs and put your own account of the night on the company's form before you read anyone else's.", deadline: "December 24", points: 15 },
+  "ep5-3": { text: "Carry Dr. Kovic's magnetometer below the landing and bring him the readings.", deadline: "December 24", points: 20 },
+  "ep5-4": { text: "Carry the Research Committee's ballot on experiments on the Tagus passage the way your department needs it to go.", deadline: "December 23", points: 20 },
+  "ep5-5": { text: "Find out who else is on the stairs.", deadline: "December 24", points: 25 },
+  "ep5-6": { text: "Get three accounts of one night on the stairs onto the record that do not agree with each other.", deadline: "December 24", points: 20 },
 };
 
 export const ALL_GOAL_KEYS = Object.keys(GOALS);

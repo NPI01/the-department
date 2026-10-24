@@ -84,6 +84,35 @@ export const FORMS: Record<string, FormDef> = {
     officeUse: ["Received by: ________  Date: ________  Index No.: S-77-____", "Cases as scored by the Director: ____ of 11   [ ] To the Committee's file   [ ] Furnished to the county   [ ] Returned"],
     brief: "Form 22 (Rev. 10/77), Statement of Livestock Cases, is the Research Committee's form for an employee's reading of the county's eleven cattle cases, one letter per case (A authorized sampling, B sampling with no authorization on file, C ordinary cause, D unexplained), with an election at question 14 whether it may go to the sheriff. Your office owns it and files it to the Committee. You read what employees assert on it and remember who laid which case on the program; you do not say on paper which letters are right.",
   },
+  "23": {
+    id: "23",
+    title: "REPORT OF DESCENT, TAGUS STRUCTURE",
+    shortTitle: "Report of Descent",
+    owner: "Applied Physics",
+    revision: "Rev. 12/77",
+    instructions: [
+      "To be completed by any employee who has gone below the first landing of the utility structure at Tagus, within twenty-four hours, before reading any other person's report.",
+      "Count. Write the number of steps you counted going down and the number you counted coming up, as you counted them, even if they differ.",
+      "Record what the instruments read if you carried any, and what your watch read against the church clock when you came up.",
+      "Do not interpret. Do not correct your count to match anyone else's. A report that has been compared with another before filing is useless to this department.",
+      "Copies go to the Director, Applied Physics. The contents are not to be discussed with any person outside the company.",
+    ],
+    questions: [
+      { n: 1, text: "Full name, badge number and department.", required: true },
+      { n: 2, text: "Steps counted going down, as a number.", required: true },
+      { n: 3, text: "Steps counted coming up, as a number.", required: true },
+      { n: 4, text: "Light: what, where, what colour. Or NONE.", required: true },
+      { n: 5, text: "Sound: what, from where. Or NONE.", required: true },
+      { n: 6, text: "Time below by your watch, and the church clock's time when you came up.", required: true },
+      { n: 7, text: "The lowest point you reached and what was there.", required: true },
+      { n: 8, text: "Other persons on the stairs, by name or description. Or NONE.", required: true },
+      { n: 9, text: "Instrument readings, if any, exactly as written down. Or NONE.", required: true },
+      { n: 10, text: "Signature. Type your full name. By signing you affirm this is your own count and your own account, written before you read any other.", required: true },
+    ],
+    attestation: "I affirm this is my own count and my own account, written before I read any other.",
+    officeUse: ["Received by: ________  Date: ________  Index No.: S-77-____", "Count agrees with: ____   Disagrees with: ____   [ ] To the Director   [ ] Refer D-SRD"],
+    brief: "Form 23 (Rev. 12/77), Report of Descent, is your office's form for anyone who has gone below the first landing at Tagus: steps down, steps up, light, sound, watch against the church clock, the lowest point, others present, instrument readings. You require it before you will discuss a descent in writing, and you want the counts; you do not say what the counts are supposed to be.",
+  }
 };
 
 const RULE = "─".repeat(64);

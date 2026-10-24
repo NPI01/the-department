@@ -70,6 +70,42 @@ export const GOAL_BRIEFS: Record<string, GoalBrief> = {
     leads: ["ORDER: TRAVEL Tagus, then ORDER: SURVEIL the installation under the Halvorsen instrument hut: the hatch opens at 2330 and the pen recorder stops for eleven minutes.", "ORDER: SEARCH the installation under the Halvorsen instrument hut for Monitoring log, Site T installation (clearance 4, or Corporate Security or Procurement); the Congregation knows another way in.", "ORDER: ANALYZE Monitoring log, Site T installation in Information Systems (the trace rises on the unattended-job nights) or Applied Physics (the baseline climbs every year).", "TO: Harold Sloane or TO: Dr. Adrian Vale: each wants the log for the opposite reason."],
     proof: "The monitoring log in your Case File.",
   },
+  "ep5-1": {
+    what: "Below the first landing of the utility cellar at Tagus there is a wall, and a surveyor who went past it says there is a second flight. Go down, past the wall, and come back.",
+    known: "The upper flight is twenty-one steps. If the Safety Committee sealed the door in November, the way down is a ventilation shaft under a steel plate in the Halvorsen windbreak; the Congregation knows it and Dennis Pfeifer poured its collar. How far you get depends on what you believe is down there, and a person alone gets further than a party.",
+    leads: ["ORDER: TRAVEL Tagus, then ORDER: DESCEND (10 AU); or put both in one order: TRAVEL Tagus and go down the stairs.", "If the door is sealed: ORDER: VISIT the windbreak plate first (the shaft), or join the Congregation, whose members know the way.", "Read before you go: ORDER: EXAMINE Field book, L. Brandvold, PGS and Two steel tapes and a bolt if you hold them; TO: Lyle Brandvold, who went down and came back.", "Go alone. Two on the stairs the same night stop at the second landing."],
+    proof: "Having been below the wall: the night's orders will say what you found.",
+  },
+  "ep5-2": {
+    what: "Applied Physics requires a Report of Descent, Form 23, from anyone who has gone below the first landing, written before they have read anyone else's: steps down, steps up, light, sound, your watch against the church clock. Go down, and file yours.",
+    known: "The form is Kovic's. Mrs. Rud at the farm west of Tagus wants the same thing for her own reasons: write yours, do not read theirs first.",
+    leads: ["ORDER: TRAVEL Tagus, then ORDER: DESCEND.", "Reply FORM 23 for the blank; file it the morning after, with your own counts, before you talk to anyone who went down.", "ORDER: REQUEST_FILES Protocol for instrumented descent, Tagus structure (Applied Physics) for what Kovic expects."],
+    proof: "A Form 23 on file in your name, after a descent.",
+  },
+  "ep5-3": {
+    what: "Dr. Kovic has a hand magnetometer in the cabinet by bench 4 and wants it carried below the landing and brought back with the numbers. Two readings a minute apart on the same step will not agree. Bring him both.",
+    known: "Applied Physics signs for the instrument. The readings become a document in your Case File; the Research Committee is the body that decides whether experiments continue.",
+    leads: ["ORDER: REQUISITION the magnetometer (Applied Physics colleagues; others ask Dr. Kovic to sign for it).", "ORDER: TRAVEL Tagus, then ORDER: DESCEND with the instrument in hand; the readings are written down for you.", "SEND Magnetometer readings, Tagus stairs TO Dr. Aris Kovic, or FILE them WITH Research Committee.", "TO: Dr. Aris Kovic with the numbers; he promised a place on JANUS for them."],
+    proof: "Readings taken below the landing, in your Case File or in Kovic's hands.",
+  },
+  "ep5-4": {
+    what: "Ballot R-77-005 asks the Research Committee to authorize experiments on the Tagus passage. Your department has told you which way it must go. Carry it.",
+    known: "Vale sponsors it; Kovic and Julian Thorne lean with him; Elias Thorne leans a little his way; Ely leans against and turns hard against if shown where the money comes from. The employee seat votes. Opens Round 63, closes at the lock of Round 69.",
+    leads: ["ORDER: LOBBY Dr. Sarah Ely AGAINST once you hold Brief for R-77-005: experiments on the Tagus passage (Dr. Vale) and have EXAMINEd it: the budget line is appropriation 77-S.", "ORDER: LOBBY Dr. Elias Thorne FOR or AGAINST; he is the movable one.", "If you hold the employee seat: VOTE R-77-005: FOR or AGAINST as instructed, any day the ballot is open, including the closing day."],
+    proof: "The ballot closing the way your department requires.",
+  },
+  "ep5-5": {
+    what: "People who go far enough down the Tagus stairs report meeting someone there. Go far enough to find out who.",
+    known: "Depth follows belief: the more you know and hold to about what is below, the further the stairs go. Contradictory beliefs stop you at the wall; company on the stairs stops you at the second landing; three disagreeing Reports of Descent in one round stop everyone.",
+    leads: ["Read everything first: ORDER: EXAMINE the Field book, the tapes, the survey, the pamphlet, the monitoring log; each thing you hold to about the stairs is a step further.", "TO: Lyle Brandvold and TO: Agnes Rud, who both know what is below and will not agree with each other.", "ORDER: TRAVEL Tagus, then ORDER: DESCEND, alone, on a night nobody else is going.", "Do not file your Form 23 until you have been as far as you mean to go; three disagreeing accounts close the stairs."],
+    proof: "Having met someone on the stairs who should not be there.",
+  },
+  "ep5-6": {
+    what: "The people at the farm west of Tagus keep a thing quiet by writing it down wrong on purpose: three accounts of one night that do not agree. Get three Reports of Descent onto the record in one round that disagree on the count.",
+    known: "Form 23 asks for steps down and steps up as numbers. Three or more filed in the same round with different counts is what the farm calls the practice; the company calls it bad data. Both are right.",
+    leads: ["Go down yourself: ORDER: TRAVEL Tagus, ORDER: DESCEND, then FORM 23 with your own count.", "Get two others down the same week and filing the same round: ORDER: MEET <colleague> about going down and filing Form 23 the same morning; SEND them nothing to copy.", "TO: Agnes Rud, who will tell you why the counts must differ and will send her own people down if yours will not."],
+    proof: "Three Reports of Descent in one round that disagree, with yours among them.",
+  },
   "ep1-1": {
     what: "Prairie Geological Services, a Royce subsidiary, has been paying for concrete, cable and well-drilling at a parcel near Tagus where nothing has ever been built. Somebody at Royce approved those shipments. Find out who.",
     known: "You have seen the 1974 payables summary on a Procurement desk: eleven loads of concrete to the Halvorsen parcel, approved with two initials.",
