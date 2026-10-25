@@ -135,6 +135,9 @@ export async function descend(db: SupabaseClient, p: { campaignId: string; round
 /* Form 23 filed: the account joins the round's accounts; agreement feeds, disagreement contains. */
 export async function recordDescentAccount(db: SupabaseClient, p: { campaignId: string; roundId: string | null; roundNo: number; characterId: string; characterName: string; submission: FormSubmission; index: string }) {
   const s = p.submission;
+  // A Report of Descent from someone who has not been below the landing is filed, as any form is, but it is not an account of anything (sim-ep3to5-au20: four filed by a man who never got down).
+  const { data: went } = await db.from("knowledge").select("id").eq("character_id", p.characterId).eq("fact_key", "descended.tagus").limit(1);
+  if (!(went ?? []).length) { await db.from("knowledge").insert({ character_id: p.characterId, fact_key: "account.filed_without_descent", value: { true: true, index: p.index, round: p.roundNo }, confidence: 1, source_kind: "witnessed", learned_round: p.roundNo }); return { down: null, up: null, accounts: 0, distinct: 0 }; }
   const num = (t: string | undefined) => { const m = (t ?? "").match(/\d+/); return m ? Number(m[0]) : null; };
   const down = num(s.answers[2]), up = num(s.answers[3]);
   await db.from("facts").upsert({ campaign_id: p.campaignId, key: `account.${p.roundNo}.${p.characterId}`, value: { down, up, light: s.answers[4] ?? null, sound: s.answers[5] ?? null, index: p.index, round: p.roundNo }, established_round: p.roundNo, secret: false }, { onConflict: "campaign_id,key" });

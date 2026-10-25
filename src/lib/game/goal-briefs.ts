@@ -79,13 +79,13 @@ export const GOAL_BRIEFS: Record<string, GoalBrief> = {
   "ep5-2": {
     what: "Applied Physics requires a Report of Descent, Form 23, from anyone who has gone below the first landing, written before they have read anyone else's: steps down, steps up, light, sound, your watch against the church clock. Go down, and file yours.",
     known: "The form is Kovic's. Mrs. Rud at the farm west of Tagus wants the same thing for her own reasons: write yours, do not read theirs first.",
-    leads: ["ORDER: TRAVEL Tagus, then ORDER: DESCEND.", "Reply FORM 23 for the blank; file it the morning after, with your own counts, before you talk to anyone who went down.", "ORDER: REQUEST_FILES Protocol for instrumented descent, Tagus structure (Applied Physics) for what Kovic expects."],
+    leads: ["ORDER: TRAVEL Tagus, then ORDER: DESCEND.", "Reply FORM 23 for the blank; file it the morning after, with your own counts, before you talk to anyone who went down.", "ORDER: REQUEST_FILES Protocol for instrumented descent, Tagus structure (Applied Physics) for what Kovic expects.", "If the Safety Committee sealed the door in November, the cellar is shut and guarded: first ORDER: VISIT the windbreak plate (the shaft in the Halvorsen windbreak), or keep the letter that names it; then ORDER: DESCEND from Tagus."],
     proof: "A Form 23 on file in your name, after a descent.",
   },
   "ep5-3": {
     what: "Dr. Kovic has a hand magnetometer in the cabinet by bench 4 and wants it carried below the landing and brought back with the numbers. Two readings a minute apart on the same step will not agree. Bring him both.",
     known: "Applied Physics signs for the instrument. The readings become a document in your Case File; the Research Committee is the body that decides whether experiments continue.",
-    leads: ["ORDER: REQUISITION the magnetometer (Applied Physics colleagues; others ask Dr. Kovic to sign for it).", "ORDER: TRAVEL Tagus, then ORDER: DESCEND with the instrument in hand; the readings are written down for you.", "SEND Magnetometer readings, Tagus stairs TO Dr. Aris Kovic, or FILE them WITH Research Committee.", "TO: Dr. Aris Kovic with the numbers; he promised a place on JANUS for them."],
+    leads: ["ORDER: REQUISITION the magnetometer (Applied Physics colleagues; others ask Dr. Kovic to sign for it).", "ORDER: TRAVEL Tagus, then ORDER: DESCEND with the instrument in hand; the readings are written down for you.", "SEND Magnetometer readings, Tagus stairs TO Dr. Aris Kovic, or FILE them WITH Research Committee.", "TO: Dr. Aris Kovic with the numbers; he promised a place on JANUS for them.", "If the Safety Committee sealed the door in November, the cellar is shut and guarded: first ORDER: VISIT the windbreak plate (the shaft in the Halvorsen windbreak), or keep the letter that names it; then ORDER: DESCEND from Tagus."],
     proof: "Readings taken below the landing, in your Case File or in Kovic's hands.",
   },
   "ep5-4": {
@@ -97,13 +97,13 @@ export const GOAL_BRIEFS: Record<string, GoalBrief> = {
   "ep5-5": {
     what: "People who go far enough down the Tagus stairs report meeting someone there. Go far enough to find out who.",
     known: "Depth follows belief: the more you know and hold to about what is below, the further the stairs go. Contradictory beliefs stop you at the wall; company on the stairs stops you at the second landing; three disagreeing Reports of Descent in one round stop everyone.",
-    leads: ["Read everything first: ORDER: EXAMINE the Field book, the tapes, the survey, the pamphlet, the monitoring log; each thing you hold to about the stairs is a step further.", "TO: Lyle Brandvold and TO: Agnes Rud, who both know what is below and will not agree with each other.", "ORDER: TRAVEL Tagus, then ORDER: DESCEND, alone, on a night nobody else is going.", "Do not file your Form 23 until you have been as far as you mean to go; three disagreeing accounts close the stairs."],
+    leads: ["Read everything first: ORDER: EXAMINE the Field book, the tapes, the survey, the pamphlet, the monitoring log; each thing you hold to about the stairs is a step further.", "TO: Lyle Brandvold and TO: Agnes Rud, who both know what is below and will not agree with each other.", "ORDER: TRAVEL Tagus, then ORDER: DESCEND, alone, on a night nobody else is going.", "Do not file your Form 23 until you have been as far as you mean to go; three disagreeing accounts close the stairs.", "If the Safety Committee sealed the door in November, the cellar is shut and guarded: first ORDER: VISIT the windbreak plate (the shaft in the Halvorsen windbreak), or keep the letter that names it; then ORDER: DESCEND from Tagus."],
     proof: "Having met someone on the stairs who should not be there.",
   },
   "ep5-6": {
     what: "The people at the farm west of Tagus keep a thing quiet by writing it down wrong on purpose: three accounts of one night that do not agree. Get three Reports of Descent onto the record in one round that disagree on the count.",
     known: "Form 23 asks for steps down and steps up as numbers. Three or more filed in the same round with different counts is what the farm calls the practice; the company calls it bad data. Both are right.",
-    leads: ["Go down yourself: ORDER: TRAVEL Tagus, ORDER: DESCEND, then FORM 23 with your own count.", "Get two others down the same week and filing the same round: ORDER: MEET <colleague> about going down and filing Form 23 the same morning; SEND them nothing to copy.", "TO: Agnes Rud, who will tell you why the counts must differ and will send her own people down if yours will not."],
+    leads: ["Go down yourself: ORDER: TRAVEL Tagus, ORDER: DESCEND, then FORM 23 with your own count.", "Get two others down the same week and filing the same round: ORDER: MEET <colleague> about going down and filing Form 23 the same morning; SEND them nothing to copy.", "TO: Agnes Rud, who will tell you why the counts must differ and will send her own people down if yours will not.", "If the Safety Committee sealed the door in November, the cellar is shut and guarded: first ORDER: VISIT the windbreak plate (the shaft in the Halvorsen windbreak), or keep the letter that names it; then ORDER: DESCEND from Tagus."],
     proof: "Three Reports of Descent in one round that disagree, with yours among them.",
   },
   "ep1-1": {

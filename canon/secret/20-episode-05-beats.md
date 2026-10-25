@@ -34,6 +34,15 @@ Round 1 is Sunday 11 December 1977; Round 14 is Saturday 24 December, Christmas 
 | 14 | check | Goals ep5-1 to 6 judged at the lock | each player, privately | 19 §Goals |
 | 14 | check | Carried forward: every descender's thresholds and disturbances; the Index; who met whom; the finding; whether the practice held | engine | 19 §Carries forward |
 
+## From the first run (sim-ep3to5-au20, 2026-10-24)
+The cohort had sealed the door in Episode 4, and nobody got down in Episode 5: seventeen
+DESCEND orders, eleven ruled "knows no other way down", six beyond balance. The one player told
+of the plate researched it and never stood at it. Fixed: the ruling now says where the other
+way is; Sayer's and Pfeifer's letters leave a page in the Case File that counts as knowing it;
+"VISIT Tagus" is read as TRAVEL; a Form 23 from someone who never went below is filed but is not
+an account. The magnetometer refused outside Applied Physics, as designed; nobody wrote to
+Kovic for it.
+
 ## Gaps
 - The group descent on the fourth night is enacted only through the cap: members who DESCEND
   the same night stop at 2. Nothing makes them go; the card, Sayer's and Thorne's letters pull.

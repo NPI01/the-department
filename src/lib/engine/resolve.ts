@@ -267,6 +267,8 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
   const text = String(order.args.text ?? "");
   let verb = order.verb;
   if (verb === "freeform" || VERB_COST[verb] === undefined) { const inf = inferVerb(text); verb = inf.verb; }
+  // "VISIT Tagus": a town is somewhere you travel, not somewhere you visit (four rulings in sim-ep3to5-au20 said "could not place Tagus").
+  if (verb === "visit" && !findPlace(text, ctx.episode ?? episodeOf(ctx.roundNo)) && findTown(text)) verb = "travel";
   const base = { learned: [] as string[], refund: 0, verb, target: null as string | null, presence: undefined as Presence[] | undefined };
   const { data: roster } = await db.from("characters").select("id, slug, name, player_id, divisions(slug)").eq("campaign_id", ctx.campaignId).eq("status", "active");
   const people: Person[] = (roster ?? []).map((r) => ({ id: r.id as string, slug: r.slug as string, name: r.name as string, division: ((Array.isArray(r.divisions) ? r.divisions[0] : r.divisions) as { slug: string } | null)?.slug ?? null, player: Boolean(r.player_id) }));
@@ -506,8 +508,12 @@ async function resolveOne(db: SupabaseClient, ctx: Ctx, order: { id: string; ver
     if (ctx.character.location?.slug !== "tagus") return ruled(`${ctx.character.name} is not at Tagus. Units returned. TRAVEL Tagus first, or put the trip and the descent in one order.`);
     const doorShut = (ctx.closed ?? []).some((c) => c.slug === "tagus-cellar");
     if (doorShut) {
-      const { data: kn } = ctx.dry ? { data: [] } : await db.from("knowledge").select("fact_key").eq("character_id", ctx.character.id).in("fact_key", ["visited.tagus-shaft"]);
-      if (!(kn ?? []).length && !(ctx.character.societies ?? []).includes("congregation")) return ruled(`The cellar door is poured shut and guarded, and ${ctx.character.name} knows no other way down. Units returned.`);
+      // Another way down is known by standing at the plate, by belonging to the Congregation, or by holding a letter that names it (Pfeifer's unsigned note, Sayer's).
+      const [{ data: kn }, { data: told }] = ctx.dry ? [{ data: [] }, { data: [] }] : await Promise.all([
+        db.from("knowledge").select("fact_key").eq("character_id", ctx.character.id).in("fact_key", ["visited.tagus-shaft"]),
+        db.from("case_items").select("slug").eq("character_id", ctx.character.id).eq("status", "held").in("slug", ["pfeifer-plate-note", "congregation-shaft-letter"]),
+      ]);
+      if (!(kn ?? []).length && !(told ?? []).length && !(ctx.character.societies ?? []).includes("congregation")) return ruled(`The cellar door is poured shut and guarded. The people who still go down go another way, under a steel plate in the Halvorsen windbreak; someone who had stood at the plate, or been told of it in writing, would know it, and ${ctx.character.name} has not. Units returned.`);
     } else await notify(db, ctx, `${ctx.character.name} went down the Tagus stairs on the night of Round ${ctx.roundNo}.`);
     const r = await descend(db, { campaignId: ctx.campaignId, roundId: ctx.roundId, roundNo: ctx.roundNo, episode, character: { id: ctx.character.id, slug: ctx.character.slug, name: ctx.character.name }, withInstrument: Boolean(holds(ctx.character.holdings ?? [], "readings")), dry: Boolean(ctx.dry) });
     base.target = "tagus-cellar";
