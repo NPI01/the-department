@@ -88,7 +88,8 @@ export type ReplyInput = {
   round: number;
   memory?: Memory;
   keeps?: string;                                   // the files this person keeps and may hand over (handover.ts keepsBlock); "" for none
-  keptTitles?: string[];                            // the same files' exact titles: a GIVES line naming anything else is dropped (Fisk once "gave" a patrol schedule that does not exist)
+  keptTitles?: string[];                            // the same files' (and the department's equipment's) exact titles: a GIVES line naming anything else is dropped (Fisk once "gave" a patrol schedule that does not exist)
+  alreadyGiven?: string[];                          // titles this person has already given this writer: a GIVES naming one is dropped
   review?: boolean;                                 // Skeptic pass on each draft (default true)
   onLedger?: (r: LedgerRow) => void | Promise<void>;
 };
@@ -321,6 +322,7 @@ GIVES: <the exact title of ONE file you keep that you are handing over with this
   }
   const subject = out.subject || (input.letter.subject ? (/^re:/i.test(input.letter.subject) ? input.letter.subject : `Re: ${input.letter.subject}`) : "Re: your letter");
   const normT = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-  const gives = !guarded && out.gives && (input.keptTitles ?? []).some((t) => normT(t) === normT(out!.gives!) || normT(t).includes(normT(out!.gives!)) || normT(out!.gives!).includes(normT(t).split(" (")[0])) ? out.gives : null;
+  const named = (t: string) => normT(t) === normT(out!.gives!) || normT(t).includes(normT(out!.gives!)) || normT(out!.gives!).includes(normT(t).split(" (")[0]);
+  const gives = !guarded && out.gives && (input.keptTitles ?? []).some(named) && !(input.alreadyGiven ?? []).some(named) ? out.gives : null;
   return { subject, body: out.body, shared: out.shared, wants: out.wants, gives, model, guarded, rejected };
 }

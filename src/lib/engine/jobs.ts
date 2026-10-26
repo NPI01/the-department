@@ -40,7 +40,7 @@ import { findEquipment, holdingsFor, returnDue, transferHolding, transferUnits }
 import { informantReports } from "@/lib/engine/informants";
 import { activeDirectives, extendByMotion } from "@/lib/engine/directives";
 import { closedPlacesTonight, resolveOperations } from "@/lib/engine/operations";
-import { filesKeptBy, giveDocument, keepsBlock } from "@/lib/engine/handover";
+import { alreadyGivenTo, giveDocument, keepsBlock, keptTitles } from "@/lib/engine/handover";
 import { cancelStanding, enqueueStanding, fileStanding, listStanding, STANDING_UPKEEP } from "@/lib/engine/standing";
 import { applyProxies, giveProxy } from "@/lib/engine/proxies";
 import { absenceTick, endLeave, leaveAbstentions, MAX_LEAVE, startLeave } from "@/lib/engine/leave";
@@ -601,7 +601,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     if (dup) return;
     const { data: c } = await db.from("correspondence").select("campaign_id, thread_id, round_id, from_character, from_address, subject, body_text, message_id").eq("id", id).single();
     if (!c?.from_character) throw new Error("sender not yet routed");
-    const { data: npc } = await db.from("characters").select("id, slug, name, title, npc_state, divisions(name)").eq("id", npcId).single();
+    const { data: npc } = await db.from("characters").select("id, slug, name, title, npc_state, divisions(name, slug)").eq("id", npcId).single();
+    const npcDivision = ((Array.isArray(npc?.divisions) ? npc?.divisions[0] : npc?.divisions) as { slug?: string } | null)?.slug ?? null;
     const { data: pc } = await db.from("characters").select("id, slug, name, title, sheet, public_profile, divisions(name), players(email)").eq("id", c.from_character).single();
     if (!npc || !pc) throw new Error("character missing");
     const dept = (x: { divisions?: { name: string } | { name: string }[] | null }) => Array.isArray(x.divisions) ? x.divisions[0]?.name ?? null : x.divisions?.name ?? null;
@@ -669,7 +670,8 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       const letter = batch.length > 1
         ? { subject: baseSubject(batch[batch.length - 1].subject ?? "") || null, body: batch.map((b, i) => `[Letter ${i + 1} of ${batch.length}${b.subject ? `, subject: ${baseSubject(b.subject)}` : ""}]\n${b.body_text}`).join("\n\n"), date: gameDate(roundNo), formNote: `the writer sent you these ${batch.length} letters before you answered any of them. Answer them together in one letter; say each thing once.` }
         : { subject: salute.subject ?? (c.subject as string | null), body: c.body_text as string, date: gameDate(roundNo), formNote };
-      const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter, thread, round: roundNo, memory, keeps: keepsBlock(npc.slug as string, episodeOf(roundNo)), keptTitles: filesKeptBy(npc.slug as string, episodeOf(roundNo)).filter((d) => !d.access.sealed).map((d) => d.title), onLedger: ledger(db) });
+      const given = await alreadyGivenTo(db, c.campaign_id, npc.slug as string, pc.id as string);
+      const reply = await generateStaffReply({ dossier, player: { name: pc.name, title: pc.title, department: dept(pc), badge: badgeNumber(pc.id), bio: bioForPrompt(bioFrom(pc.sheet, pc.public_profile)) }, letter, thread, round: roundNo, memory, keeps: keepsBlock(npc.slug as string, episodeOf(roundNo), npcDivision, given), keptTitles: keptTitles(npc.slug as string, episodeOf(roundNo), npcDivision), alreadyGiven: given, onLedger: ledger(db) });
       const { data: row, error } = await db.from("correspondence").insert({
         campaign_id: c.campaign_id, thread_id: c.thread_id, round_id: c.round_id, direction: "outbound", message_id: newMessageId(), in_reply_to: c.message_id,
         from_character: npcId, to_characters: [c.from_character], to_addresses: [email], subject: reply.subject, body_text: reply.body,
@@ -679,7 +681,7 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
       await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
       replied = true;
       // A file the keeper chose to hand over goes into the writer's Case File with the letter (handover.ts).
-      if (reply.gives) await giveDocument(db, { campaignId: c.campaign_id, roundId: c.round_id, roundNo, replyId: row.id as string, npc: { id: npcId, slug: npc.slug as string, name: npc.name as string }, player: { id: pc.id as string, name: pc.name as string }, title: reply.gives });
+      if (reply.gives) await giveDocument(db, { campaignId: c.campaign_id, roundId: c.round_id, roundNo, replyId: row.id as string, npc: { id: npcId, slug: npc.slug as string, name: npc.name as string, division: npcDivision }, player: { id: pc.id as string, slug: pc.slug as string, name: pc.name as string }, title: reply.gives });
       // A recorded conversation: what they put in writing is also a transcript in the player's Case File (equipment.ts).
       if ((cRaw?.raw as { recorded?: boolean } | null)?.recorded) await db.from("case_items").upsert({ campaign_id: c.campaign_id, character_id: pc.id, slug: `transcript-${npc.slug}-r${roundNo}`, kind: "testimony", drawer: "documents", title: `Transcript: ${npc.name}, ${gameDate(roundNo)}`, from_label: npc.name, written_label: gameDate(roundNo), body: `*Cassette, transcribed by ${pc.name}. The machine was on the desk; ${npc.name} knew it was there.*\n\n${reply.body}`, round_received: roundNo, how_obtained: `Recorded in person by ${pc.name}.`, copy_note: "The tape is yours.", grade: "evidence", status: "held" }, { onConflict: "character_id,slug" });
       // Memory: the character remembers what they said and asked; the player's character now knows what they were told.

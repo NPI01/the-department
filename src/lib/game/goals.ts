@@ -26,6 +26,16 @@ export async function assignGoal(db: SupabaseClient, p: { campaignId: string; ch
    goals; nobody takes a third open goal. The supervisor writes to say so, and
    the letter threads so the reply reaches them. Idempotent per goal. A cohort of
    six drew six of Episode 1's nine in sim-ep1-pulls and nobody worked the vote. */
+/* Who a goal should go to first, by what they already know: the stairs to the people who have stood at them. Checked before the department the pool names. */
+export const GOAL_PREFERS: Record<string, string[]> = {
+  "ep4-5": ["visited.tagus-church", "visited.tagus-cemetery", "visited.tagus-cellar"],
+  "ep5-1": ["descended.tagus", "visited.tagus-cellar", "visited.tagus-shaft"],
+  "ep5-2": ["descended.tagus", "visited.tagus-cellar", "visited.tagus-shaft"],
+  "ep5-3": ["descended.tagus", "visited.tagus-cellar", "visited.tagus-shaft"],
+  "ep5-5": ["descended.tagus", "visited.tagus-cellar", "visited.tagus-shaft", "brandvold.alive"],
+  "ep5-6": ["member.vigil", "descended.tagus", "visited.tagus-cellar"],
+};
+
 export async function dealUnheldGoals(db: SupabaseClient, campaignId: string, round: { id: string; number: number; episode: number; episodeRound: number }): Promise<{ dealt: number }> {
   if (round.episodeRound > 2) return { dealt: 0 };
   const pool = Object.keys(GOALS).filter((k) => k.startsWith(`ep${round.episode}-`));
@@ -37,11 +47,17 @@ export async function dealUnheldGoals(db: SupabaseClient, campaignId: string, ro
   const taken = new Set((held ?? []).filter((g) => g.status !== "withdrawn").map((g) => g.goal_key as string));
   const { data: open } = await db.from("character_goals").select("character_id").eq("campaign_id", campaignId).eq("status", "open");
   const openCount = new Map<string, number>(); for (const g of open ?? []) openCount.set(g.character_id as string, (openCount.get(g.character_id as string) ?? 0) + 1);
+  // What the players already know, for the goals that prefer it (the stairs to those who have stood at them).
+  const prefKeys = [...new Set(pool.flatMap((k) => GOAL_PREFERS[k] ?? []))];
+  const { data: kn } = prefKeys.length ? await db.from("knowledge").select("character_id, fact_key").in("character_id", players.map((p) => p.id)).in("fact_key", prefKeys) : { data: [] };
+  const knows = new Map<string, Set<string>>(); for (const k of kn ?? []) { const s = knows.get(k.character_id as string) ?? new Set(); s.add(k.fact_key as string); knows.set(k.character_id as string, s); }
   let dealt = 0;
   for (const key of pool.filter((k) => !taken.has(k)).sort()) {
     const wanted = Object.entries(DEPARTMENTS).filter(([, d]) => d.goals.includes(key)).map(([slug]) => slug);
+    const prefers = GOAL_PREFERS[key] ?? [];
+    const fit = (p: { id: string }) => prefers.filter((k) => knows.get(p.id)?.has(k)).length;
     const eligible = players.filter((p) => (openCount.get(p.id) ?? 0) < 3);
-    const pick = [...eligible].sort((a, b) => (Number(wanted.includes(b.division ?? "")) - Number(wanted.includes(a.division ?? ""))) || ((openCount.get(a.id) ?? 0) - (openCount.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0];
+    const pick = [...eligible].sort((a, b) => (fit(b) - fit(a)) || (Number(wanted.includes(b.division ?? "")) - Number(wanted.includes(a.division ?? ""))) || ((openCount.get(a.id) ?? 0) - (openCount.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0];
     if (!pick) break;
     await assignGoal(db, { campaignId, characterId: pick.id, goalKey: key, round: round.number });
     openCount.set(pick.id, (openCount.get(pick.id) ?? 0) + 1); dealt++;

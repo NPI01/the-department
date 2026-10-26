@@ -75,12 +75,12 @@ export async function logLines(db: SupabaseClient, campaignId: string, key: stri
 }
 
 /* Sign something out. The order's rules (who may, what it costs) are checked by the caller. */
-export async function requisition(db: SupabaseClient, p: { campaignId: string; characterId: string; characterSlug: string; characterName: string; round: number }, def: EquipmentDef): Promise<{ ok: true; returns: number | null } | { ok: false; error: string }> {
+export async function requisition(db: SupabaseClient, p: { campaignId: string; characterId: string; characterSlug: string; characterName: string; round: number; how?: string }, def: EquipmentDef): Promise<{ ok: true; returns: number | null } | { ok: false; error: string }> {
   const { data: have } = await db.from("assets").select("id").eq("holder_id", p.characterId).eq("kind", "equipment").eq("status", "held").contains("provenance", { item: def.slug }).maybeSingle();
   if (have) return { ok: false, error: `${p.characterName} already holds a ${def.name.toLowerCase()}.` };
   const returns = def.loan ? p.round + def.loan : null;
   const slug = `${def.slug}-${p.characterSlug}-r${p.round}`;
-  const { error } = await db.from("assets").insert({ campaign_id: p.campaignId, holder_id: p.characterId, kind: "equipment", slug, name: def.name, description: def.blurb, provenance: { item: def.slug, round: p.round, returns, how: "Requisitioned through Procurement." }, tier: null, secret: false, status: "held", status_round: p.round });
+  const { error } = await db.from("assets").insert({ campaign_id: p.campaignId, holder_id: p.characterId, kind: "equipment", slug, name: def.name, description: def.blurb, provenance: { item: def.slug, round: p.round, returns, how: p.how ?? "Requisitioned through Procurement." }, tier: null, secret: false, status: "held", status_round: p.round });
   if (error) return { ok: false, error: error.message };
   await writeLog(db, p.campaignId, def.log.key, p.round, p.characterId, def.log.line(p.characterName, p.round));
   return { ok: true, returns };

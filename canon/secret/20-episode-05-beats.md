@@ -49,8 +49,10 @@ Kovic for it.
 - The encounter pool beyond Marsh (Greeley, Wren) is narration only; nothing carries forward
   from meeting them but the knowledge row.
 - The seventh threshold is not reachable; it is Episode 10's.
-- The magnetometer is Applied Physics' to sign for; a colleague elsewhere must ask Kovic by
-  letter, and the handover (GIVES) is for files, not equipment. Kovic's reply can say yes, but
-  the clerk will not hand over the instrument on it. Small engine gap.
+- The magnetometer is Applied Physics' to sign for; a colleague elsewhere asks Kovic by letter,
+  and since 2026-10-26 the handover (GIVES) covers equipment a department signs for, so his yes
+  puts the instrument in the writer's hands. Episode 5's goals are also dealt first to whoever
+  has stood at the cellar or the plate (GOAL_PREFERS, goals.ts), after a run in which the
+  descents and the descent goals were held by different people.
 
 CHANGELOG: v1 compiles Episode 05's engine plan into a round-by-round beat sheet with sources and open gaps.
