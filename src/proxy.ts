@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { cookieOptions } from "@/lib/supabase/cookie-options";
 
 /* Keeps the Supabase session cookie fresh on console routes and turns a
    signed-out visit to /admin into a trip to the login page. This is the
@@ -20,6 +21,7 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const sb = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookieOptions: cookieOptions(),
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (list) => {
