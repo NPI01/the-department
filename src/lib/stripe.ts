@@ -54,7 +54,8 @@ export async function recordSubscription(db: SupabaseClient, sub: Stripe.Subscri
 export const SUBSCRIBED = ["active", "trialing", "comp"];
 
 export async function hasSubscription(db: SupabaseClient, playerId: string) {
-  const { data } = await db.from("subscriptions").select("status").eq("player_id", playerId).in("status", SUBSCRIBED).limit(1);
+  // Rows mirrored from the Season Pass (provider 'pass') are display only; the pass itself decides below.
+  const { data } = await db.from("subscriptions").select("status").eq("player_id", playerId).neq("provider", "pass").in("status", SUBSCRIBED).limit(1);
   if (data?.length) return true;
   // A Weird.Delivery Season Pass counts too.
   const { data: player } = await db.from("players").select("user_id").eq("id", playerId).maybeSingle();
