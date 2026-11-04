@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const s = event.data.object;
     if (s.mode !== "subscription" || !s.subscription) return Response.json({ ignored: "not a subscription" });
+    // Season Pass checkouts share this Stripe account; the platform's own webhook handles them.
+    if (s.metadata?.user_id || s.metadata?.product_key) return Response.json({ ignored: "season pass checkout" });
     const sub = await stripe().subscriptions.retrieve(typeof s.subscription === "string" ? s.subscription : s.subscription.id);
     const email = s.customer_details?.email ?? s.customer_email ?? null;
     const player = await recordSubscription(db, sub, email);
@@ -40,6 +42,7 @@ export async function POST(req: Request) {
 
   if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted" || event.type === "customer.subscription.created") {
     const sub = event.data.object;
+    if (sub.metadata?.user_id || sub.metadata?.product_key) return Response.json({ ignored: "season pass subscription" });
     try { await recordSubscription(db, sub, null); } catch (e) { return Response.json({ ok: false, error: (e as Error).message }); }
     return Response.json({ ok: true });
   }
