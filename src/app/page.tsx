@@ -5,6 +5,7 @@ import { Reveal } from "./_landing/Reveal";
 import { Typewriter } from "./_landing/Typewriter";
 import { Parallax } from "./_landing/Parallax";
 import { RoundsDemo } from "./_landing/RoundsDemo";
+import { PASS_URL } from "@/lib/pass";
 
 const IRREGULARITIES = [
   "A requisition for a specimen that cannot be located.",
@@ -260,6 +261,10 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+
+      <div className="border-t-2 border-ink bg-paper px-5 py-3 text-center text-[11px] tracking-[0.25em] uppercase text-ink-2">
+        <a href={`${PASS_URL}/?game=the-department`} className="hover:text-red">Part of Weird.Delivery. One account plays every game. Season Pass from $5.75 a month.</a>
+      </div>
 
       <footer className="border-t-2 border-ink bg-paper px-5 py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 text-[11px] tracking-[0.25em] uppercase text-ink-2">

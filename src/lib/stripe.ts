@@ -55,5 +55,10 @@ export const SUBSCRIBED = ["active", "trialing", "comp"];
 
 export async function hasSubscription(db: SupabaseClient, playerId: string) {
   const { data } = await db.from("subscriptions").select("status").eq("player_id", playerId).in("status", SUBSCRIBED).limit(1);
-  return Boolean(data?.length);
+  if (data?.length) return true;
+  // A Weird.Delivery Season Pass counts too.
+  const { data: player } = await db.from("players").select("user_id").eq("id", playerId).maybeSingle();
+  if (!player?.user_id) return false;
+  const { data: entitled } = await db.schema("pass").rpc("entitled_user", { uid: player.user_id, game: "the-department" });
+  return entitled === true;
 }

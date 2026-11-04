@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { stripeConfigured } from "@/lib/stripe";
+import { PASS_URL } from "@/lib/pass";
 import { PublicShell } from "../_public-shell";
 
 export const metadata: Metadata = { title: "Apply · The Department", description: "Subscribe for $2.99 a month and complete your Employment Application." };
@@ -13,6 +14,10 @@ export default function SubscribePage({ searchParams }: PageProps<"/subscribe">)
       <div className="type space-y-4 text-[16px] leading-relaxed">
         <p>The Department is a play-by-mail game. A subscription is $2.99 a month and covers one character for as long as you keep it. Cancel at any time; your character is placed on leave and your file is kept.</p>
         <p>After payment you complete the Employment Application: who you are, what you know, and a short interview. Personnel reviews applications within 24 hours. Approved employees receive their file, their department and their supervisor by mail, and their first instructions later the same day.</p>
+      </div>
+      <div className="mt-8 max-w-md border-2 border-ink p-4 text-sm">
+        <p className="type">One account, every Weird.Delivery game.</p>
+        <a href={`${PASS_URL}/join?game=the-department`} className="mt-3 inline-block border-2 border-ink px-4 py-2 text-[11px] uppercase tracking-[0.25em] hover:border-red hover:text-red">Season Pass, every game, $69 a year</a>
       </div>
       <Suspense><Notice searchParams={searchParams} /></Suspense>
       {open ? (
