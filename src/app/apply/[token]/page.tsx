@@ -10,6 +10,7 @@ import { hasSubscription } from "@/lib/stripe";
 import { DEPARTMENTS, IDENTITIES, KNOWLEDGE, SKILLS, SPECIALIZATIONS } from "@/lib/game/creation";
 import { fmtDateTime } from "@/lib/admin/format";
 import { PublicShell } from "../../_public-shell";
+import { PASS_URL } from "@/lib/pass";
 import { ApplicationForm } from "./form";
 
 export const metadata: Metadata = { title: "Employment Application · Royce Industries", robots: { index: false, follow: false } };
@@ -68,6 +69,7 @@ async function Content({ params }: { params: PageProps<"/apply/[token]">["params
           <dt className="text-xs uppercase tracking-[0.2em] text-ink-2">Knowledge</dt><dd>{names(app.knowledge, KNOWLEDGE)}</dd>
           <dt className="text-xs uppercase tracking-[0.2em] text-ink-2">Points</dt><dd>{app.points_spent} of {app.points_total}</dd>
         </dl>
+        <p className="mt-8 border-t-2 border-ink pt-4 text-sm">Your Season Pass and your other games, Tell No One among them, are in your <a href={PASS_URL} className="underline hover:text-red">Weird.Delivery library</a>. The same sign-in works for all of them.</p>
       </PublicShell>
     );
   }

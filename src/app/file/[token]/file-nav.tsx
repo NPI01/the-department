@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PASS_URL } from "@/lib/pass";
 
 /* The tabs across the top of every page in a player's file, drawn as the
    tabs on a row of manila folders. The token is the only key, as everywhere
@@ -25,6 +26,7 @@ export function FileNav({ token, active }: { token: string; active?: FileTab }) 
         <span className="flex gap-4">
           <Link href="/rules" className="hover:text-red">Rulebook</Link>
           <Link href="/guide" className="hover:text-red">Field guide</Link>
+          <a href={PASS_URL} className="hover:text-red">Your games</a>
         </span>
       </div>
       <div className="flex gap-1 overflow-x-auto border-b-2 border-ink">
