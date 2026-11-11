@@ -15,7 +15,7 @@ import { gameMailbox, sendMail } from "@/lib/email/resend";
 import { gameDate, letterLinks, renderLetter, splitSections, type LetterKind } from "@/lib/email/letter";
 import { badgeNumber, bioForPrompt, bioFrom, particulars } from "@/lib/game/personnel";
 import { renderTemplate } from "@/lib/email/template-store";
-import { approveApplication, firstMemo } from "./onboarding";
+import { approveApplication, firstMemo, preStartReceipt } from "./onboarding";
 import { fetchReceived, orderContinuation, parseGrammar, parseSalutation, replyMode, stripQuoted, surnameKey, type GrammarAct } from "@/lib/email/inbound";
 import { describePrice, priceFreeform } from "@/lib/engine/pricing";
 import { generateStaffReply, loadDossier, type CastSheet, type Memory } from "@/lib/engine/npc";
@@ -235,7 +235,13 @@ const HANDLERS: Record<string, (db: SupabaseClient, p: Record<string, unknown>) 
     // forms still work (the clerk never sleeps); orders wait for the morning.
     const { data: latest } = openRound ? { data: null } : await db.from("rounds").select("id, number, locks_at").eq("campaign_id", c.campaign_id).order("number", { ascending: false }).limit(1).maybeSingle();
     const round = openRound ?? latest;
-    if (!round) return;
+    if (!round) {
+      // A cohort that has not started (approved early, Round 1 still ahead): no orders yet, but
+      // never silence. One Personnel receipt per player per day saying when work begins. Plain
+      // letters to staff are answered by staff as usual, so only orders/commands get the receipt.
+      if (acts.length) await preStartReceipt(db, c.campaign_id as string, c.from_character as string);
+      return;
+    }
     const afterLock = !openRound;
     const key = `grammar:${id}`;
     const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assignGoal } from "@/lib/game/goals";
 import { ALL_GOAL_KEYS, DEPARTMENTS, GOALS, KNOWLEDGE, SKILLS, SPECIALIZATIONS, identity } from "@/lib/game/creation";
 import { gameDate, letterLinks } from "@/lib/email/letter";
-import { emailDomain, gameMailbox, sendMail } from "@/lib/email/resend";
+import { emailDomain, gameMailbox, newMessageId, sendMail } from "@/lib/email/resend";
 import { loadTemplate, renderTemplate } from "@/lib/email/template-store";
 import { buildLetter } from "@/lib/email/templates";
 
@@ -123,11 +123,14 @@ export async function approveApplication(db: SupabaseClient, applicationId: stri
     await db.from("events").insert({ campaign_id: cid, kind: "player.approved", payload: { application_id: app.id, character_id: characterId, department: slug, position, goal: goalKey }, idempotency_key: key, visible_to: [characterId] });
   }
 
-  // The first memo, later today.
+  // The first memo, later today; for a cohort that has not started, on its first morning
+  // ("you start with us today" and the deadline only make sense once Round 1 is open).
   const memoKey = `first_memo:${app.id}`;
   const { data: memoDup } = await db.from("jobs").select("id").eq("kind", "first_memo").contains("payload", { application_id: app.id }).maybeSingle();
   if (!memoDup) {
-    const at = outsideQuietHours(new Date(Date.now() + MEMO_DELAY_MS), app.timezone ?? player.timezone ?? "America/New_York");
+    const { data: camp } = await db.from("campaigns").select("status, scheduled_start").eq("id", cid).single();
+    const startsAt = camp?.status === "recruiting" && camp.scheduled_start ? new Date(camp.scheduled_start as string).getTime() + 5 * 60_000 : 0;
+    const at = outsideQuietHours(new Date(Math.max(Date.now() + MEMO_DELAY_MS, startsAt)), app.timezone ?? player.timezone ?? "America/New_York");
     await db.from("jobs").insert({ kind: "first_memo", payload: { application_id: app.id, key: memoKey }, run_after: at.toISOString() });
   }
 }
@@ -164,4 +167,32 @@ export async function firstMemo(db: SupabaseClient, applicationId: string) {
   if (error) { if (error.code === "23505") return; throw new Error(`memo: ${error.message}`); }
   await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
   await db.from("events").insert({ campaign_id: app.campaign_id, kind: "memo.first_sent", payload: { character_id: ch.id, goal: ch.goal_key }, idempotency_key: key, visible_to: [ch.id] });
+}
+
+/* A letter from someone whose cohort has not opened Round 1 yet. Orders cannot be taken, but the
+   writer hears back: one Personnel receipt per player per (UTC) day, with the first working day.
+   copy: draft for Nathan's review (2026-11-11). */
+export async function preStartReceipt(db: SupabaseClient, campaignId: string, characterId: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `prestart:${characterId}:${day}`;
+  const { data: dup } = await db.from("events").select("id").eq("idempotency_key", key).maybeSingle();
+  if (dup) return;
+  const [{ data: camp }, { data: ch }] = await Promise.all([
+    db.from("campaigns").select("scheduled_start, timezone").eq("id", campaignId).single(),
+    db.from("characters").select("id, name, players(email, timezone)").eq("id", characterId).single(),
+  ]);
+  const player = (Array.isArray(ch?.players) ? ch?.players[0] : ch?.players) as { email: string; timezone: string | null } | null | undefined;
+  if (!ch || !player?.email) return;
+  const tz = player.timezone ?? (camp?.timezone as string | undefined) ?? "America/New_York";
+  const when = camp?.scheduled_start
+    ? new Date(camp.scheduled_start as string).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz })
+    : "the first morning of your intake";
+  const body = `${ch.name},\n\nPersonnel has your letter. Your intake reports for its first working day on ${when}; the morning mail, your supervisor's first instructions and the order desk all open then. Orders sent before that morning are not carried forward, so keep them and send them once work begins.\n\nUntil then your personnel file and the Personnel Directory are open to you.\n\n— Personnel & Administration`;
+  const { data: row } = await db.from("correspondence").insert({
+    campaign_id: campaignId, round_id: null, direction: "outbound", message_id: newMessageId(), from_character: null, to_characters: [ch.id], to_addresses: [player.email],
+    subject: "Received: before your first working day", body_text: body,
+    raw: { letter_kind: "notice", classification: "Personal & Confidential", office: { office: "Personnel & Administration", department: "Royce Industries" } },
+  }).select("id").single();
+  if (row) await db.from("jobs").insert({ kind: "send", payload: { correspondence_id: row.id } });
+  await db.from("events").insert({ campaign_id: campaignId, kind: "prestart.receipt", payload: { character: ch.id }, idempotency_key: key, visible_to: [ch.id] });
 }
