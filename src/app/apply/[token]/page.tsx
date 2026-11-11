@@ -65,6 +65,15 @@ async function Content({ params }: { params: PageProps<"/apply/[token]">["params
     );
   }
 
+  // No cohort taking applications: say so now rather than after the whole form (the action refuses it anyway).
+  if (!campaign) {
+    return (
+      <PublicShell kicker="Royce Industries · Personnel & Administration" title="Employment Application">
+        <p className="type text-[16px]">Personnel is not taking applications at the moment. Your place is held: when the next intake opens, this link will take you to Form RI-2.</p>
+      </PublicShell>
+    );
+  }
+
   return (
     <PublicShell kicker="Royce Industries · Personnel & Administration" title="Employment Application" banner="Form RI-2. Complete every section. Personnel reviews applications within 24 hours.">
       <ApplicationForm token={token} departments={(divisions ?? []) as { slug: string; name: string }[]} email={player.email} />
