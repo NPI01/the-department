@@ -3,6 +3,7 @@ import { z } from "zod";
 import { refresh } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { recruitingCampaign } from "@/lib/game/cohorts";
+import { ensureSeats, holdPlace, leaveWaitlist } from "@/lib/game/autoscale";
 import { hasSubscription } from "@/lib/stripe";
 import { DEJA_VU, DEPARTMENTS, IDENTITIES, KNOWLEDGE, SKILLS, SPECIALIZATIONS, priceOut } from "@/lib/game/creation";
 
@@ -50,9 +51,14 @@ export async function submitApplication(_: ApplyState, fd: FormData): Promise<Ap
   const price = priceOut(f.identity, skills, knowledge);
   if (!price.ok) return { error: price.problems[0] };
   const tz = validTz(f.timezone) ? f.timezone : "America/New_York";
-  const cohort = await recruitingCampaign(db);
+  let cohort = await recruitingCampaign(db);
+  // The last seat may have gone while this form was open: try to open a new cohort before refusing.
+  if (!cohort && (await ensureSeats(db)).action === "opened") cohort = await recruitingCampaign(db);
   const campaign = cohort?.id;
-  if (!campaign) return { error: "No cohort is taking applications at the moment. Personnel will write when the next one opens." };
+  if (!campaign) {
+    await holdPlace(db, player.id);
+    return { error: "Every intake is full at the moment. Personnel has held your place and will write when the next one opens." };
+  }
 
   const { data: app, error } = await db.from("applications").insert({
     player_id: player.id, campaign_id: campaign, name: f.name, bio: f.bio || null, identity: f.identity, specialization: f.specialization, dept_prefs: prefs,
@@ -63,6 +69,7 @@ export async function submitApplication(_: ApplyState, fd: FormData): Promise<Ap
   }).select("id").single();
   if (error) return { error: error.code === "23505" ? "You have already applied for this season." : error.message };
 
+  await leaveWaitlist(db, player.id);
   await db.from("players").update({ display_name: f.name, timezone: tz, consent_ai_processing_at: new Date().toISOString() }).eq("id", player.id);
   await db.from("jobs").insert({ kind: "approve_application", payload: { application_id: app.id }, run_after: new Date(Date.now() + APPROVAL_DELAY_MS).toISOString() });
   refresh();

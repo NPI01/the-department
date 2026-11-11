@@ -23,16 +23,30 @@ async function withSeats(db: SupabaseClient, rows: Record<string, unknown>[]): P
 
 /* The cohort a new applicant joins, or null if nothing is open. */
 export async function recruitingCampaign(db: SupabaseClient): Promise<Cohort | null> {
-  const { data: rec } = await db.from("campaigns").select("*").eq("status", "recruiting").order("scheduled_start", { ascending: true, nullsFirst: false });
-  for (const c of await withSeats(db, rec ?? [])) if (c.seats_taken < c.cohort_size) return c;
+  return (await openCohorts(db, { first: true }))[0] ?? null;
+}
+
+/* Every cohort an applicant could join right now, in the order they are filled: recruiting
+   cohorts by start date, then active cohorts still inside their late-join window. */
+export async function openCohorts(db: SupabaseClient, opts: { first?: boolean } = {}): Promise<Cohort[]> {
+  const out: Cohort[] = [];
+  const { data: rec } = await db.from("campaigns").select("*").eq("status", "recruiting").order("scheduled_start", { ascending: true, nullsFirst: false }).order("created_at");
+  for (const c of await withSeats(db, rec ?? [])) if (c.seats_taken < c.cohort_size) { out.push(c); if (opts.first) return out; }
   // Late joiners: an active cohort in the first days of its current episode, with a seat free.
   const { data: act } = await db.from("campaigns").select("*").eq("status", "active");
   for (const c of await withSeats(db, act ?? [])) {
     if (c.seats_taken >= c.cohort_size) continue;
     const { data: round } = await db.from("rounds").select("episode_round").eq("campaign_id", c.id).in("status", ["open", "locked", "resolving", "resolved"]).order("number", { ascending: false }).limit(1).maybeSingle();
-    if (!round || Number(round.episode_round ?? 1) <= c.late_join_days) return c;
+    if (!round || Number(round.episode_round ?? 1) <= c.late_join_days) { out.push(c); if (opts.first) return out; }
   }
-  return null;
+  return out;
+}
+
+/* Players a live cohort is carrying: seated characters plus waiting applications, across every
+   recruiting or active cohort (simulations excluded). What the player cap is measured against. */
+export async function livePlayers(db: SupabaseClient): Promise<number> {
+  const { data: live } = await db.from("campaigns").select("*").in("status", ["recruiting", "active"]).not("slug", "like", "sim-%");
+  return (await withSeats(db, live ?? [])).reduce((n, c) => n + c.seats_taken, 0);
 }
 
 /* The campaign a player belongs to: their character's, else their application's. */

@@ -5,6 +5,7 @@ import { openNextRound, queueMorningDispatches } from "@/lib/engine/rounds";
 import { deliverScheduledMail } from "@/lib/engine/scripted";
 import { deliverBallotNotices } from "@/lib/engine/ballots";
 import { startDueCohorts } from "@/lib/game/cohorts";
+import { ensureSeats, notifyWaitlist } from "@/lib/game/autoscale";
 import { issueInvitations } from "@/lib/engine/societies";
 import { publishBulletin } from "@/lib/engine/bulletin";
 import { publishNewsletter } from "@/lib/engine/newsletter";
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
   const result = await heartbeat(db, "dispatch", async () => {
     // Cohorts whose start has come go active and open Round 1; then every campaign with a round on the books.
     const started = await startDueCohorts(db);
+    // Backstop for self-opening cohorts: open one if demand and the cap allow, then write to the waitlist (if switched on).
+    const autoscale = await ensureSeats(db).catch((e) => ({ action: "error", reason: (e as Error).message }));
+    const waitlist = await notifyWaitlist(db).catch((e) => ({ sent: 0, errors: [(e as Error).message] }));
     // Active cohorts only: a finished or simulated cohort is left alone.
     const { data: active } = await db.from("campaigns").select("id").eq("status", "active");
     const { data: rounds } = await db.from("rounds").select("campaign_id").in("campaign_id", (active ?? []).map((c) => c.id as string));
@@ -39,7 +43,7 @@ export async function GET(req: NextRequest) {
       const queued = await queueMorningDispatches(db, cid, round.id);
       out.push({ campaign: cid, round: round.number, opened, scripted: mail.delivered, ballots: notices.sent, invited, paper: paper.published, newsletter: letter.published, queued });
     }
-    return { ok: true, started, campaigns: out };
+    return { ok: true, started, autoscale, waitlist, campaigns: out };
   });
   return Response.json(result, { status: result.ok ? 200 : 500 });
 }
