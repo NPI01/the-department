@@ -51,7 +51,10 @@ export default function Home() {
           <a href="#season" className="hover:text-red">Season one</a>
           <a href="/about" className="hover:text-red">About</a>
         </nav>
-        <a href="/subscribe" className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Apply</a>
+        <div className="flex items-center gap-2">
+          <a href="/subscribe" className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Apply</a>
+          <a href={`${PASS_URL}/sign-in`} className="border border-current px-3 py-1 text-[11px] tracking-[0.25em] uppercase hover:border-red hover:text-red">Sign in</a>
+        </div>
       </header>
 
       {/* ---------- hero ---------- */}
